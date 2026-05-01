@@ -42,9 +42,10 @@ export const Input = React.memo(function Input({
           <span
             style={{
               position: "absolute",
-              left: "0.875rem",
+              left: "1rem",
               color: "var(--color-text-muted)",
-              fontSize: "0.875rem",
+              fontSize: "0.9375rem",
+              fontWeight: 600,
               pointerEvents: "none",
             }}
           >
@@ -55,8 +56,18 @@ export const Input = React.memo(function Input({
           id={inputId}
           className={cn("input", error && "input-error", className)}
           style={{
-            paddingLeft: prefix ? "3.25rem" : undefined,
-            paddingRight: suffix ? "3rem" : undefined,
+            paddingLeft:
+              props.style?.textAlign === "center" && prefix
+                ? "3.5rem"
+                : prefix
+                  ? "3.5rem"
+                  : undefined,
+            paddingRight:
+              props.style?.textAlign === "center" && prefix
+                ? "3.5rem"
+                : suffix
+                  ? "3rem"
+                  : undefined,
             ...props.style,
           }}
           {...props}

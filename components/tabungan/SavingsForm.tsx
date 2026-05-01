@@ -4,19 +4,28 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { savingsSchema, SavingsSchema } from "@/lib/validations";
-import { addSavings } from "@/app/actions/savings";
+import { addSavings, updateSavings } from "@/app/actions/savings";
 import { useAppStore } from "@/store/useAppStore";
 import { SAVINGS_ICONS, SAVINGS_COLORS } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { SavingsGoal } from "@/types";
 
 interface SavingsFormProps {
+  initialData?: SavingsGoal;
+  rowIndex?: number;
   onSuccess?: () => void;
 }
 
-export function SavingsForm({ onSuccess }: SavingsFormProps) {
+export function SavingsForm({
+  initialData,
+  rowIndex,
+  onSuccess,
+}: SavingsFormProps) {
   const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
+  const isEdit = !!initialData && rowIndex !== undefined;
 
   const {
     register,
@@ -26,13 +35,14 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
     formState: { errors },
   } = useForm<SavingsSchema>({
     resolver: zodResolver(savingsSchema),
-    defaultValues: {
+    defaultValues: initialData || {
       ikon: SAVINGS_ICONS[0],
       warna: SAVINGS_COLORS[0],
       prioritas: "sedang",
       status: "aktif",
       jumlah_terkumpul: 0,
       deskripsi: "",
+      target_tanggal: new Date().toISOString().split("T")[0],
     },
   });
 
@@ -41,14 +51,23 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
 
   const onSubmit = async (data: SavingsSchema) => {
     setIsLoading(true);
-    const result = await addSavings(
-      data,
-      settings.google_sheet_id,
-      settings.sheet_tabs.tabungan,
-    );
+    const result = isEdit
+      ? await updateSavings(
+          initialData.id,
+          rowIndex,
+          data,
+          settings.google_sheet_id,
+          settings.sheet_tabs.tabungan,
+        )
+      : await addSavings(
+          data,
+          settings.google_sheet_id,
+          settings.sheet_tabs.tabungan,
+        );
+
     setIsLoading(false);
     if (result.success) {
-      toast.success("Target tabungan berhasil dibuat!");
+      toast.success(isEdit ? "Target diperbarui!" : "Target tabungan dibuat!");
       onSuccess?.();
     } else {
       toast.error(result.error || "Gagal menyimpan target");
@@ -59,8 +78,58 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+      className="savings-form"
+      style={{ display: "flex", flexDirection: "column" }}
     >
+      <style jsx>{`
+        .savings-form {
+          gap: 1.5rem;
+        }
+        .selection-grid {
+          display: flex;
+          gap: 0.625rem;
+          flex-wrap: wrap;
+        }
+        .icon-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: var(--radius-lg);
+          background: transparent;
+          border: 2px solid var(--color-border);
+          font-size: 1.25rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all var(--transition);
+        }
+        .icon-btn.selected {
+          border-color: var(--color-primary);
+          background: var(--color-surface-offset);
+          transform: scale(1.05);
+        }
+        .color-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 2px solid transparent;
+          cursor: pointer;
+          transition: all var(--transition);
+          position: relative;
+        }
+        .color-btn.selected {
+          transform: scale(1.2);
+          box-shadow:
+            0 0 0 2px var(--color-surface),
+            0 0 0 4px currentColor;
+        }
+        @media (max-width: 640px) {
+          .savings-form {
+            gap: 1.125rem;
+          }
+        }
+      `}</style>
+
       <div className="form-group">
         <label className="form-label">Nama Tujuan *</label>
         <input
@@ -88,7 +157,11 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
                 value={value}
                 onChange={onChange}
                 error={errors.target_jumlah?.message}
-                style={{ fontFamily: "var(--font-mono)" }}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
               />
             )}
           />
@@ -104,7 +177,11 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
                 value={value}
                 onChange={onChange}
                 error={errors.jumlah_terkumpul?.message}
-                style={{ fontFamily: "var(--font-mono)" }}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
               />
             )}
           />
@@ -114,17 +191,19 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
       <div
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
       >
-        <div className="form-group">
-          <label className="form-label">Target Selesai *</label>
-          <input
-            type="date"
-            className={`input ${errors.target_tanggal ? "input-error" : ""}`}
-            {...register("target_tanggal")}
-          />
-          {errors.target_tanggal && (
-            <span className="form-error">{errors.target_tanggal.message}</span>
+        <Controller
+          control={control}
+          name="target_tanggal"
+          render={({ field: { onChange, value } }) => (
+            <DatePicker
+              label="Target Selesai"
+              required
+              value={value}
+              onChange={onChange}
+              error={errors.target_tanggal?.message}
+            />
           )}
-        </div>
+        />
 
         <div className="form-group">
           <label className="form-label">Prioritas</label>
@@ -138,31 +217,13 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
 
       <div className="form-group">
         <label className="form-label">Pilih Ikon</label>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="selection-grid">
           {SAVINGS_ICONS.map((icon) => (
             <button
               key={icon}
               type="button"
               onClick={() => setValue("ikon", icon)}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: "var(--radius-md)",
-                background:
-                  selectedIcon === icon
-                    ? "var(--color-surface-offset)"
-                    : "transparent",
-                border:
-                  selectedIcon === icon
-                    ? "2px solid var(--color-primary)"
-                    : "1px solid var(--color-border)",
-                fontSize: "1.25rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all var(--transition)",
-              }}
+              className={`icon-btn ${selectedIcon === icon ? "selected" : ""}`}
             >
               {icon}
             </button>
@@ -172,33 +233,33 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
 
       <div className="form-group">
         <label className="form-label">Pilih Warna</label>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <div
+          className="selection-grid"
+          style={{ gap: "1rem", padding: "0.25rem" }}
+        >
           {SAVINGS_COLORS.map((color) => (
             <button
               key={color}
               type="button"
               onClick={() => setValue("warna", color)}
+              className={`color-btn ${selectedColor === color ? "selected" : ""}`}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: color,
-                border: "none",
-                cursor: "pointer",
-                transform: selectedColor === color ? "scale(1.15)" : "scale(1)",
-                boxShadow:
-                  selectedColor === color
-                    ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${color}`
-                    : "none",
-                transition: "all var(--transition)",
+                backgroundColor: color,
+                color: color,
               }}
             />
           ))}
         </div>
       </div>
 
-      <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
-        Buat Target Tabungan
+      <Button
+        type="submit"
+        loading={isLoading}
+        size="lg"
+        fullWidth
+        style={{ marginTop: "0.5rem" }}
+      >
+        {isEdit ? "Simpan Perubahan" : "Buat Target Tabungan"}
       </Button>
     </form>
   );

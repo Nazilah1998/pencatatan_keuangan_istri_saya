@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import {
   appendToSheet,
   readSheet,
+  updateRow,
   deleteRow,
   getSheetInternalId,
 } from "@/lib/google-sheets";
@@ -132,4 +133,59 @@ export async function deleteTransaction(
   } catch {
     return { success: false, error: "Gagal menghapus transaksi" };
   }
+}
+
+export async function updateTransaction(
+  transactionId: string,
+  rowIndex: number,
+  formData: TransactionFormData,
+  sheetId?: string,
+  tabName?: string,
+): Promise<ActionResult<Transaction>> {
+  const parsed = transactionSchema.safeParse(formData);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message || "Data tidak valid",
+    };
+  }
+
+  const { sheetId: defaultSheetId, tab: defaultTab } = getConfig();
+  const id = sheetId || defaultSheetId;
+  const tab = tabName || defaultTab;
+
+  if (!id)
+    return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+
+  const transaction: Transaction = {
+    id: transactionId,
+    tanggal: parsed.data.tanggal,
+    jenis: parsed.data.jenis,
+    jumlah: parsed.data.jumlah,
+    kategori: parsed.data.kategori,
+    sub_kategori: parsed.data.sub_kategori || "",
+    dompet: parsed.data.dompet,
+    deskripsi: parsed.data.deskripsi || "",
+    created_at: new Date().toISOString(), // Optional: preserve original created_at if needed, but for simplicity we refresh it
+  };
+
+  const row = [
+    transaction.id,
+    transaction.tanggal,
+    transaction.jenis,
+    String(transaction.jumlah),
+    transaction.kategori,
+    transaction.sub_kategori || "",
+    transaction.dompet,
+    transaction.deskripsi,
+    transaction.created_at,
+  ];
+
+  // rowIndex + 2: +1 for 0-based to 1-based, +1 for header row
+  const result = await updateRow(id, tab, rowIndex + 2, [row]);
+  if (!result.success) return { success: false, error: result.error };
+
+  revalidatePath("/");
+  revalidatePath("/transaksi");
+  return { success: true, data: transaction };
 }

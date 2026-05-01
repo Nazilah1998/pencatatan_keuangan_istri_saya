@@ -103,6 +103,7 @@ export const settingsSchema = z.object({
   format_tanggal: z.enum(["DD/MM/YYYY", "YYYY-MM-DD"]),
   nama_pengguna: z.string(),
   nama_rumah_tangga: z.string().min(1, "Nama rumah tangga harus diisi"),
+  tema_warna: z.string().optional(),
 });
 
 export type TransactionSchema = z.infer<typeof transactionSchema>;

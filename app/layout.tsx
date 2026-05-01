@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { PWAProvider } from "@/components/providers/PWAProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -63,9 +64,10 @@ export default function RootLayout({
       <body>
         <SessionProvider>
           <PWAProvider>
+            <ThemeProvider />
             {children}
             <Toaster
-              position="top-right"
+              position="bottom-center"
               toastOptions={{
                 duration: 4000,
                 style: {

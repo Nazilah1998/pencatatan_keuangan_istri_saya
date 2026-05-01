@@ -152,6 +152,7 @@ export interface AppSettings {
   nama_pengguna: string;
   nama_rumah_tangga: string;
   anggota?: string[];
+  tema_warna?: string;
 }
 
 // -------------------- API Responses --------------------

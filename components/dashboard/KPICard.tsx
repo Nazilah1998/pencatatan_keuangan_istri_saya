@@ -80,6 +80,16 @@ export const KPICard = React.memo(function KPICard({
         gap: "0.75rem",
         position: "relative",
         overflow: "hidden",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        cursor: "default",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-4px)";
+        e.currentTarget.style.boxShadow = "var(--shadow-xl)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "var(--shadow-md)";
       }}
     >
       {/* Decorative background blob */}
@@ -122,8 +132,12 @@ export const KPICard = React.memo(function KPICard({
             style={{
               fontSize: "1.25rem",
               background: colors.bg,
-              padding: "0.375rem",
-              borderRadius: "var(--radius-md)",
+              padding: "0.5rem",
+              borderRadius: "14px",
+              boxShadow: `0 4px 12px ${colors.text}20`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {icon}

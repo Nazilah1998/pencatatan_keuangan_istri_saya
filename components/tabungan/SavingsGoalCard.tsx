@@ -1,18 +1,20 @@
 "use client";
 import React from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Pencil } from "lucide-react";
 import { SavingsGoal } from "@/types";
 import { formatCurrency, calcPercentage, daysUntil } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
+  onEdit: () => void;
   onAddFunds: () => void;
   onDelete: () => void;
 }
 
 export const SavingsGoalCard = React.memo(function SavingsGoalCard({
   goal,
+  onEdit,
   onAddFunds,
   onDelete,
 }: SavingsGoalCardProps) {
@@ -24,90 +26,160 @@ export const SavingsGoalCard = React.memo(function SavingsGoalCard({
     <div
       className="card"
       style={{
-        padding: "1.5rem",
+        padding: "1.25rem",
         display: "flex",
         flexDirection: "column",
-        gap: "1rem",
+        gap: "1.25rem",
+        position: "relative",
+        overflow: "hidden",
+        border: "1px solid var(--color-border)",
+        background: "var(--color-surface)",
       }}
     >
+      {/* Top Section */}
       <div
         style={{
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: "1rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <div
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: `${goal.warna}20`,
+              width: 52,
+              height: 52,
+              borderRadius: "var(--radius-xl)",
+              background: `${goal.warna}15`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "1.5rem",
+              fontSize: "1.75rem",
               flexShrink: 0,
+              border: `1px solid ${goal.warna}30`,
             }}
           >
             {goal.ikon}
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h3
               style={{
-                fontSize: "1rem",
-                fontWeight: 700,
+                fontSize: "1.0625rem",
+                fontWeight: 800,
                 color: "var(--color-text)",
+                marginBottom: "0.25rem",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {goal.nama_tujuan}
             </h3>
             {remainingDays > 0 && !isCompleted ? (
-              <span
+              <div
                 style={{
-                  fontSize: "0.8125rem",
-                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
                 }}
               >
-                Sisa {remainingDays} hari
-              </span>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "var(--color-warning)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--color-text-muted)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Sisa {remainingDays} hari
+                </span>
+              </div>
             ) : isCompleted ? (
-              <span
+              <div
                 style={{
-                  fontSize: "0.8125rem",
-                  color: "var(--color-income)",
-                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
                 }}
               >
-                Tercapai 🎉
-              </span>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "var(--color-income)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--color-income)",
+                    fontWeight: 700,
+                  }}
+                >
+                  Tercapai 🎉
+                </span>
+              </div>
             ) : (
-              <span
-                style={{ fontSize: "0.8125rem", color: "var(--color-expense)" }}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
+                }}
               >
-                Terlewat {Math.abs(remainingDays)} hari
-              </span>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "var(--color-expense)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--color-expense)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Terlewat {Math.abs(remainingDays)} hari
+                </span>
+              </div>
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          style={{
-            color: "var(--color-expense)",
-            minWidth: 32,
-            height: 32,
-            padding: 0,
-          }}
-        >
-          <Trash2 size={16} />
-        </Button>
+
+        <div style={{ display: "flex", gap: "0.25rem" }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onEdit}
+            style={{ color: "var(--color-text-muted)", width: 32, height: 32 }}
+          >
+            <Pencil size={15} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            style={{ color: "var(--color-expense)", width: 32, height: 32 }}
+          >
+            <Trash2 size={15} />
+          </Button>
+        </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {/* Progress & Amounts */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         <div
           style={{
             display: "flex",
@@ -115,43 +187,76 @@ export const SavingsGoalCard = React.memo(function SavingsGoalCard({
             alignItems: "flex-end",
           }}
         >
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontWeight: 700,
-              fontSize: "1.25rem",
-              color: goal.warna,
-            }}
-          >
-            {formatCurrency(goal.jumlah_terkumpul)}
-          </span>
-          <span
-            style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}
-          >
-            Target: {formatCurrency(goal.target_jumlah)}
-          </span>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--color-text-muted)",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                marginBottom: "0.125rem",
+              }}
+            >
+              Terkumpul
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontWeight: 800,
+                fontSize: "1.375rem",
+                color: goal.warna,
+                lineHeight: 1,
+              }}
+            >
+              {formatCurrency(goal.jumlah_terkumpul)}
+            </span>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--color-text-muted)",
+                display: "block",
+                marginBottom: "0.25rem",
+              }}
+            >
+              Target:{" "}
+              <span style={{ fontWeight: 600, color: "var(--color-text)" }}>
+                {formatCurrency(goal.target_jumlah)}
+              </span>
+            </span>
+            <span
+              style={{
+                fontSize: "0.9375rem",
+                fontWeight: 800,
+                color: "var(--color-text)",
+              }}
+            >
+              {pct}%
+            </span>
+          </div>
         </div>
 
-        <div className="progress-bar" style={{ height: 12 }}>
+        <div
+          className="progress-bar"
+          style={{
+            height: 10,
+            background: "var(--color-surface-offset)",
+            borderRadius: 10,
+          }}
+        >
           <div
             className="progress-bar-fill"
             style={{
-              width: `${pct}%`,
-              background: isCompleted ? "var(--color-income)" : goal.warna,
+              width: `${Math.min(pct, 100)}%`,
+              background: isCompleted
+                ? "var(--color-income)"
+                : `linear-gradient(90deg, ${goal.warna}, ${goal.warna}dd)`,
+              borderRadius: 10,
+              boxShadow: `0 0 10px ${goal.warna}30`,
             }}
           />
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <span
-            style={{
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              color: "var(--color-text)",
-            }}
-          >
-            {pct}%
-          </span>
         </div>
       </div>
 
@@ -161,13 +266,14 @@ export const SavingsGoalCard = React.memo(function SavingsGoalCard({
           onClick={onAddFunds}
           style={{
             width: "100%",
-            marginTop: "auto",
             background: `${goal.warna}10`,
             color: goal.warna,
             borderColor: `${goal.warna}30`,
+            fontWeight: 700,
+            fontSize: "0.875rem",
           }}
         >
-          <Plus size={16} style={{ marginRight: "0.25rem" }} /> Tambah Dana
+          <Plus size={16} style={{ marginRight: "0.375rem" }} /> Tambah Dana
         </Button>
       )}
     </div>

@@ -4,7 +4,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { transactionSchema } from "@/lib/validations";
-import { addTransaction } from "@/app/actions/transactions";
+import { addTransaction, updateTransaction } from "@/app/actions/transactions";
 import { useAppStore } from "@/store/useAppStore";
 import {
   PEMASUKAN_CATEGORIES,
@@ -17,17 +17,24 @@ import {
 } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
-import { TransactionFormData } from "@/types";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { TransactionFormData, Transaction } from "@/types";
 
 interface TransactionFormProps {
   onSuccess?: () => void;
+  initialData?: Transaction;
+  rowIndex?: number;
 }
 
-export function TransactionForm({ onSuccess }: TransactionFormProps) {
+export function TransactionForm({
+  onSuccess,
+  initialData,
+  rowIndex,
+}: TransactionFormProps) {
   const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const [jenis, setJenis] = useState<"pemasukan" | "pengeluaran">(
-    "pengeluaran",
+    initialData?.jenis || "pengeluaran",
   );
 
   const {
@@ -39,15 +46,20 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     formState: { errors },
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      tanggal: new Date().toISOString().split("T")[0],
-      jenis: "pengeluaran",
-      jumlah: 0,
-      kategori: "",
-      sub_kategori: "",
-      dompet: DOMPET_OPTIONS[0],
-      deskripsi: "",
-    },
+    defaultValues: initialData
+      ? {
+          ...initialData,
+          tanggal: initialData.tanggal.split("T")[0],
+        }
+      : {
+          tanggal: new Date().toISOString().split("T")[0],
+          jenis: "pengeluaran",
+          jumlah: 0,
+          kategori: "",
+          sub_kategori: "",
+          dompet: DOMPET_OPTIONS[0],
+          deskripsi: "",
+        },
   });
 
   const selectedKategori = useWatch({ control, name: "kategori" });
@@ -62,22 +74,39 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
   const onSubmit = async (data: TransactionFormData) => {
     setIsLoading(true);
-    const result = await addTransaction(
-      data,
-      settings.google_sheet_id,
-      settings.sheet_tabs.transaksi,
-    );
+    let result;
+
+    if (initialData && rowIndex !== undefined) {
+      result = await updateTransaction(
+        initialData.id,
+        rowIndex,
+        data,
+        settings.google_sheet_id,
+        settings.sheet_tabs.transaksi,
+      );
+    } else {
+      result = await addTransaction(
+        data,
+        settings.google_sheet_id,
+        settings.sheet_tabs.transaksi,
+      );
+    }
+
     setIsLoading(false);
     if (result.success) {
-      toast.success("Transaksi berhasil dicatat!");
-      reset({
-        tanggal: new Date().toISOString().split("T")[0],
-        jenis,
-        dompet: data.dompet,
-      });
+      toast.success(
+        initialData ? "Transaksi diperbarui!" : "Transaksi berhasil dicatat!",
+      );
+      if (!initialData) {
+        reset({
+          tanggal: new Date().toISOString().split("T")[0],
+          jenis,
+          dompet: data.dompet,
+        });
+      }
       onSuccess?.();
     } else {
-      toast.error(result.error || "Gagal mencatat transaksi");
+      toast.error(result.error || "Gagal menyimpan transaksi");
     }
   };
 
@@ -111,8 +140,25 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+      className="transaction-form"
+      style={{ display: "flex", flexDirection: "column" }}
     >
+      <style jsx>{`
+        .transaction-form {
+          gap: 1.5rem;
+        }
+        @media (max-width: 640px) {
+          .transaction-form {
+            gap: 1.125rem;
+          }
+          .grid-item-btn {
+            padding: 0.625rem 0.375rem !important;
+          }
+        }
+        .grid-item-btn {
+          padding: 0.875rem 0.5rem;
+        }
+      `}</style>
       {/* Jenis Transaksi Tabs */}
       <div className="form-group">
         <label className="form-label">Jenis Transaksi</label>
@@ -169,17 +215,19 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       <div
         style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.25rem" }}
       >
-        <div className="form-group">
-          <label className="form-label">Tanggal Transaksi *</label>
-          <input
-            type="date"
-            className={`input ${errors.tanggal ? "input-error" : ""}`}
-            {...register("tanggal")}
-          />
-          {errors.tanggal && (
-            <span className="form-error">{errors.tanggal.message}</span>
+        <Controller
+          control={control}
+          name="tanggal"
+          render={({ field: { onChange, value } }) => (
+            <DatePicker
+              label="Tanggal Transaksi"
+              required
+              value={value}
+              onChange={onChange}
+              error={errors.tanggal?.message}
+            />
           )}
-        </div>
+        />
 
         {/* Dompet Selector (Modern Grid) */}
         <div className="form-group">
@@ -187,7 +235,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
               gap: "0.625rem",
             }}
           >
@@ -199,12 +247,12 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                   key={d}
                   type="button"
                   onClick={() => setValue("dompet", d)}
+                  className="grid-item-btn"
                   style={{
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     gap: "0.375rem",
-                    padding: "0.75rem 0.5rem",
                     borderRadius: "var(--radius-lg)",
                     border: "2px solid",
                     borderColor: isSelected
@@ -245,7 +293,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
             gap: "0.625rem",
           }}
         >
@@ -257,12 +305,12 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                 key={cat}
                 type="button"
                 onClick={() => setValue("kategori", cat)}
+                className="grid-item-btn"
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   gap: "0.5rem",
-                  padding: "0.875rem 0.5rem",
                   borderRadius: "var(--radius-xl)",
                   border: "2px solid",
                   borderColor: isSelected
@@ -302,12 +350,12 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       {/* Sub Kategori - Only show if current category has subs */}
       {subCategoryOptions.length > 0 && (
         <div className="form-group animate-in fade-in slide-in-from-top-2">
-          <label className="form-label">Sub Kategori</label>
+          <label className="form-label">Pilih Sub Kategori</label>
           <div
             style={{
-              display: "flex",
-              gap: "0.5rem",
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+              gap: "0.625rem",
             }}
           >
             {subCategoryOptions.map((sub) => {
@@ -318,28 +366,39 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                   key={sub}
                   type="button"
                   onClick={() => setValue("sub_kategori", sub)}
+                  className="grid-item-btn"
                   style={{
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.5rem 0.875rem",
-                    borderRadius: "var(--radius-full)",
-                    border: "1px solid",
+                    gap: "0.5rem",
+                    borderRadius: "var(--radius-xl)",
+                    border: "2px solid",
                     borderColor: isSelected
                       ? "var(--color-primary)"
                       : "var(--color-border)",
                     background: isSelected
-                      ? "var(--color-primary)"
+                      ? "var(--color-surface-offset)"
                       : "transparent",
-                    color: isSelected ? "white" : "var(--color-text-muted)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
                     cursor: "pointer",
                     transition: "all var(--transition)",
+                    boxShadow: isSelected ? "var(--shadow-sm)" : "none",
                   }}
                 >
-                  <span>{icon}</span>
-                  <span>{sub}</span>
+                  <span style={{ fontSize: "1.5rem" }}>{icon}</span>
+                  <span
+                    style={{
+                      fontSize: "0.6875rem",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      color: isSelected
+                        ? "var(--color-primary)"
+                        : "var(--color-text)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {sub}
+                  </span>
                 </button>
               );
             })}

@@ -167,3 +167,50 @@ export async function deleteSavings(
     return { success: false, error: "Gagal menghapus tabungan" };
   }
 }
+export async function updateSavings(
+  savingsId: string,
+  rowIndex: number,
+  formData: SavingsFormData,
+  sheetId?: string,
+  tabName?: string,
+): Promise<ActionResult<SavingsGoal>> {
+  const parsed = savingsSchema.safeParse(formData);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message || "Data tidak valid",
+    };
+  }
+
+  const { sheetId: defaultSheetId, tab: defaultTab } = getConfig();
+  const id = sheetId || defaultSheetId;
+  const tab = tabName || defaultTab;
+
+  if (!id)
+    return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+
+  const updatedGoal: SavingsGoal = {
+    id: savingsId,
+    ...parsed.data,
+    deskripsi: parsed.data.deskripsi || "",
+  };
+
+  const row = [
+    updatedGoal.id,
+    updatedGoal.nama_tujuan,
+    String(updatedGoal.target_jumlah),
+    String(updatedGoal.jumlah_terkumpul),
+    updatedGoal.target_tanggal,
+    updatedGoal.ikon,
+    updatedGoal.warna,
+    updatedGoal.prioritas,
+    updatedGoal.status,
+    updatedGoal.deskripsi || "",
+  ];
+
+  const result = await updateRow(id, tab, rowIndex + 2, [row]); // +2 for header + 1-based
+  if (!result.success) return { success: false, error: result.error };
+
+  revalidatePath("/tabungan");
+  return { success: true, data: updatedGoal };
+}

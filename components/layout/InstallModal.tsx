@@ -2,17 +2,19 @@
 import React from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Smartphone, Zap, Layout } from "lucide-react";
+import { Smartphone, Zap, Layout, Share } from "lucide-react";
 import Image from "next/image";
 
 interface InstallModalProps {
   isOpen: boolean;
+  isIOS?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }
 
 export function InstallModal({
   isOpen,
+  isIOS = false,
   onClose,
   onConfirm,
 }: InstallModalProps) {
@@ -92,7 +94,7 @@ export function InstallModal({
           </p>
         </div>
 
-        {/* Benefits List */}
+        {/* Benefits or Instructions List */}
         <div
           style={{
             width: "100%",
@@ -101,16 +103,33 @@ export function InstallModal({
             gap: "0.875rem",
           }}
         >
-          <BenefitItem
-            icon={<Smartphone size={18} />}
-            title="Akses Cepat"
-            desc="Langsung buka dari layar utama HP"
-          />
-          <BenefitItem
-            icon={<Layout size={18} />}
-            title="Layar Penuh"
-            desc="Tampilan bersih tanpa bar browser"
-          />
+          {isIOS ? (
+            <>
+              <BenefitItem
+                icon={<Share size={18} />}
+                title="1. Ketuk Tombol Share"
+                desc="Cari ikon Share (Bagikan) di bagian bawah browser Safari Anda."
+              />
+              <BenefitItem
+                icon={<Smartphone size={18} />}
+                title="2. Tambah ke Layar Utama"
+                desc="Gulir ke bawah dan pilih opsi 'Add to Home Screen'."
+              />
+            </>
+          ) : (
+            <>
+              <BenefitItem
+                icon={<Smartphone size={18} />}
+                title="Akses Cepat"
+                desc="Langsung buka dari layar utama HP"
+              />
+              <BenefitItem
+                icon={<Layout size={18} />}
+                title="Layar Penuh"
+                desc="Tampilan bersih tanpa bar browser"
+              />
+            </>
+          )}
         </div>
 
         <div
@@ -122,14 +141,16 @@ export function InstallModal({
           }}
         >
           <Button variant="secondary" onClick={onClose} style={{ flex: 1 }}>
-            Nanti Saja
+            {isIOS ? "Tutup" : "Nanti Saja"}
           </Button>
-          <Button
-            onClick={onConfirm}
-            style={{ flex: 1, background: "var(--color-primary)" }}
-          >
-            Pasang Sekarang
-          </Button>
+          {!isIOS && (
+            <Button
+              onClick={onConfirm}
+              style={{ flex: 1, background: "var(--color-primary)" }}
+            >
+              Pasang Sekarang
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

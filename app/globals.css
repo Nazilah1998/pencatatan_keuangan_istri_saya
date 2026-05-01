@@ -167,11 +167,11 @@ h6 {
   transition: margin-left var(--transition-slow);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .main-content {
     margin-left: 0;
-    padding: 1rem;
-    padding-bottom: 5rem; /* space for bottom nav */
+    padding: 1.25rem;
+    padding-bottom: 5.5rem; /* space for bottom nav */
   }
 }
 
@@ -430,10 +430,10 @@ h6 {
   box-shadow: 0 24px 48px oklch(0.2 0.02 200 / 0.3);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .fab {
-    bottom: 5.5rem;
-    right: 1rem;
+    bottom: 6rem;
+    right: 1.25rem;
   }
 }
 
@@ -588,6 +588,16 @@ h6 {
   animation: slide-up var(--transition);
 }
 
+@media (max-width: 640px) {
+  .modal-panel {
+    max-height: 95dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    position: fixed;
+    bottom: 0;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -660,4 +670,3 @@ h6 {
   background: var(--color-expense-bg);
   color: var(--color-expense);
 }
-

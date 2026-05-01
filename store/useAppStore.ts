@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   nama_pengguna: "",
   nama_rumah_tangga: "Rumah Tangga Saya",
   anggota: [],
+  tema_warna: "#ff85a2",
 };
 
 export const useAppStore = create<AppState>()(

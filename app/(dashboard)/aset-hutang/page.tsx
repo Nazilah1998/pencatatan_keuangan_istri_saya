@@ -42,26 +42,45 @@ export default function AsetHutangPage() {
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-end",
+          flexWrap: "wrap",
+          gap: "1rem",
+          padding: "0.5rem 0",
+          borderBottom: "1px solid var(--color-border-subtle)",
+          marginBottom: "0.5rem",
+          position: "relative",
+          zIndex: 50,
         }}
       >
         <div>
           <h2
             style={{
-              fontSize: "1.25rem",
-              fontWeight: 700,
+              fontSize: "1.5rem",
+              fontWeight: 800,
               color: "var(--color-text)",
+              letterSpacing: "-0.025em",
+              margin: 0,
             }}
           >
             Aset & Hutang
           </h2>
-          <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--color-text-muted)",
+              marginTop: "0.25rem",
+            }}
+          >
             Pantau kekayaan bersihmu
           </p>
         </div>
 
         {activeTab === "aset" ? (
-          <Button onClick={() => setIsAssetModalOpen(true)} size="sm">
+          <Button
+            onClick={() => setIsAssetModalOpen(true)}
+            size="sm"
+            style={{ borderRadius: "12px" }}
+          >
             <Plus size={16} style={{ marginRight: "0.5rem" }} /> Tambah Aset
           </Button>
         ) : (
@@ -69,6 +88,7 @@ export default function AsetHutangPage() {
             onClick={() => setIsDebtModalOpen(true)}
             size="sm"
             variant="danger"
+            style={{ borderRadius: "12px" }}
           >
             <Plus size={16} style={{ marginRight: "0.5rem" }} /> Tambah Hutang
           </Button>

@@ -14,12 +14,14 @@ interface BeforeInstallPromptEvent extends Event {
 interface PWAContextType {
   deferredPrompt: BeforeInstallPromptEvent | null;
   isInstallable: boolean;
+  isIOS: boolean;
   installApp: () => void;
 }
 
 const PWAContext = createContext<PWAContextType>({
   deferredPrompt: null,
   isInstallable: false,
+  isIOS: false,
   installApp: () => {},
 });
 
@@ -29,8 +31,18 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Detect iOS
+    const timer = requestAnimationFrame(() => {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIosDevice =
+        /iphone|ipad|ipod/.test(userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      setIsIOS(isIosDevice);
+    });
+
     const handleBeforeInstallPrompt = (e: Event) => {
       // Cast to the specific PWA event type
       const installEvent = e as BeforeInstallPromptEvent;
@@ -46,6 +58,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
+      cancelAnimationFrame(timer);
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt,
@@ -74,7 +87,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <PWAContext.Provider value={{ deferredPrompt, isInstallable, installApp }}>
+    <PWAContext.Provider
+      value={{ deferredPrompt, isInstallable, isIOS, installApp }}
+    >
       {children}
     </PWAContext.Provider>
   );

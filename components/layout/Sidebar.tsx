@@ -60,7 +60,7 @@ export function Sidebar() {
           inset: 0,
           background: "oklch(0.15 0.01 80 / 0.4)",
           backdropFilter: "blur(4px)",
-          zIndex: 39,
+          zIndex: 9990,
           opacity: isSidebarOpen ? 1 : 0,
           visibility: isSidebarOpen ? "visible" : "hidden",
           transition:
@@ -81,7 +81,7 @@ export function Sidebar() {
           borderRight: "1px solid var(--color-border)",
           display: "flex",
           flexDirection: "column",
-          zIndex: 40,
+          zIndex: 9991,
           transition:
             "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s",
           overflowY: "auto",

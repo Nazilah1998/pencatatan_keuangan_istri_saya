@@ -8,26 +8,45 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
 import { initializeSheet } from "@/lib/google-sheets";
 import { usePWA } from "@/components/providers/PWAProvider";
-import { Smartphone, Download, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Smartphone,
+  Download,
+  CheckCircle2,
+  Loader2,
+  Palette,
+} from "lucide-react";
 import { InstallModal } from "@/components/layout/InstallModal";
 import { AppSettings } from "@/types";
+
+const PRESET_COLORS = [
+  { name: "Pink Pastel", hex: "#ff85a2" },
+  { name: "Emerald Green", hex: "#10b981" },
+  { name: "Indigo Blue", hex: "#6366f1" },
+  { name: "Purple", hex: "#8b5cf6" },
+  { name: "Amber Orange", hex: "#f59e0b" },
+];
 
 export default function PengaturanPage() {
   const { settings, setSettings } = useAppStore();
   const [isSyncing, setIsLoading] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isActuallyInstalled, setIsActuallyInstalled] = useState(false);
-  const { isInstallable, installApp } = usePWA();
+  const { isInstallable, isIOS, installApp } = usePWA();
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<SettingsSchema>({
     resolver: zodResolver(settingsSchema),
     defaultValues: settings as SettingsSchema,
   });
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const currentThemeColor = watch("tema_warna");
 
   // Check if the app is running in standalone mode (installed)
   useEffect(() => {
@@ -167,7 +186,7 @@ export default function PengaturanPage() {
               <CheckCircle2 size={16} />
               Terpasang
             </div>
-          ) : isInstallable ? (
+          ) : isInstallable || isIOS ? (
             <Button
               onClick={handleInstallClick}
               variant="primary"
@@ -175,7 +194,7 @@ export default function PengaturanPage() {
               style={{ paddingLeft: "1rem", paddingRight: "1rem" }}
             >
               <Download size={16} style={{ marginRight: "0.5rem" }} />
-              Install
+              {isIOS ? "Cara Install" : "Install"}
             </Button>
           ) : (
             <div
@@ -231,6 +250,114 @@ export default function PengaturanPage() {
                     {errors.nama_rumah_tangga.message}
                   </span>
                 )}
+              </div>
+
+              {/* Theme Color Picker */}
+              <div className="form-group" style={{ marginTop: "1.5rem" }}>
+                <label
+                  className="form-label"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Palette size={16} /> Tema Warna Utama
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  {PRESET_COLORS.map((preset) => (
+                    <button
+                      key={preset.hex}
+                      type="button"
+                      onClick={() =>
+                        setValue("tema_warna", preset.hex, {
+                          shouldDirty: true,
+                        })
+                      }
+                      style={{
+                        width: "2.5rem",
+                        height: "2.5rem",
+                        borderRadius: "50%",
+                        backgroundColor: preset.hex,
+                        border:
+                          currentThemeColor === preset.hex
+                            ? "3px solid var(--color-text)"
+                            : "2px solid transparent",
+                        cursor: "pointer",
+                        transition: "transform 0.2s, border 0.2s",
+                        transform:
+                          currentThemeColor === preset.hex
+                            ? "scale(1.1)"
+                            : "scale(1)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                      }}
+                      title={preset.name}
+                      aria-label={`Pilih warna ${preset.name}`}
+                    />
+                  ))}
+
+                  {/* Custom Color Input */}
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "2.5rem",
+                      height: "2.5rem",
+                    }}
+                  >
+                    <input
+                      type="color"
+                      {...register("tema_warna")}
+                      style={{
+                        position: "absolute",
+                        opacity: 0,
+                        width: "100%",
+                        height: "100%",
+                        cursor: "pointer",
+                      }}
+                      title="Pilih Warna Kustom"
+                    />
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        background: currentThemeColor || "#ff85a2",
+                        border: "1px dashed var(--color-text-muted)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "1.2rem",
+                          color: "white",
+                          textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        +
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--color-text-muted)",
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  Pilih warna preset atau klik tombol <b>+</b> untuk warna
+                  kustom.
+                </p>
               </div>
             </div>
 
@@ -295,6 +422,7 @@ export default function PengaturanPage() {
       {/* Modern Install Modal */}
       <InstallModal
         isOpen={showInstallModal}
+        isIOS={isIOS}
         onClose={() => setShowInstallModal(false)}
         onConfirm={handleConfirmInstall}
       />

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 import { getBudgets, deleteBudget } from "@/app/actions/budgets";
 import { getTransactions } from "@/app/actions/transactions";
 import { BudgetCard } from "@/components/anggaran/BudgetCard";
@@ -46,30 +46,50 @@ export default function AnggaranPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-end",
+          padding: "0.5rem 0",
+          borderBottom: "1px solid var(--color-border-subtle)",
+          marginBottom: "0.5rem",
         }}
       >
         <div>
           <h2
             style={{
-              fontSize: "1.25rem",
-              fontWeight: 700,
+              fontSize: "1.5rem",
+              fontWeight: 800,
               color: "var(--color-text)",
+              letterSpacing: "-0.025em",
+              margin: 0,
             }}
           >
             Anggaran Bulanan
           </h2>
-          <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-            Pantau batas pengeluaran per kategori
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--color-text-muted)",
+              marginTop: "0.25rem",
+            }}
+          >
+            Pantau dan batasi pengeluaran per kategori
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} size="sm">
-          <Plus size={16} /> Tambah Anggaran
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          size="sm"
+          style={{
+            borderRadius: "12px",
+            gap: "0.375rem",
+            padding: "0.5rem 1rem",
+          }}
+        >
+          <Plus size={18} strokeWidth={3} />{" "}
+          <span style={{ fontWeight: 700 }}>Tambah</span>
         </Button>
       </div>
 
@@ -131,17 +151,75 @@ export default function AnggaranPage() {
         onClose={() => setDeleteId(null)}
         title="Hapus Anggaran"
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteId(null)}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.75rem",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteId(null)}
+              fullWidth
+            >
               Batal
             </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Hapus
+            <Button variant="danger" onClick={handleDelete} fullWidth>
+              Ya, Hapus
             </Button>
-          </>
+          </div>
         }
       >
-        <p>Yakin ingin menghapus anggaran ini?</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            gap: "1rem",
+            padding: "0.5rem 0",
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--color-expense-bg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-expense)",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <AlertTriangle size={28} />
+          </div>
+          <div>
+            <h3
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 700,
+                color: "var(--color-text)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Konfirmasi Hapus
+            </h3>
+            <p
+              style={{
+                fontSize: "0.9375rem",
+                color: "var(--color-text-muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              Yakin ingin menghapus anggaran ini? Tindakan ini tidak dapat
+              dibatalkan.
+            </p>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 import {
   getSavings,
   deleteSavings,
@@ -19,6 +19,10 @@ export default function TabunganPage() {
   const [savings, setSavings] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editGoal, setEditGoal] = useState<{
+    goal: SavingsGoal;
+    idx: number;
+  } | null>(null);
   const [deleteId, setDeleteId] = useState<{ id: string; idx: number } | null>(
     null,
   );
@@ -81,31 +85,61 @@ export default function TabunganPage() {
     }
   };
 
+  const openEdit = (goal: SavingsGoal, idx: number) => {
+    setEditGoal({ goal, idx });
+    setIsModalOpen(true);
+  };
+
+  const closeModals = () => {
+    setIsModalOpen(false);
+    setEditGoal(null);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-end",
+          padding: "0.5rem 0",
+          borderBottom: "1px solid var(--color-border-subtle)",
+          marginBottom: "0.5rem",
         }}
       >
         <div>
           <h2
             style={{
-              fontSize: "1.25rem",
-              fontWeight: 700,
+              fontSize: "1.5rem",
+              fontWeight: 800,
               color: "var(--color-text)",
+              letterSpacing: "-0.025em",
+              margin: 0,
             }}
           >
             Target Tabungan
           </h2>
-          <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-            Pantau progress menabungmu
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--color-text-muted)",
+              marginTop: "0.25rem",
+            }}
+          >
+            Pantau progress menabungmu untuk masa depan
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} size="sm">
-          <Plus size={16} /> Buat Target
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          size="sm"
+          style={{
+            borderRadius: "12px",
+            gap: "0.375rem",
+            padding: "0.5rem 1rem",
+          }}
+        >
+          <Plus size={18} strokeWidth={3} />{" "}
+          <span style={{ fontWeight: 700 }}>Tambah</span>
         </Button>
       </div>
 
@@ -133,13 +167,14 @@ export default function TabunganPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: "1rem",
+            gap: "1.25rem",
           }}
         >
           {savings.map((s, idx) => (
             <SavingsGoalCard
               key={s.id}
               goal={s}
+              onEdit={() => openEdit(s, idx)}
               onDelete={() => setDeleteId({ id: s.id, idx })}
               onAddFunds={() => setAddFundsGoal({ goal: s, idx })}
             />
@@ -147,15 +182,17 @@ export default function TabunganPage() {
         </div>
       )}
 
-      {/* Create Modal */}
+      {/* Form Modal (Create/Edit) */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Buat Target Tabungan"
+        onClose={closeModals}
+        title={editGoal ? "Edit Target Tabungan" : "Buat Target Tabungan"}
       >
         <SavingsForm
+          initialData={editGoal?.goal}
+          rowIndex={editGoal?.idx}
           onSuccess={() => {
-            setIsModalOpen(false);
+            closeModals();
             fetchData();
           }}
         />
@@ -167,17 +204,75 @@ export default function TabunganPage() {
         onClose={() => setDeleteId(null)}
         title="Hapus Tabungan"
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteId(null)}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.75rem",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteId(null)}
+              fullWidth
+            >
               Batal
             </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Hapus
+            <Button variant="danger" onClick={handleDelete} fullWidth>
+              Ya, Hapus
             </Button>
-          </>
+          </div>
         }
       >
-        <p>Yakin ingin menghapus target tabungan ini?</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            gap: "1rem",
+            padding: "0.5rem 0",
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--color-expense-bg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-expense)",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <AlertTriangle size={28} />
+          </div>
+          <div>
+            <h3
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 700,
+                color: "var(--color-text)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Konfirmasi Hapus
+            </h3>
+            <p
+              style={{
+                fontSize: "0.9375rem",
+                color: "var(--color-text-muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              Yakin ingin menghapus target tabungan ini? Progress menabung Anda
+              untuk tujuan ini akan hilang.
+            </p>
+          </div>
+        </div>
       </Modal>
 
       {/* Add Funds Modal */}

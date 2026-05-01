@@ -6,12 +6,14 @@ interface BadgeProps {
   children: React.ReactNode;
   variant?: "income" | "expense" | "saving" | "warning" | "default";
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export const Badge = React.memo(function Badge({
   children,
   variant = "default",
   className,
+  style,
 }: BadgeProps) {
   const variantClass = {
     income: "badge-income",
@@ -24,14 +26,15 @@ export const Badge = React.memo(function Badge({
   return (
     <span
       className={cn("badge", variantClass, className)}
-      style={
-        variant === "default"
+      style={{
+        ...(variant === "default"
           ? {
               background: "var(--color-surface-offset)",
               color: "var(--color-text-muted)",
             }
-          : undefined
-      }
+          : {}),
+        ...style,
+      }}
     >
       {children}
     </span>

@@ -54,6 +54,30 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function CategoryPieChart({ data }: CategoryPieChartProps) {
+  const categoryKeys = data.map((d) => d.kategori).join(",");
+  const [prevKeys, setPrevKeys] = React.useState(categoryKeys);
+  const [activeCategories, setActiveCategories] = React.useState<string[]>(
+    data.map((d) => d.kategori),
+  );
+
+  // Sync active categories when data categories change (e.g. new month)
+  if (categoryKeys !== prevKeys) {
+    setPrevKeys(categoryKeys);
+    setActiveCategories(data.map((d) => d.kategori));
+  }
+
+  const filteredData = React.useMemo(() => {
+    return data.filter((d) => activeCategories.includes(d.kategori));
+  }, [data, activeCategories]);
+
+  const toggleCategory = (kategori: string) => {
+    setActiveCategories((prev) =>
+      prev.includes(kategori)
+        ? prev.filter((c) => c !== kategori)
+        : [...prev, kategori],
+    );
+  };
+
   if (!data.length) {
     return (
       <div
@@ -73,109 +97,214 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
     );
   }
 
+  const totalFiltered = filteredData.reduce((s, d) => s + d.total, 0);
+
   return (
-    <div className="card" style={{ padding: "1.5rem" }}>
-      <div style={{ marginBottom: "1.25rem" }}>
-        <h3
+    <div
+      className="card"
+      style={{
+        padding: "1.5rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+      }}
+    >
+      <div>
+        <div
           style={{
-            fontSize: "1rem",
-            fontWeight: 700,
-            color: "var(--color-text)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
           }}
         >
-          Pengeluaran per Kategori
-        </h3>
-        <p
+          <div>
+            <h3
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                color: "var(--color-text)",
+              }}
+            >
+              Pengeluaran per Kategori
+            </h3>
+            <p
+              style={{
+                fontSize: "0.8125rem",
+                color: "var(--color-text-muted)",
+                marginTop: "0.25rem",
+              }}
+            >
+              Klik kategori untuk memfilter tampilan
+            </p>
+          </div>
+          {filteredData.length !== data.length && (
+            <button
+              onClick={() => setActiveCategories(data.map((d) => d.kategori))}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--color-primary)",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background =
+                  "var(--color-primary-highlight)")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+
+        {/* Category Chips Filter */}
+        <div
           style={{
-            fontSize: "0.8125rem",
-            color: "var(--color-text-muted)",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            marginTop: "1rem",
+          }}
+        >
+          {data.map((item) => {
+            const isActive = activeCategories.includes(item.kategori);
+            return (
+              <button
+                key={item.kategori}
+                onClick={() => toggleCategory(item.kategori)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
+                  padding: "0.375rem 0.75rem",
+                  borderRadius: "100px",
+                  border: `1.5px solid ${isActive ? item.fill : "var(--color-border)"}`,
+                  background: isActive ? `${item.fill}15` : "transparent",
+                  color: isActive
+                    ? "var(--color-text)"
+                    : "var(--color-text-muted)",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  opacity: isActive ? 1 : 0.6,
+                }}
+              >
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: item.fill,
+                  }}
+                />
+                {item.kategori}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ position: "relative", minHeight: 200 }}>
+        {filteredData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={filteredData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={4}
+                dataKey="total"
+                nameKey="kategori"
+                animationBegin={0}
+                animationDuration={800}
+              >
+                {filteredData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} strokeWidth={0} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div
+            style={{
+              height: 200,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-muted)",
+              fontSize: "0.875rem",
+            }}
+          >
+            Pilih kategori untuk melihat data
+          </div>
+        )}
+      </div>
+
+      {/* Legend with Dynamic Percentages */}
+      {filteredData.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.75rem",
             marginTop: "0.25rem",
           }}
         >
-          Distribusi pengeluaran bulan ini
-        </p>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: "1rem",
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={90}
-              paddingAngle={3}
-              dataKey="total"
-              nameKey="kategori"
-            >
-              {data.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} strokeWidth={0} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Legend */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.5rem",
-          marginTop: "0.75rem",
-        }}
-      >
-        {data.slice(0, 5).map((item) => {
-          const total = data.reduce((s, d) => s + d.total, 0);
-          const pct = total > 0 ? Math.round((item.total / total) * 100) : 0;
-          return (
-            <div
-              key={item.kategori}
-              style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}
-            >
+          {filteredData.map((item) => {
+            const pct =
+              totalFiltered > 0
+                ? Math.round((item.total / totalFiltered) * 100)
+                : 0;
+            return (
               <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: item.fill,
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: "0.8125rem",
-                  color: "var(--color-text-muted)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
+                key={item.kategori}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
               >
-                {item.kategori}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: 600,
-                  color: "var(--color-text)",
-                }}
-              >
-                {pct}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: item.fill,
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--color-text)",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.kategori}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.6875rem",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {pct}% • {formatCurrency(item.total)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
