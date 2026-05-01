@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { savingsSchema, SavingsSchema } from '@/lib/validations';
@@ -8,6 +8,7 @@ import { addSavings } from '@/app/actions/savings';
 import { useAppStore } from '@/store/useAppStore';
 import { SAVINGS_ICONS, SAVINGS_COLORS } from '@/lib/constants';
 import { Button } from '@/components/ui/Button';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 
 interface SavingsFormProps {
   onSuccess?: () => void;
@@ -21,7 +22,7 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<SavingsSchema>({
     resolver: zodResolver(savingsSchema),
@@ -35,8 +36,8 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
     },
   });
 
-  const selectedIcon = watch('ikon');
-  const selectedColor = watch('warna');
+  const selectedIcon = useWatch({ control, name: 'ikon' });
+  const selectedColor = useWatch({ control, name: 'warna' });
 
   const onSubmit = async (data: SavingsSchema) => {
     setIsLoading(true);
@@ -60,25 +61,36 @@ export function SavingsForm({ onSuccess }: SavingsFormProps) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div className="form-group">
-          <label className="form-label">Target Jumlah (Rp) *</label>
-          <input
-            type="number" placeholder="0"
-            className={`input ${errors.target_jumlah ? 'input-error' : ''}`}
-            style={{ fontFamily: 'var(--font-mono)' }}
-            {...register('target_jumlah', { valueAsNumber: true })}
+          <Controller
+            control={control}
+            name="target_jumlah"
+            render={({ field: { onChange, value } }) => (
+              <CurrencyInput
+                label="Target Jumlah"
+                required
+                value={value}
+                onChange={onChange}
+                error={errors.target_jumlah?.message}
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+            )}
           />
-          {errors.target_jumlah && <span className="form-error">{errors.target_jumlah.message}</span>}
         </div>
 
         <div className="form-group">
-          <label className="form-label">Sudah Terkumpul (Rp)</label>
-          <input
-            type="number" placeholder="0"
-            className={`input ${errors.jumlah_terkumpul ? 'input-error' : ''}`}
-            style={{ fontFamily: 'var(--font-mono)' }}
-            {...register('jumlah_terkumpul', { valueAsNumber: true })}
+          <Controller
+            control={control}
+            name="jumlah_terkumpul"
+            render={({ field: { onChange, value } }) => (
+              <CurrencyInput
+                label="Sudah Terkumpul"
+                value={value}
+                onChange={onChange}
+                error={errors.jumlah_terkumpul?.message}
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+            )}
           />
-          {errors.jumlah_terkumpul && <span className="form-error">{errors.jumlah_terkumpul.message}</span>}
         </div>
       </div>
 

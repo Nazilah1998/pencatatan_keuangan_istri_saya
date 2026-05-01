@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { transactionSchema, TransactionSchema } from "@/lib/validations";
@@ -12,6 +12,7 @@ import {
   DOMPET_OPTIONS,
 } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 
 interface TransactionFormProps {
   onSuccess?: () => void;
@@ -142,25 +143,26 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       <div
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
       >
-        {/* Amount */}
+        {/* Amount (Modern Currency Input) */}
         <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-          <label className="form-label">
-            Jumlah <span style={{ color: "var(--color-danger)" }}>*</span>
-          </label>
-          <input
-            type="number"
-            placeholder="0"
-            className={`input ${errors.jumlah ? "input-error" : ""}`}
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "1.25rem",
-              fontWeight: 700,
-            }}
-            {...register("jumlah", { valueAsNumber: true })}
+          <Controller
+            control={control}
+            name="jumlah"
+            render={({ field: { onChange, value } }) => (
+              <CurrencyInput
+                label="Jumlah"
+                required
+                value={value}
+                onChange={onChange}
+                error={errors.jumlah?.message}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "1.25rem",
+                  fontWeight: 700,
+                }}
+              />
+            )}
           />
-          {errors.jumlah && (
-            <span className="form-error">{errors.jumlah.message}</span>
-          )}
         </div>
 
         {/* Date */}

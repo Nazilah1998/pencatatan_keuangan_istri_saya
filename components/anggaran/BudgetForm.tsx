@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { budgetSchema, BudgetSchema } from "@/lib/validations";
@@ -9,6 +9,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { PENGELUARAN_CATEGORIES } from "@/lib/constants";
 import { getCurrentPeriod } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 
 interface BudgetFormProps {
   onSuccess?: () => void;
@@ -22,6 +23,7 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<BudgetSchema>({
     resolver: zodResolver(budgetSchema),
@@ -70,17 +72,20 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
       </div>
 
       <div className="form-group">
-        <label className="form-label">Batas Bulanan (Rp) *</label>
-        <input
-          type="number"
-          placeholder="0"
-          className={`input ${errors.batas_bulanan ? "input-error" : ""}`}
-          style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}
-          {...register("batas_bulanan", { valueAsNumber: true })}
+        <Controller
+          control={control}
+          name="batas_bulanan"
+          render={({ field: { onChange, value } }) => (
+            <CurrencyInput
+              label="Batas Bulanan"
+              required
+              value={value}
+              onChange={onChange}
+              error={errors.batas_bulanan?.message}
+              style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}
+            />
+          )}
         />
-        {errors.batas_bulanan && (
-          <span className="form-error">{errors.batas_bulanan.message}</span>
-        )}
       </div>
 
       <div className="form-group">

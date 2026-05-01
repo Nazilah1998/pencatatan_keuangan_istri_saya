@@ -16,8 +16,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/pengaturan": "Pengaturan",
 };
 
-
-
 export function TopBar() {
   const pathname = usePathname();
   const { toggleSidebar } = useAppStore();
