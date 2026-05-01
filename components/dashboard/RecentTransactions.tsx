@@ -18,7 +18,6 @@ const TransactionItem = React.memo(function TransactionItem({
   tx: Transaction;
 }) {
   const isIncome = tx.jenis === "pemasukan";
-  const isTransfer = tx.jenis === "transfer";
   const color = CATEGORY_COLORS[tx.kategori] || "#94a3b8";
 
   return (
@@ -46,7 +45,7 @@ const TransactionItem = React.memo(function TransactionItem({
           flexShrink: 0,
         }}
       >
-        {isIncome ? "📈" : isTransfer ? "↔️" : "📉"}
+        {isIncome ? "📈" : "📉"}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -75,11 +74,7 @@ const TransactionItem = React.memo(function TransactionItem({
           >
             {formatDate(tx.tanggal)}
           </span>
-          <Badge
-            variant={isIncome ? "income" : isTransfer ? "saving" : "expense"}
-          >
-            {tx.kategori}
-          </Badge>
+          <Badge variant={isIncome ? "income" : "expense"}>{tx.kategori}</Badge>
         </div>
       </div>
 
@@ -89,15 +84,11 @@ const TransactionItem = React.memo(function TransactionItem({
           fontVariantNumeric: "tabular-nums",
           fontSize: "0.9375rem",
           fontWeight: 700,
-          color: isIncome
-            ? "var(--color-income)"
-            : isTransfer
-              ? "var(--color-saving)"
-              : "var(--color-expense)",
+          color: isIncome ? "var(--color-income)" : "var(--color-expense)",
           whiteSpace: "nowrap",
         }}
       >
-        {isIncome ? "+" : isTransfer ? "" : "-"}
+        {isIncome ? "+" : "-"}
         {formatCurrency(tx.jumlah)}
       </div>
     </div>

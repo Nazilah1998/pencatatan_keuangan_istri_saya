@@ -661,7 +661,3 @@ h6 {
   color: var(--color-expense);
 }
 
-.type-tab.active-transfer {
-  background: var(--color-saving-bg);
-  color: var(--color-saving);
-}

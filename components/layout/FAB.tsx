@@ -20,16 +20,19 @@ export function FAB() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden"
+          overflow: "hidden",
         }}
       >
-        <div style={{
-          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-          transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
+        <div
+          style={{
+            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transition:
+              "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Plus size={24} strokeWidth={2.5} />
         </div>
       </button>

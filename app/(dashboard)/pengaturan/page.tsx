@@ -31,10 +31,11 @@ export default function PengaturanPage() {
 
   // Check if the app is running in standalone mode (installed)
   useEffect(() => {
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches 
-      || (window.navigator as Navigator & { standalone?: boolean }).standalone
-      || document.referrer.includes("android-app://");
-    
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone ||
+      document.referrer.includes("android-app://");
+
     const timer = requestAnimationFrame(() => {
       setIsActuallyInstalled(isStandalone);
     });
@@ -51,7 +52,7 @@ export default function PengaturanPage() {
     const updatedSettings: AppSettings = {
       ...settings,
       ...data,
-      mata_uang: "IDR" // Strictly enforce the literal type
+      mata_uang: "IDR", // Strictly enforce the literal type
     };
     setSettings(updatedSettings);
     toast.success("Pengaturan berhasil disimpan");
@@ -100,62 +101,76 @@ export default function PengaturanPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         {/* PWA Installation Card */}
-        <div 
-          className="card" 
-          style={{ 
-            padding: "1.5rem", 
-            background: "linear-gradient(135deg, var(--color-surface), var(--color-surface-offset))",
+        <div
+          className="card"
+          style={{
+            padding: "1.5rem",
+            background:
+              "linear-gradient(135deg, var(--color-surface), var(--color-surface-offset))",
             border: "1px solid var(--color-border)",
             display: "flex",
             alignItems: "center",
-            gap: "1.25rem"
+            gap: "1.25rem",
           }}
         >
-          <div 
-            style={{ 
-              width: 54, 
-              height: 54, 
-              background: "var(--color-primary-highlight)", 
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              background: "var(--color-primary-highlight)",
               borderRadius: "var(--radius-lg)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "var(--color-primary)",
-              flexShrink: 0
+              flexShrink: 0,
             }}
           >
             <Smartphone size={28} />
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.25rem" }}>
+            <h3
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                marginBottom: "0.25rem",
+              }}
+            >
               Aplikasi Mobile
             </h3>
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
-              Pasang Tyaaa Financee di layar utama HP Anda agar akses lebih cepat dan mudah.
+            <p
+              style={{
+                fontSize: "0.8125rem",
+                color: "var(--color-text-muted)",
+                lineHeight: 1.4,
+              }}
+            >
+              Pasang Tyaaa Financee di layar utama HP Anda agar akses lebih
+              cepat dan mudah.
             </p>
           </div>
-          
+
           {isActuallyInstalled ? (
-            <div 
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.375rem", 
-                color: "#10b981", 
-                fontSize: "0.8125rem", 
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.375rem",
+                color: "#10b981",
+                fontSize: "0.8125rem",
                 fontWeight: 600,
                 background: "rgba(16, 185, 129, 0.1)",
                 padding: "0.5rem 0.75rem",
-                borderRadius: "var(--radius-md)"
+                borderRadius: "var(--radius-md)",
               }}
             >
               <CheckCircle2 size={16} />
               Terpasang
             </div>
           ) : isInstallable ? (
-            <Button 
-              onClick={handleInstallClick} 
-              variant="primary" 
+            <Button
+              onClick={handleInstallClick}
+              variant="primary"
               size="sm"
               style={{ paddingLeft: "1rem", paddingRight: "1rem" }}
             >
@@ -163,18 +178,18 @@ export default function PengaturanPage() {
               Install
             </Button>
           ) : (
-            <div 
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.375rem", 
-                color: "var(--color-text-muted)", 
-                fontSize: "0.75rem", 
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.375rem",
+                color: "var(--color-text-muted)",
+                fontSize: "0.75rem",
                 fontWeight: 500,
                 background: "var(--color-surface-offset)",
                 padding: "0.5rem 0.75rem",
                 borderRadius: "var(--radius-md)",
-                border: "1px solid var(--color-border)"
+                border: "1px solid var(--color-border)",
               }}
             >
               <Loader2 size={14} className="animate-spin" />
@@ -278,10 +293,10 @@ export default function PengaturanPage() {
       </div>
 
       {/* Modern Install Modal */}
-      <InstallModal 
-        isOpen={showInstallModal} 
-        onClose={() => setShowInstallModal(false)} 
-        onConfirm={handleConfirmInstall} 
+      <InstallModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+        onConfirm={handleConfirmInstall}
       />
     </div>
   );
