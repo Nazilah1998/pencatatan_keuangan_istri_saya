@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -30,24 +30,45 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarOpen, setSidebarOpen, settings } = useAppStore();
   const { data: session } = useSession();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
+
+  // Prevent scrolling when sidebar is open on mobile
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [isSidebarOpen]);
+
+  if (!mounted) return null;
 
   return (
     <>
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "oklch(0.15 0.01 80 / 0.5)",
-            backdropFilter: "blur(2px)",
-            zIndex: 39,
-            display: "none",
-          }}
-          className="sidebar-overlay"
-        />
-      )}
+      {/* Mobile overlay with smooth fade */}
+      <div
+        onClick={() => setSidebarOpen(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "oklch(0.15 0.01 80 / 0.4)",
+          backdropFilter: "blur(4px)",
+          zIndex: 39,
+          opacity: isSidebarOpen ? 1 : 0,
+          visibility: isSidebarOpen ? "visible" : "hidden",
+          transition:
+            "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s",
+          pointerEvents: isSidebarOpen ? "auto" : "none",
+        }}
+        className="sidebar-overlay"
+      />
 
       <aside
         style={{
@@ -61,31 +82,37 @@ export function Sidebar() {
           display: "flex",
           flexDirection: "column",
           zIndex: 40,
-          transition: "transform var(--transition-slow)",
+          transition:
+            "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s",
           overflowY: "auto",
+          boxShadow: isSidebarOpen
+            ? "20px 0 25px -5px rgb(0 0 0 / 0.1), 8px 0 10px -6px rgb(0 0 0 / 0.1)"
+            : "none",
         }}
       >
-        {/* Logo */}
+        {/* Logo Section */}
         <div
           style={{
-            padding: "1.5rem 1.25rem 1rem",
+            padding: "1.75rem 1.25rem 1.25rem",
             borderBottom: "1px solid var(--color-divider)",
           }}
         >
           <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}
           >
             <div
               style={{
-                width: 40,
-                height: 40,
-                background: "var(--color-primary)",
+                width: 42,
+                height: 42,
+                background:
+                  "linear-gradient(135deg, var(--color-primary), #ec4899)",
                 borderRadius: "var(--radius-lg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "1.25rem",
+                fontSize: "1.5rem",
                 flexShrink: 0,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               }}
             >
               💎
@@ -93,9 +120,10 @@ export function Sidebar() {
             <div>
               <div
                 style={{
-                  fontWeight: 700,
-                  fontSize: "1rem",
+                  fontWeight: 800,
+                  fontSize: "1.0625rem",
                   color: "var(--color-text)",
+                  letterSpacing: "-0.025em",
                 }}
               >
                 Tyaaa Financee
@@ -104,22 +132,23 @@ export function Sidebar() {
                 style={{
                   fontSize: "0.75rem",
                   color: "var(--color-text-muted)",
+                  fontWeight: 500,
                 }}
               >
-                {settings.nama_rumah_tangga || "Keuangan Keluarga"}
+                {settings.nama_rumah_tangga || "Rumah Tangga Saya"}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: "0.75rem 0.75rem 0" }}>
+        {/* Navigation Items */}
+        <nav style={{ flex: 1, padding: "1rem 0.75rem 0" }}>
           <ul
             style={{
               listStyle: "none",
               display: "flex",
               flexDirection: "column",
-              gap: "0.25rem",
+              gap: "0.375rem",
             }}
           >
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -129,14 +158,15 @@ export function Sidebar() {
                 <li key={href}>
                   <Link
                     href={href}
+                    onClick={() => setSidebarOpen(false)} // Close sidebar on link click (mobile)
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "0.75rem",
-                      padding: "0.625rem 0.875rem",
-                      borderRadius: "var(--radius-lg)",
+                      gap: "0.875rem",
+                      padding: "0.75rem 1rem",
+                      borderRadius: "var(--radius-xl)",
                       fontSize: "0.9375rem",
-                      fontWeight: isActive ? 600 : 500,
+                      fontWeight: isActive ? 700 : 500,
                       color: isActive
                         ? "var(--color-primary)"
                         : "var(--color-text-muted)",
@@ -144,8 +174,8 @@ export function Sidebar() {
                         ? "var(--color-primary-highlight)"
                         : "transparent",
                       textDecoration: "none",
-                      transition: "all var(--transition)",
-                      minHeight: 44,
+                      transition: "all 0.2s ease",
+                      minHeight: 48,
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
@@ -153,6 +183,8 @@ export function Sidebar() {
                           "var(--color-surface-offset)";
                         (e.currentTarget as HTMLElement).style.color =
                           "var(--color-text)";
+                        (e.currentTarget as HTMLElement).style.transform =
+                          "translateX(4px)";
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -161,19 +193,30 @@ export function Sidebar() {
                           "transparent";
                         (e.currentTarget as HTMLElement).style.color =
                           "var(--color-text-muted)";
+                        (e.currentTarget as HTMLElement).style.transform =
+                          "translateX(0)";
                       }
                     }}
                   >
-                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                    <span>{label}</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 20,
+                      }}
+                    >
+                      <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                    </div>
+                    <span style={{ flex: 1 }}>{label}</span>
                     {isActive && (
                       <div
                         style={{
-                          marginLeft: "auto",
                           width: 6,
                           height: 6,
                           borderRadius: "50%",
                           background: "var(--color-primary)",
+                          boxShadow: "0 0 10px var(--color-primary)",
                         }}
                       />
                     )}
@@ -184,15 +227,18 @@ export function Sidebar() {
           </ul>
         </nav>
 
-        {/* User Profile */}
+        {/* User Account Section */}
         {session?.user && (
           <div
             style={{
-              padding: "1rem 0.75rem",
-              borderTop: "1px solid var(--color-divider)",
+              margin: "0 0.75rem 1rem",
+              padding: "1rem",
+              background: "var(--color-surface-offset)",
+              borderRadius: "var(--radius-xl)",
               display: "flex",
               alignItems: "center",
               gap: "0.75rem",
+              border: "1px solid var(--color-border)",
             }}
           >
             {session.user.image ? (
@@ -203,7 +249,8 @@ export function Sidebar() {
                 height={36}
                 style={{
                   borderRadius: "50%",
-                  border: "2px solid var(--color-border)",
+                  border: "2px solid var(--color-surface)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                 }}
               />
             ) : (
@@ -212,7 +259,8 @@ export function Sidebar() {
                   width: 36,
                   height: 36,
                   borderRadius: "50%",
-                  background: "var(--color-primary)",
+                  background:
+                    "linear-gradient(45deg, var(--color-primary), #6366f1)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -229,7 +277,7 @@ export function Sidebar() {
               <div
                 style={{
                   fontSize: "0.875rem",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: "var(--color-text)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -254,38 +302,47 @@ export function Sidebar() {
               onClick={() => signOut({ callbackUrl: "/login" })}
               title="Keluar"
               style={{
-                padding: "0.375rem",
+                padding: "0.5rem",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
                 color: "var(--color-text-muted)",
-                borderRadius: "var(--radius-sm)",
-                transition: "color var(--transition)",
+                borderRadius: "var(--radius-md)",
+                transition: "all 0.2s ease",
                 display: "flex",
                 alignItems: "center",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.color =
                   "var(--color-danger)";
+                (e.currentTarget as HTMLElement).style.background =
+                  "rgba(239, 68, 68, 0.1)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.color =
                   "var(--color-text-muted)";
+                (e.currentTarget as HTMLElement).style.background = "none";
               }}
             >
-              <LogOut size={16} />
+              <LogOut size={18} />
             </button>
           </div>
         )}
       </aside>
 
       <style jsx global>{`
-        @media (max-width: 767px) {
-          .sidebar-overlay {
-            display: block !important;
-          }
+        @media (max-width: 1023px) {
           aside {
             transform: ${isSidebarOpen ? "translateX(0)" : "translateX(-100%)"};
+          }
+        }
+        @media (min-width: 1024px) {
+          .sidebar-overlay {
+            display: none !important;
+          }
+          aside {
+            transform: none !important;
+            box-shadow: none !important;
           }
         }
       `}</style>

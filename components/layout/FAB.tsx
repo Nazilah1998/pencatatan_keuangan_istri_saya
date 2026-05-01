@@ -14,8 +14,24 @@ export function FAB() {
         onClick={() => setIsOpen(true)}
         aria-label="Tambah transaksi cepat"
         id="fab-add-transaction"
+        style={{
+          transform: isOpen ? "scale(0.9)" : "scale(1)",
+          transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden"
+        }}
       >
-        <Plus size={24} strokeWidth={2.5} />
+        <div style={{
+          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+          transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <Plus size={24} strokeWidth={2.5} />
+        </div>
       </button>
 
       <Modal

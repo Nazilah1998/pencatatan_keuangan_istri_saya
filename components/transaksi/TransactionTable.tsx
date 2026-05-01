@@ -147,7 +147,6 @@ export function TransactionTable({
           <tbody>
             {sorted.map((tx, idx) => {
               const isIncome = tx.jenis === "pemasukan";
-              const isTransfer = tx.jenis === "transfer";
               return (
                 <tr
                   key={tx.id}
@@ -178,12 +177,14 @@ export function TransactionTable({
                     data-label="Kategori"
                     style={{ padding: "0.875rem 1rem" }}
                   >
-                    <Badge
-                      variant={
-                        isIncome ? "income" : isTransfer ? "saving" : "expense"
-                      }
-                    >
+                    <Badge variant={isIncome ? "income" : "expense"}>
                       {tx.kategori}
+                      {tx.sub_kategori && (
+                        <span style={{ opacity: 0.7, fontWeight: 400 }}>
+                          {" "}
+                          • {tx.sub_kategori}
+                        </span>
+                      )}
                     </Badge>
                   </td>
                   <td
@@ -208,12 +209,10 @@ export function TransactionTable({
                         fontSize: "0.9375rem",
                         color: isIncome
                           ? "var(--color-income)"
-                          : isTransfer
-                            ? "var(--color-saving)"
-                            : "var(--color-expense)",
+                          : "var(--color-expense)",
                       }}
                     >
-                      {isIncome ? "+" : isTransfer ? "" : "-"}
+                      {isIncome ? "+" : "-"}
                       {formatCurrency(tx.jumlah)}
                     </span>
                   </td>

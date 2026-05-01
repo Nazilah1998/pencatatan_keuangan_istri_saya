@@ -17,20 +17,54 @@ export const PEMASUKAN_CATEGORIES = [
 ] as const;
 
 export const PENGELUARAN_CATEGORIES = [
-  "Makanan & Minuman",
+  "Jajan Comel",
   "Transportasi",
-  "Belanja",
+  "Belanja Online",
   "Tagihan & Utilitas",
   "Kesehatan",
   "Pendidikan",
   "Hiburan",
-  "Perawatan Rumah",
-  "Pakaian",
-  "Asuransi",
   "Cicilan",
   "Sosial & Donasi",
-  "Lainnya",
 ] as const;
+
+export const SUB_CATEGORIES: Record<string, string[]> = {
+  "Jajan Comel": ["Jajan Besar", "Jajan Kecil"],
+  "Tagihan & Utilitas": ["Listrik", "Wifi", "PDAM"],
+  "Belanja Online": ["Pakaian", "Skincare", "Perabotan Rumah", "Peliharaan"],
+  Transportasi: ["Mobil", "Motor"],
+};
+
+export const CATEGORY_ICONS: Record<string, string> = {
+  "Jajan Comel": "🍿",
+  Transportasi: "🚗",
+  "Belanja Online": "🛍️",
+  "Tagihan & Utilitas": "⚡",
+  Kesehatan: "🏥",
+  Pendidikan: "🎓",
+  Hiburan: "🎮",
+  Cicilan: "💸",
+  "Sosial & Donasi": "🤝",
+  Gaji: "💰",
+  Bonus: "✨",
+  Freelance: "💻",
+  Investasi: "📈",
+  Hadiah: "🎁",
+};
+
+export const SUB_CATEGORY_ICONS: Record<string, string> = {
+  Listrik: "💡",
+  Wifi: "🌐",
+  PDAM: "💧",
+  Pakaian: "👕",
+  Skincare: "✨",
+  "Perabotan Rumah": "🏠",
+  Peliharaan: "🐾",
+  Mobil: "🚘",
+  Motor: "🏍️",
+  "Jajan Besar": "🍔",
+  "Jajan Kecil": "🍬",
+};
 
 export const ALL_CATEGORIES = [
   ...PEMASUKAN_CATEGORIES,
@@ -39,32 +73,32 @@ export const ALL_CATEGORIES = [
 
 // -------------------- Wallets --------------------
 export const DOMPET_OPTIONS = [
-  "Kas",
-  "BCA",
-  "Mandiri",
+  "Cash",
   "BRI",
-  "BNI",
-  "CIMB",
+  "BSI",
   "GoPay",
-  "OVO",
   "Dana",
   "ShopeePay",
-  "LinkAja",
-  "Lainnya",
 ] as const;
+
+export const DOMPET_ICONS: Record<string, string> = {
+  Cash: "💵",
+  BRI: "🏦",
+  BSI: "🕌",
+  GoPay: "📱",
+  Dana: "💙",
+  ShopeePay: "🧡",
+};
 
 // -------------------- Category Colors --------------------
 export const CATEGORY_COLORS: Record<string, string> = {
-  "Makanan & Minuman": "#f97316",
+  "Jajan Comel": "#f97316",
   Transportasi: "#3b82f6",
-  Belanja: "#a855f7",
+  "Belanja Online": "#a855f7",
   "Tagihan & Utilitas": "#ef4444",
   Kesehatan: "#10b981",
   Pendidikan: "#06b6d4",
   Hiburan: "#f59e0b",
-  "Perawatan Rumah": "#84cc16",
-  Pakaian: "#ec4899",
-  Asuransi: "#6366f1",
   Cicilan: "#dc2626",
   "Sosial & Donasi": "#14b8a6",
   Gaji: "#22c55e",
@@ -72,7 +106,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Freelance: "#4ade80",
   Investasi: "#2563eb",
   Hadiah: "#e879f9",
-  Lainnya: "#94a3b8",
 };
 
 // -------------------- Default Sheet Tabs --------------------
@@ -92,12 +125,9 @@ export const SHEET_HEADERS = {
     "jenis",
     "jumlah",
     "kategori",
+    "sub_kategori",
     "dompet",
     "deskripsi",
-    "catatan",
-    "tags",
-    "is_recurring",
-    "recurring_interval",
     "created_at",
   ],
   anggaran: [

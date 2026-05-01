@@ -6,19 +6,16 @@ import { z } from "zod";
 
 export const transactionSchema = z.object({
   tanggal: z.string().min(1, "Tanggal harus diisi"),
-  jenis: z.enum(["pemasukan", "pengeluaran", "transfer"], {
+  jenis: z.enum(["pemasukan", "pengeluaran"], {
     message: "Pilih jenis transaksi",
   }),
   jumlah: z
     .number({ message: "Jumlah harus berupa angka" })
     .positive("Jumlah harus lebih dari 0"),
   kategori: z.string().min(1, "Pilih kategori"),
+  sub_kategori: z.string().optional(),
   dompet: z.string().min(1, "Pilih dompet"),
   deskripsi: z.string().max(200, "Maksimal 200 karakter"),
-  catatan: z.string().max(500, "Maksimal 500 karakter"),
-  tags: z.string(),
-  is_recurring: z.boolean(),
-  recurring_interval: z.enum(["harian", "mingguan", "bulanan"]).optional(),
 });
 
 export const budgetSchema = z.object({
@@ -94,16 +91,17 @@ export const debtSchema = z.object({
 });
 
 export const settingsSchema = z.object({
-  google_sheet_id: z.string().min(1, "Google Sheet ID harus diisi"),
+  google_sheet_id: z.string(),
   sheet_tabs: z.object({
-    transaksi: z.string().min(1),
-    anggaran: z.string().min(1),
-    tabungan: z.string().min(1),
-    aset: z.string().min(1),
-    hutang: z.string().min(1),
+    transaksi: z.string(),
+    anggaran: z.string(),
+    tabungan: z.string(),
+    aset: z.string(),
+    hutang: z.string(),
   }),
+  mata_uang: z.literal("IDR"),
   format_tanggal: z.enum(["DD/MM/YYYY", "YYYY-MM-DD"]),
-  nama_pengguna: z.string().min(1, "Nama pengguna harus diisi"),
+  nama_pengguna: z.string(),
   nama_rumah_tangga: z.string().min(1, "Nama rumah tangga harus diisi"),
 });
 

@@ -27,14 +27,10 @@ function rowToTransaction(row: string[]): Transaction {
     jenis: (row[2] as Transaction["jenis"]) || "pengeluaran",
     jumlah: Number(row[3]) || 0,
     kategori: row[4] || "",
-    dompet: row[5] || "",
-    deskripsi: row[6] || "",
-    catatan: row[7] || "",
-    tags: row[8] ? row[8].split(",").filter(Boolean) : [],
-    is_recurring: row[9] === "true",
-    recurring_interval:
-      (row[10] as Transaction["recurring_interval"]) || undefined,
-    created_at: row[11] || "",
+    sub_kategori: row[5] || "",
+    dompet: row[6] || "",
+    deskripsi: row[7] || "",
+    created_at: row[8] || "",
   };
 }
 
@@ -85,17 +81,9 @@ export async function addTransaction(
     jenis: parsed.data.jenis,
     jumlah: parsed.data.jumlah,
     kategori: parsed.data.kategori,
+    sub_kategori: parsed.data.sub_kategori,
     dompet: parsed.data.dompet,
     deskripsi: parsed.data.deskripsi,
-    catatan: parsed.data.catatan,
-    tags: parsed.data.tags
-      ? parsed.data.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      : [],
-    is_recurring: parsed.data.is_recurring,
-    recurring_interval: parsed.data.recurring_interval,
     created_at: new Date().toISOString(),
   };
 
@@ -105,12 +93,9 @@ export async function addTransaction(
     transaction.jenis,
     String(transaction.jumlah),
     transaction.kategori,
+    transaction.sub_kategori || "",
     transaction.dompet,
     transaction.deskripsi,
-    transaction.catatan,
-    transaction.tags.join(","),
-    String(transaction.is_recurring),
-    transaction.recurring_interval || "",
     transaction.created_at,
   ];
 

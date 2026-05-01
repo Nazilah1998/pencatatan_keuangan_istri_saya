@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
 import { SessionProvider } from "@/components/providers/SessionProvider";
+import { PWAProvider } from "@/components/providers/PWAProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -61,29 +62,31 @@ export default function RootLayout({
       </head>
       <body>
         <SessionProvider>
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: "var(--color-surface)",
-                color: "var(--color-text)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                fontFamily: "var(--font-body)",
-                fontSize: "0.875rem",
-                boxShadow: "var(--shadow-lg)",
-                padding: "0.75rem 1rem",
-              },
-              success: {
-                iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
-              },
-              error: {
-                iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
-              },
-            }}
-          />
+          <PWAProvider>
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-lg)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.875rem",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: "0.75rem 1rem",
+                },
+                success: {
+                  iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
+                },
+                error: {
+                  iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
+                },
+              }}
+            />
+          </PWAProvider>
         </SessionProvider>
       </body>
     </html>

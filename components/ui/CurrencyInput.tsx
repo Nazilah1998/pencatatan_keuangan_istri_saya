@@ -26,11 +26,14 @@ export const CurrencyInput = React.memo(function CurrencyInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, "");
     const numericValue = rawValue === "" ? 0 : parseInt(rawValue, 10);
-    
+
     // Update local display value with formatting
-    const formatted = rawValue === "" ? "" : new Intl.NumberFormat("id-ID").format(numericValue);
+    const formatted =
+      rawValue === ""
+        ? ""
+        : new Intl.NumberFormat("id-ID").format(numericValue);
     setDisplayValue(formatted);
-    
+
     // Notify parent
     onChange?.(numericValue);
   };

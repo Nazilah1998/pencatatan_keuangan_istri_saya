@@ -2,7 +2,7 @@
 // Tyaaa Financee — Centralized TypeScript Types
 // ============================================================
 
-export type TransactionType = "pemasukan" | "pengeluaran" | "transfer";
+export type TransactionType = "pemasukan" | "pengeluaran";
 export type RecurringInterval = "harian" | "mingguan" | "bulanan";
 export type Priority = "rendah" | "sedang" | "tinggi";
 export type SavingsStatus = "aktif" | "tercapai" | "ditunda";
@@ -15,12 +15,9 @@ export interface Transaction {
   jenis: TransactionType;
   jumlah: number;
   kategori: string;
+  sub_kategori?: string;
   dompet: string;
   deskripsi: string;
-  catatan: string;
-  tags: string[];
-  is_recurring: boolean;
-  recurring_interval?: RecurringInterval;
   created_at: string;
 }
 
@@ -29,12 +26,9 @@ export interface TransactionFormData {
   jenis: TransactionType;
   jumlah: number;
   kategori: string;
+  sub_kategori?: string;
   dompet: string;
   deskripsi: string;
-  catatan: string;
-  tags: string;
-  is_recurring: boolean;
-  recurring_interval?: RecurringInterval;
 }
 
 // -------------------- Budget --------------------
@@ -173,12 +167,6 @@ export interface DashboardKPI {
   total_pemasukan: number;
   total_pengeluaran: number;
   total_tabungan: number;
-}
-
-export interface WeeklyChartData {
-  week: string;
-  pemasukan: number;
-  pengeluaran: number;
 }
 
 export interface WeeklyChartData {

@@ -100,16 +100,6 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
         )}
       </div>
 
-      <div className="form-group">
-        <label className="form-label">Catatan</label>
-        <input
-          type="text"
-          placeholder="Opsional..."
-          className="input"
-          {...register("catatan")}
-        />
-      </div>
-
       <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
         Simpan Anggaran
       </Button>

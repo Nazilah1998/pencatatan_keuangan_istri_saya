@@ -1,18 +1,23 @@
 "use client";
-import React, { useState } from "react";
-import { useForm, useWatch, Controller } from "react-hook-form";
+import React, { useState, useEffect } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { transactionSchema, TransactionSchema } from "@/lib/validations";
+import { transactionSchema } from "@/lib/validations";
 import { addTransaction } from "@/app/actions/transactions";
 import { useAppStore } from "@/store/useAppStore";
 import {
   PEMASUKAN_CATEGORIES,
   PENGELUARAN_CATEGORIES,
   DOMPET_OPTIONS,
+  SUB_CATEGORIES,
+  CATEGORY_ICONS,
+  SUB_CATEGORY_ICONS,
+  DOMPET_ICONS,
 } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { TransactionFormData } from "@/types";
 
 interface TransactionFormProps {
   onSuccess?: () => void;
@@ -21,7 +26,7 @@ interface TransactionFormProps {
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [jenis, setJenis] = useState<"pemasukan" | "pengeluaran" | "transfer">(
+  const [jenis, setJenis] = useState<"pemasukan" | "pengeluaran">(
     "pengeluaran",
   );
 
@@ -29,83 +34,88 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     register,
     handleSubmit,
     reset,
-    setValue,
     control,
+    setValue,
     formState: { errors },
-  } = useForm<TransactionSchema>({
+  } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       tanggal: new Date().toISOString().split("T")[0],
       jenis: "pengeluaran",
-      is_recurring: false,
-      tags: "",
+      jumlah: 0,
+      kategori: "",
+      sub_kategori: "",
+      dompet: DOMPET_OPTIONS[0],
       deskripsi: "",
-      catatan: "",
     },
   });
 
-  const selectedKategori = useWatch({
-    control,
-    name: "kategori",
-  });
+  const selectedKategori = useWatch({ control, name: "kategori" });
+  const selectedSubKategori = useWatch({ control, name: "sub_kategori" });
+  const selectedDompet = useWatch({ control, name: "dompet" });
+  const subCategoryOptions = SUB_CATEGORIES[selectedKategori] || [];
 
-  const categories =
-    jenis === "pemasukan"
-      ? PEMASUKAN_CATEGORIES.map((c) => ({ value: c, label: c }))
-      : PENGELUARAN_CATEGORIES.map((c) => ({ value: c, label: c }));
+  // Reset sub_kategori if parent kategori changes
+  useEffect(() => {
+    setValue("sub_kategori", "");
+  }, [selectedKategori, setValue]);
 
-  const handleJenisChange = (val: typeof jenis) => {
+  const onSubmit = async (data: TransactionFormData) => {
+    setIsLoading(true);
+    const result = await addTransaction(
+      data,
+      settings.google_sheet_id,
+      settings.sheet_tabs.transaksi,
+    );
+    setIsLoading(false);
+    if (result.success) {
+      toast.success("Transaksi berhasil dicatat!");
+      reset({
+        tanggal: new Date().toISOString().split("T")[0],
+        jenis,
+        dompet: data.dompet,
+      });
+      onSuccess?.();
+    } else {
+      toast.error(result.error || "Gagal mencatat transaksi");
+    }
+  };
+
+  const handleJenisChange = (val: "pemasukan" | "pengeluaran") => {
     setJenis(val);
     setValue("jenis", val);
     setValue("kategori", "");
   };
 
-  const onSubmit = async (data: TransactionSchema) => {
-    setIsLoading(true);
-    try {
-      const result = await addTransaction(
-        data,
-        settings.google_sheet_id,
-        settings.sheet_tabs.transaksi,
-      );
-      if (result.success) {
-        toast.success("Transaksi berhasil disimpan!");
-        reset();
-        onSuccess?.();
-      } else {
-        toast.error(result.error || "Gagal menyimpan transaksi");
-      }
-    } catch {
-      toast.error("Terjadi kesalahan. Coba lagi.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const categories =
+    jenis === "pemasukan" ? PEMASUKAN_CATEGORIES : PENGELUARAN_CATEGORIES;
 
-  const tabStyle = (active: boolean, color: string): React.CSSProperties => ({
+  const tabStyle = (active: boolean, color: string) => ({
     flex: 1,
-    padding: "0.5rem",
-    fontWeight: active ? 700 : 500,
-    fontSize: "0.875rem",
+    padding: "0.75rem",
     border: "none",
-    cursor: "pointer",
     borderRadius: "var(--radius-md)",
-    transition: "all var(--transition)",
     background: active ? color : "transparent",
-    color: active ? "#fff" : "var(--color-text-muted)",
+    color: active ? "white" : "var(--color-text-muted)",
+    fontWeight: 700,
+    fontSize: "0.8125rem",
+    cursor: "pointer",
+    transition: "all var(--transition)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.5rem",
   });
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+      style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
     >
-      {/* Type Selector */}
-      <div>
-        <div className="form-label" style={{ marginBottom: "0.5rem" }}>
-          Jenis Transaksi
-        </div>
+      {/* Jenis Transaksi Tabs */}
+      <div className="form-group">
+        <label className="form-label">Jenis Transaksi</label>
         <div
           style={{
             display: "flex",
@@ -129,45 +139,38 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           >
             📉 Pengeluaran
           </button>
-          <button
-            type="button"
-            style={tabStyle(jenis === "transfer", "var(--color-saving)")}
-            onClick={() => handleJenisChange("transfer")}
-          >
-            ↔️ Transfer
-          </button>
         </div>
         <input type="hidden" {...register("jenis")} value={jenis} />
       </div>
 
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
-      >
-        {/* Amount (Modern Currency Input) */}
-        <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-          <Controller
-            control={control}
-            name="jumlah"
-            render={({ field: { onChange, value } }) => (
-              <CurrencyInput
-                label="Jumlah"
-                required
-                value={value}
-                onChange={onChange}
-                error={errors.jumlah?.message}
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "1.25rem",
-                  fontWeight: 700,
-                }}
-              />
-            )}
-          />
-        </div>
+      {/* Jumlah Input */}
+      <div className="form-group">
+        <Controller
+          control={control}
+          name="jumlah"
+          render={({ field: { onChange, value } }) => (
+            <CurrencyInput
+              label="Jumlah"
+              required
+              value={value}
+              onChange={onChange}
+              error={errors.jumlah?.message}
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                fontFamily: "var(--font-mono)",
+                textAlign: "center",
+              }}
+            />
+          )}
+        />
+      </div>
 
-        {/* Date */}
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.25rem" }}
+      >
         <div className="form-group">
-          <label className="form-label">Tanggal *</label>
+          <label className="form-label">Tanggal Transaksi *</label>
           <input
             type="date"
             className={`input ${errors.tanggal ? "input-error" : ""}`}
@@ -178,194 +181,186 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           )}
         </div>
 
-        {/* Wallet */}
+        {/* Dompet Selector (Modern Grid) */}
         <div className="form-group">
-          <label className="form-label">Dompet *</label>
-          <select
-            className={`input ${errors.dompet ? "input-error" : ""}`}
-            {...register("dompet")}
-          >
-            <option value="">Pilih dompet</option>
-            {DOMPET_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-          {errors.dompet && (
-            <span className="form-error">{errors.dompet.message}</span>
-          )}
-        </div>
-
-        {/* Category (Modern Grid) */}
-        <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-          <label className="form-label">Kategori *</label>
+          <label className="form-label">Pilih Dompet *</label>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
-              gap: "0.5rem",
-              maxHeight: "240px",
-              overflowY: "auto",
-              padding: "0.5rem",
-              background: "var(--color-surface-offset)",
-              borderRadius: "var(--radius-lg)",
-              border: errors.kategori
-                ? "1px solid var(--color-danger)"
-                : "1px solid transparent",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "0.625rem",
             }}
-            className="custom-scrollbar"
           >
-            {categories.map((c) => {
-              const isSelected = selectedKategori === c.value;
-              const icons: Record<string, string> = {
-                "Makanan & Minuman": "🍕",
-                Transportasi: "🚗",
-                Belanja: "🛍️",
-                "Tagihan & Utilitas": "⚡",
-                Kesehatan: "🏥",
-                Pendidikan: "🎓",
-                Hiburan: "🎮",
-                "Perawatan Rumah": "🏠",
-                Pakaian: "👕",
-                Asuransi: "🛡️",
-                Cicilan: "💳",
-                "Sosial & Donasi": "🤝",
-                Lainnya: "📦",
-                Gaji: "💰",
-                Bonus: "🧧",
-                Freelance: "💻",
-                Investasi: "📈",
-                Hadiah: "🎁",
-              };
+            {DOMPET_OPTIONS.map((d) => {
+              const isSelected = selectedDompet === d;
+              const icon = DOMPET_ICONS[d] || "💳";
               return (
                 <button
-                  key={c.value}
+                  key={d}
                   type="button"
-                  onClick={() => setValue("kategori", c.value)}
+                  onClick={() => setValue("dompet", d)}
                   style={{
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    gap: "0.25rem",
+                    gap: "0.375rem",
                     padding: "0.75rem 0.5rem",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--color-border)",
-                    background: isSelected
+                    borderRadius: "var(--radius-lg)",
+                    border: "2px solid",
+                    borderColor: isSelected
                       ? "var(--color-primary)"
-                      : "var(--color-surface)",
-                    color: isSelected ? "#fff" : "var(--color-text)",
-                    transition: "all var(--transition)",
+                      : "var(--color-border)",
+                    background: isSelected
+                      ? "var(--color-surface-offset)"
+                      : "transparent",
                     cursor: "pointer",
-                    fontSize: "0.75rem",
-                    fontWeight: isSelected ? 700 : 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor =
-                        "var(--color-primary)";
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = "var(--color-border)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }
+                    transition: "all var(--transition)",
                   }}
                 >
-                  <span style={{ fontSize: "1.5rem" }}>
-                    {icons[c.value] || "📦"}
-                  </span>
-                  <span style={{ textAlign: "center", lineHeight: 1.2 }}>
-                    {c.label}
+                  <span style={{ fontSize: "1.25rem" }}>{icon}</span>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color: isSelected
+                        ? "var(--color-primary)"
+                        : "var(--color-text)",
+                    }}
+                  >
+                    {d}
                   </span>
                 </button>
               );
             })}
           </div>
-          <input type="hidden" {...register("kategori")} />
-          {errors.kategori && (
-            <span className="form-error">{errors.kategori.message}</span>
+          {errors.dompet && (
+            <span className="form-error">{errors.dompet.message}</span>
           )}
         </div>
       </div>
 
-      {/* Description */}
+      {/* Kategori Grid */}
       <div className="form-group">
-        <label className="form-label">Deskripsi</label>
-        <input
-          type="text"
-          placeholder="Contoh: Makan siang, Gaji bulan Mei..."
-          className="input"
-          {...register("deskripsi")}
-        />
-      </div>
-
-      {/* Notes */}
-      <div className="form-group">
-        <label className="form-label">Catatan</label>
-        <textarea
-          placeholder="Catatan tambahan..."
-          className="input"
-          rows={2}
-          style={{ resize: "none", height: "auto" }}
-          {...register("catatan")}
-        />
-      </div>
-
-      {/* Tags */}
-      <div className="form-group">
-        <label className="form-label">Tags</label>
-        <input
-          type="text"
-          placeholder="pisahkan dengan koma: makan,keluarga,bulanan"
-          className="input"
-          {...register("tags")}
-        />
-      </div>
-
-      {/* Recurring */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          padding: "0.75rem 1rem",
-          background: "var(--color-surface-offset)",
-          borderRadius: "var(--radius-lg)",
-        }}
-      >
-        <input
-          type="checkbox"
-          id="recurring"
-          {...register("is_recurring")}
+        <label className="form-label">Pilih Kategori *</label>
+        <div
           style={{
-            width: 18,
-            height: 18,
-            accentColor: "var(--color-primary)",
-            cursor: "pointer",
-          }}
-        />
-        <label
-          htmlFor="recurring"
-          style={{
-            fontSize: "0.9375rem",
-            fontWeight: 500,
-            color: "var(--color-text)",
-            cursor: "pointer",
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "0.625rem",
           }}
         >
-          Transaksi berulang (recurring)
-        </label>
+          {categories.map((cat) => {
+            const isSelected = selectedKategori === cat;
+            const icon = CATEGORY_ICONS[cat] || "📁";
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setValue("kategori", cat)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.875rem 0.5rem",
+                  borderRadius: "var(--radius-xl)",
+                  border: "2px solid",
+                  borderColor: isSelected
+                    ? "var(--color-primary)"
+                    : "var(--color-border)",
+                  background: isSelected
+                    ? "var(--color-surface-offset)"
+                    : "transparent",
+                  cursor: "pointer",
+                  transition: "all var(--transition)",
+                  boxShadow: isSelected ? "var(--shadow-sm)" : "none",
+                }}
+              >
+                <span style={{ fontSize: "1.5rem" }}>{icon}</span>
+                <span
+                  style={{
+                    fontSize: "0.6875rem",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    color: isSelected
+                      ? "var(--color-primary)"
+                      : "var(--color-text)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {cat}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {errors.kategori && (
+          <span className="form-error">{errors.kategori.message}</span>
+        )}
       </div>
 
-      {/* Submit */}
-      <Button
-        type="submit"
-        loading={isLoading}
-        style={{ width: "100%", marginTop: "0.25rem" }}
-      >
+      {/* Sub Kategori - Only show if current category has subs */}
+      {subCategoryOptions.length > 0 && (
+        <div className="form-group animate-in fade-in slide-in-from-top-2">
+          <label className="form-label">Sub Kategori</label>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              flexWrap: "wrap",
+            }}
+          >
+            {subCategoryOptions.map((sub) => {
+              const isSelected = selectedSubKategori === sub;
+              const icon = SUB_CATEGORY_ICONS[sub] || "🔹";
+              return (
+                <button
+                  key={sub}
+                  type="button"
+                  onClick={() => setValue("sub_kategori", sub)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.375rem",
+                    padding: "0.5rem 0.875rem",
+                    borderRadius: "var(--radius-full)",
+                    border: "1px solid",
+                    borderColor: isSelected
+                      ? "var(--color-primary)"
+                      : "var(--color-border)",
+                    background: isSelected
+                      ? "var(--color-primary)"
+                      : "transparent",
+                    color: isSelected ? "white" : "var(--color-text-muted)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all var(--transition)",
+                  }}
+                >
+                  <span>{icon}</span>
+                  <span>{sub}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="form-group">
+        <label className="form-label">Deskripsi</label>
+        <textarea
+          placeholder="Contoh: Makan siang, Gaji bulan Mei..."
+          className={`input ${errors.deskripsi ? "input-error" : ""}`}
+          style={{ minHeight: "80px", resize: "none" }}
+          {...register("deskripsi")}
+        />
+        {errors.deskripsi && (
+          <span className="form-error">{errors.deskripsi.message}</span>
+        )}
+      </div>
+
+      <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
         Simpan Transaksi
       </Button>
     </form>

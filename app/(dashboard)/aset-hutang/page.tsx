@@ -5,6 +5,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { Asset, Debt } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { AssetForm } from "@/components/aset-hutang/AssetForm";
+import { DebtForm } from "@/components/aset-hutang/DebtForm";
 
 export default function AsetHutangPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -12,6 +17,8 @@ export default function AsetHutangPage() {
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"aset" | "hutang">("aset");
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -29,7 +36,6 @@ export default function AsetHutangPage() {
   const totalHutang = debts.reduce((s, d) => s + d.sisa_hutang, 0);
   const kekayaanBersih = totalAset - totalHutang;
 
-  // Render components inline for brevity
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       <div
@@ -53,6 +59,20 @@ export default function AsetHutangPage() {
             Pantau kekayaan bersihmu
           </p>
         </div>
+
+        {activeTab === "aset" ? (
+          <Button onClick={() => setIsAssetModalOpen(true)} size="sm">
+            <Plus size={16} style={{ marginRight: "0.5rem" }} /> Tambah Aset
+          </Button>
+        ) : (
+          <Button
+            onClick={() => setIsDebtModalOpen(true)}
+            size="sm"
+            variant="danger"
+          >
+            <Plus size={16} style={{ marginRight: "0.5rem" }} /> Tambah Hutang
+          </Button>
+        )}
       </div>
 
       {/* Net Worth Summary */}
@@ -278,6 +298,35 @@ export default function AsetHutangPage() {
           )}
         </div>
       )}
+
+      {/* Modals */}
+      <Modal
+        isOpen={isAssetModalOpen}
+        onClose={() => setIsAssetModalOpen(false)}
+        title="Tambah Aset Baru"
+        size="md"
+      >
+        <AssetForm
+          onSuccess={() => {
+            setIsAssetModalOpen(false);
+            fetchData();
+          }}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isDebtModalOpen}
+        onClose={() => setIsDebtModalOpen(false)}
+        title="Catat Hutang/Pinjaman"
+        size="md"
+      >
+        <DebtForm
+          onSuccess={() => {
+            setIsDebtModalOpen(false);
+            fetchData();
+          }}
+        />
+      </Modal>
     </div>
   );
 }
