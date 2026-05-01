@@ -55,8 +55,9 @@ export const Input = React.memo(function Input({
           id={inputId}
           className={cn("input", error && "input-error", className)}
           style={{
-            paddingLeft: prefix ? "2.5rem" : undefined,
-            paddingRight: suffix ? "2.5rem" : undefined,
+            paddingLeft: prefix ? "3.25rem" : undefined,
+            paddingRight: suffix ? "3rem" : undefined,
+            ...props.style,
           }}
           {...props}
         />
