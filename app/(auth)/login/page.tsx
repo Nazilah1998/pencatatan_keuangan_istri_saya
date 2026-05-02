@@ -1,13 +1,13 @@
-import { redirect } from 'next/navigation';
-import { auth, signIn } from '@/lib/auth';
-import { Button } from '@/components/ui/Button';
-import { Sparkles, Wallet, TrendingUp, ShieldCheck } from 'lucide-react';
+import { redirect } from "next/navigation";
+import { auth, signIn } from "@/lib/auth";
+import { Button } from "@/components/ui/Button";
+import { Sparkles, Wallet, TrendingUp, ShieldCheck } from "lucide-react";
 
 export default async function LoginPage() {
   const session = await auth();
 
   if (session) {
-    redirect('/');
+    redirect("/");
   }
 
   return (
@@ -144,15 +144,15 @@ export default async function LoginPage() {
           border-color: #ff85a2 !important;
         }
       `}</style>
-      
+
       <div
         className="login-bg"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100dvh',
-          padding: '1.5rem',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100dvh",
+          padding: "1.5rem",
         }}
       >
         <div className="blob blob-1" />
@@ -161,32 +161,63 @@ export default async function LoginPage() {
         <div
           className="glass-card"
           style={{
-            width: '100%',
-            maxWidth: '420px',
-            padding: '3rem 2rem',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2.5rem',
+            width: "100%",
+            maxWidth: "420px",
+            padding: "3rem 2rem",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2.5rem",
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+          >
             <div className="logo-container">
               <Wallet size={36} color="white" strokeWidth={2.5} />
-              <Sparkles className="sparkle-icon" size={20} color="#ffe0e6" fill="#ffe0e6" />
+              <Sparkles
+                className="sparkle-icon"
+                size={20}
+                color="#ffe0e6"
+                fill="#ffe0e6"
+              />
             </div>
-            
+
             <div>
-              <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+              <h1
+                style={{
+                  fontSize: "1.875rem",
+                  fontWeight: 800,
+                  color: "var(--color-text)",
+                  letterSpacing: "-0.03em",
+                  marginBottom: "0.5rem",
+                }}
+              >
                 Tyaaa Financee
               </h1>
-              <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6, fontSize: '0.9375rem', padding: '0 0.5rem' }}>
-                Catat pemasukan, atur pengeluaran, dan wujudkan target finansialmu dengan mudah dan elegan.
+              <p
+                style={{
+                  color: "var(--color-text-muted)",
+                  lineHeight: 1.6,
+                  fontSize: "0.9375rem",
+                  padding: "0 0.5rem",
+                }}
+              >
+                Catat pemasukan, atur pengeluaran, dan wujudkan target
+                finansialmu dengan mudah dan elegan.
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1.5rem 0', borderTop: '1px solid rgba(255, 133, 162, 0.2)', borderBottom: '1px solid rgba(255, 133, 162, 0.2)' }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "1.5rem 0",
+              borderTop: "1px solid rgba(255, 133, 162, 0.2)",
+              borderBottom: "1px solid rgba(255, 133, 162, 0.2)",
+            }}
+          >
             <div className="feature-item">
               <div className="feature-icon-wrapper">
                 <TrendingUp size={20} strokeWidth={2.5} />
@@ -195,7 +226,20 @@ export default async function LoginPage() {
             </div>
             <div className="feature-item">
               <div className="feature-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                  <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                  <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+                </svg>
               </div>
               <span>G-Sheets</span>
             </div>
@@ -207,16 +251,28 @@ export default async function LoginPage() {
             </div>
           </div>
 
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
             <form
               action={async () => {
-                'use server';
-                await signIn('google', { redirectTo: '/' });
+                "use server";
+                await signIn("google", { redirectTo: "/" });
               }}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             >
               <Button type="submit" size="md" className="btn-google">
-                <svg viewBox="0 0 24 24" width="22" height="22" style={{ marginRight: '0.75rem' }}>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  style={{ marginRight: "0.75rem" }}
+                >
                   <path
                     fill="currentColor"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -238,8 +294,18 @@ export default async function LoginPage() {
               </Button>
             </form>
 
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
-              <ShieldCheck size={14} /> Data Anda tersimpan aman dan terenkripsi.
+            <p
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--color-text-faint)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.375rem",
+              }}
+            >
+              <ShieldCheck size={14} /> Data Anda tersimpan aman dan
+              terenkripsi.
             </p>
           </div>
         </div>
