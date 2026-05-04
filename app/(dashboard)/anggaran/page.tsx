@@ -34,7 +34,7 @@ export default function AnggaranPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const result = await deleteBudget(deleteId.id, deleteId.idx);
+    const result = await deleteBudget(deleteId.id);
     if (result.success) {
       toast.success("Anggaran dihapus");
       setDeleteId(null);
