@@ -74,10 +74,7 @@ export default function TabunganPage() {
     setIsAddingFunds(true);
     const result = await addFundsToSavings(
       addFundsGoal.goal.id,
-      addFundsGoal.idx,
-      addFundsGoal.goal.jumlah_terkumpul,
       amount,
-      selectedWallet,
     );
 
     setIsAddingFunds(false);

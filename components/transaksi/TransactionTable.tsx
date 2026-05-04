@@ -21,7 +21,7 @@ export function TransactionTable({
   transactions,
   onRefresh,
 }: TransactionTableProps) {
-  const { settings, isPrivateMode } = useAppStore();
+  const { isPrivateMode } = useAppStore();
   const now = new Date();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());

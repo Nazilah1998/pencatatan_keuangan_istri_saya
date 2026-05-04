@@ -31,7 +31,6 @@ export function TransactionForm({
   initialData,
   rowIndex,
 }: TransactionFormProps) {
-  const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const [jenis, setJenis] = useState<"pemasukan" | "pengeluaran">(
     initialData?.jenis || "pengeluaran",
