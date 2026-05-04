@@ -61,12 +61,9 @@ export function TransactionTable({
   const handleDelete = async () => {
     if (!deleteId) return;
     setIsDeleting(true);
-    const result = await deleteTransaction(
-      deleteId.id,
-      deleteId.idx,
-      settings.google_sheet_id,
-      settings.sheet_tabs.transaksi,
-    );
+    const txToDelete = transactions.find((t) => t.id === deleteId.id);
+    if (!txToDelete) return;
+    const result = await deleteTransaction(deleteId.id, txToDelete);
     setIsDeleting(false);
     if (result.success) {
       toast.success("Transaksi dihapus");

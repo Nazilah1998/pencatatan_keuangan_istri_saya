@@ -79,17 +79,11 @@ export function TransactionForm({
     if (initialData && rowIndex !== undefined) {
       result = await updateTransaction(
         initialData.id,
-        rowIndex,
         data,
-        settings.google_sheet_id,
-        settings.sheet_tabs.transaksi,
+        initialData
       );
     } else {
-      result = await addTransaction(
-        data,
-        settings.google_sheet_id,
-        settings.sheet_tabs.transaksi,
-      );
+      result = await addTransaction(data);
     }
 
     setIsLoading(false);

@@ -53,7 +53,7 @@ export default function TabunganPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const result = await deleteSavings(deleteId.id, deleteId.idx);
+    const result = await deleteSavings(deleteId.id);
     if (result.success) {
       toast.success("Tabungan dihapus");
       setDeleteId(null);
