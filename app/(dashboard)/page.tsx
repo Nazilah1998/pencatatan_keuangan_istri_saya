@@ -1,17 +1,18 @@
 import { getTransactions } from "@/app/actions/transactions";
 import { getSavings } from "@/app/actions/savings";
-import { getAssets } from "@/app/actions/assets";
+import { getAssets, getDebts } from "@/app/actions/assets";
 import { getBudgets } from "@/app/actions/budgets";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { DataSyncStoreInit } from "../../components/providers/DataSyncStoreInit";
 
 export default async function DashboardPage() {
   // Fresh data fetch for initial load/SSR
-  const [txRes, bRes, sRes, assetsRes] = await Promise.all([
+  const [txRes, bRes, sRes, assetsRes, debtsRes] = await Promise.all([
     getTransactions(),
     getBudgets(),
     getSavings(),
     getAssets(),
+    getDebts(),
   ]);
 
   const freshData = {
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
     budgets: bRes.data || [],
     savings: sRes.data || [],
     assets: assetsRes.data || [],
+    debts: debtsRes.data || [],
   };
 
   return (

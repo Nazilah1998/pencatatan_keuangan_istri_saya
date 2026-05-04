@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { Transaction, BudgetEntry, SavingsGoal, Asset } from "@/types";
+import { Transaction, BudgetEntry, SavingsGoal, Asset, Debt } from "@/types";
 
 interface DataSyncStoreInitProps {
   data: {
@@ -9,6 +9,7 @@ interface DataSyncStoreInitProps {
     budgets: BudgetEntry[];
     savings: SavingsGoal[];
     assets: Asset[];
+    debts: Debt[];
   };
 }
 
