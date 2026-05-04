@@ -1,15 +1,15 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import {
-  getAssets,
-  getDebts,
   deleteAsset,
   deleteDebt,
+  getAssets,
+  getDebts,
 } from "@/app/actions/assets";
-import { createClient } from "@/lib/supabase/client";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   Plus,
   Pencil,
@@ -17,6 +17,8 @@ import {
   ArrowUpDown,
   ChevronDown,
   Check,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -27,7 +29,14 @@ import { Asset, Debt } from "@/types";
 import toast from "react-hot-toast";
 
 export default function AsetHutangPage() {
-  const { assets, setAssets, debts, setDebts, isPrivateMode } = useAppStore();
+  const {
+    assets,
+    setAssets,
+    debts,
+    setDebts,
+    isPrivateMode,
+    togglePrivateMode,
+  } = useAppStore();
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"aset" | "hutang">("aset");
@@ -112,21 +121,21 @@ export default function AsetHutangPage() {
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <Button
-            variant="ghost"
             onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.href = "/login";
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              if (!user) {
+                toast.error("Silakan login untuk menambah data");
+                window.location.href = "/login";
+                return;
+              }
+              if (activeTab === "aset") {
+                setIsAssetModalOpen(true);
+              } else {
+                setIsDebtModalOpen(true);
+              }
             }}
-            style={{ borderRadius: "12px", height: "40px" }}
-          >
-            Keluar
-          </Button>
-          <Button
-            onClick={() =>
-              activeTab === "aset"
-                ? setIsAssetModalOpen(true)
-                : setIsDebtModalOpen(true)
-            }
             style={{
               borderRadius: "12px",
               height: "40px",
@@ -151,17 +160,44 @@ export default function AsetHutangPage() {
           border: "none",
         }}
       >
-        <h3
+        <div
           style={{
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            opacity: 0.9,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          Kekayaan Bersih (Net Worth)
-        </h3>
+          <h3
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              opacity: 0.9,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Kekayaan Bersih (Net Worth)
+          </h3>
+          <button
+            onClick={togglePrivateMode}
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "none",
+              color: "white",
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            title={isPrivateMode ? "Tampilkan Saldo" : "Sembunyikan Saldo"}
+          >
+            {isPrivateMode ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
         <div
           style={{
             fontFamily: "var(--font-mono)",

@@ -11,6 +11,7 @@ interface KPICardProps {
   trend?: number; // percentage vs previous period
   icon?: string;
   subtitle?: string;
+  onClick?: () => void;
 }
 
 export const KPICard = React.memo(function KPICard({
@@ -20,6 +21,7 @@ export const KPICard = React.memo(function KPICard({
   trend,
   icon,
   subtitle,
+  onClick,
 }: KPICardProps) {
   const { isPrivateMode } = useAppStore();
   const [hasHydrated, setHasHydrated] = useState(false);
@@ -81,6 +83,7 @@ export const KPICard = React.memo(function KPICard({
   return (
     <div
       className="card"
+      onClick={onClick}
       style={{
         padding: "var(--card-padding)",
         display: "flex",
@@ -89,7 +92,7 @@ export const KPICard = React.memo(function KPICard({
         position: "relative",
         overflow: "hidden",
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        cursor: "default",
+        cursor: onClick ? "pointer" : "default",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-4px)";

@@ -12,6 +12,8 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import { BudgetEntry, Transaction } from "@/types";
 import toast from "react-hot-toast";
 
+import { createClient } from "@/lib/supabase/client";
+
 export default function AnggaranPage() {
   const [budgets, setBudgets] = useState<BudgetEntry[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -20,6 +22,7 @@ export default function AnggaranPage() {
   const [deleteId, setDeleteId] = useState<{ id: string; idx: number } | null>(
     null,
   );
+  const supabase = createClient();
 
   const fetchData = React.useCallback(async () => {
     const [bRes, tRes] = await Promise.all([getBudgets(), getTransactions()]);
@@ -80,7 +83,17 @@ export default function AnggaranPage() {
           </p>
         </div>
         <Button
-          onClick={() => setIsModalOpen(true)}
+          onClick={async () => {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) {
+              toast.error("Silakan login untuk menambah anggaran");
+              window.location.href = "/login";
+              return;
+            }
+            setIsModalOpen(true);
+          }}
           size="sm"
           style={{
             borderRadius: "12px",

@@ -17,6 +17,8 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import { SavingsGoal } from "@/types";
 import toast from "react-hot-toast";
 
+import { createClient } from "@/lib/supabase/client";
+
 export default function TabunganPage() {
   const [savings, setSavings] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function TabunganPage() {
   const [deleteId, setDeleteId] = useState<{ id: string; idx: number } | null>(
     null,
   );
+  const supabase = createClient();
 
   // Add funds modal state
   const [addFundsGoal, setAddFundsGoal] = useState<{
@@ -131,7 +134,17 @@ export default function TabunganPage() {
           </p>
         </div>
         <Button
-          onClick={() => setIsModalOpen(true)}
+          onClick={async () => {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) {
+              toast.error("Silakan login untuk menambah tabungan");
+              window.location.href = "/login";
+              return;
+            }
+            setIsModalOpen(true);
+          }}
           size="sm"
           style={{
             borderRadius: "12px",

@@ -17,16 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transaksi", label: "Transaksi", icon: ArrowLeftRight },
-  { href: "/anggaran", label: "Anggaran", icon: Wallet },
-  { href: "/tabungan", label: "Tabungan", icon: PiggyBank },
-  { href: "/aset-hutang", label: "Aset & Hutang", icon: Building2 },
-  { href: "/laporan", label: "Laporan", icon: BarChart3 },
-  { href: "/pengaturan", label: "Pengaturan", icon: Settings },
-];
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -35,15 +26,34 @@ export function Sidebar() {
   const [user, setUser] = useState<User | null>(null);
   const [mounted, setMounted] = useState(false);
   const supabase = createClient();
+  const { t } = useTranslation();
+
+  const NAV_ITEMS = [
+    { href: "/", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+    {
+      href: "/transaksi",
+      label: t("sidebar.transactions"),
+      icon: ArrowLeftRight,
+    },
+    { href: "/anggaran", label: t("sidebar.budget"), icon: Wallet },
+    { href: "/tabungan", label: t("sidebar.savings"), icon: PiggyBank },
+    { href: "/aset-hutang", label: t("sidebar.assets"), icon: Building2 },
+    { href: "/laporan", label: t("sidebar.reports"), icon: BarChart3 },
+    { href: "/pengaturan", label: t("sidebar.settings"), icon: Settings },
+  ];
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
     };
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -122,8 +132,9 @@ export function Sidebar() {
               style={{
                 width: 42,
                 height: 42,
-                background:
-                  "linear-gradient(135deg, var(--color-primary), #ec4899)",
+                background: settings.logo_url
+                  ? "var(--color-surface)"
+                  : "linear-gradient(135deg, var(--color-primary), #ec4899)",
                 borderRadius: "var(--radius-lg)",
                 display: "flex",
                 alignItems: "center",
@@ -131,9 +142,23 @@ export function Sidebar() {
                 fontSize: "1.5rem",
                 flexShrink: 0,
                 boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                position: "relative",
+                overflow: "hidden",
+                border: settings.logo_url
+                  ? "1px solid var(--color-border)"
+                  : "none",
               }}
             >
-              💎
+              {settings.logo_url ? (
+                <Image
+                  src={settings.logo_url}
+                  alt="App Logo"
+                  fill
+                  style={{ objectFit: "cover" }}
+                />
+              ) : (
+                "💎"
+              )}
             </div>
             <div>
               <div
@@ -246,7 +271,7 @@ export function Sidebar() {
         </nav>
 
         {/* User Account Section */}
-        {user && (
+        {user ? (
           <div
             style={{
               margin: "0 0.75rem 1rem",
@@ -346,6 +371,56 @@ export function Sidebar() {
               }}
             >
               <LogOut size={18} />
+            </button>
+          </div>
+        ) : (
+          <div style={{ margin: "0 0.75rem 1rem" }}>
+            <button
+              onClick={async () => {
+                await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                  },
+                });
+              }}
+              style={{
+                width: "100%",
+                padding: "0.875rem",
+                background: "white",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-xl)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.75rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "#333",
+                boxShadow: "var(--shadow-sm)",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--color-surface-offset)";
+                (e.currentTarget as HTMLElement).style.transform =
+                  "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "white";
+                (e.currentTarget as HTMLElement).style.transform =
+                  "translateY(0)";
+              }}
+            >
+              <Image
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+                width={18}
+                height={18}
+                unoptimized
+              />
+              Masuk dengan Google
             </button>
           </div>
         )}

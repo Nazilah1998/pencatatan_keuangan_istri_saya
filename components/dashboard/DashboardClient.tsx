@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { SpendingChart } from "@/components/dashboard/SpendingChart";
 import { CategoryPieChart } from "@/components/dashboard/CategoryPieChart";
@@ -15,30 +15,48 @@ import {
   EyeOff,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import { CATEGORY_COLORS } from "@/lib/constants";
 import { useAppStore } from "@/store/useAppStore";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function DashboardClient() {
-  const { transactions, savings, assets, isPrivateMode, togglePrivateMode } =
-    useAppStore();
+  const {
+    transactions,
+    savings,
+    assets,
+    isPrivateMode,
+    togglePrivateMode,
+    user,
+    settings,
+  } = useAppStore();
+  const router = useRouter();
+  const { t } = useTranslation();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
 
   const now = useMemo(() => new Date(), []);
 
-  // Fix greeting using Jakarta timezone
-  const greeting = useMemo(() => {
-    const jakartaTime = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Jakarta",
-      hour: "numeric",
-      hour12: false,
-    }).format(now);
+  // Get display name
+  const displayName = useMemo(() => {
+    if (settings.nama_panggilan) return settings.nama_panggilan;
+    if (user?.full_name) return user.full_name.split(" ")[0];
+    return "";
+  }, [settings.nama_panggilan, user]);
 
-    const hour = parseInt(jakartaTime, 10);
-    if (hour >= 5 && hour < 11) return "Selamat Pagi";
-    if (hour >= 11 && hour < 15) return "Selamat Siang";
-    if (hour >= 15 && hour < 18) return "Selamat Sore";
-    return "Selamat Malam";
-  }, [now]);
+  const greeting = useMemo(() => {
+    const baseGreeting = t("dashboard.greeting");
+    return displayName
+      ? `${baseGreeting}, ${displayName}! 👋`
+      : `${baseGreeting}! 👋`;
+  }, [displayName, t]);
 
   const stats = useMemo(() => {
     let totalSaldo = 0;
@@ -172,6 +190,21 @@ export function DashboardClient() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div
+          className="skeleton"
+          style={{ height: "150px", borderRadius: "var(--radius-xl)" }}
+        ></div>
+        <div
+          className="skeleton"
+          style={{ height: "300px", borderRadius: "var(--radius-xl)" }}
+        ></div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
       <div
@@ -200,7 +233,7 @@ export function DashboardClient() {
               margin: 0,
             }}
           >
-            {greeting}, Tya! 👋
+            {greeting}
           </h1>
           <button
             onClick={togglePrivateMode}
@@ -248,7 +281,7 @@ export function DashboardClient() {
               fontWeight: 500,
             }}
           >
-            Bulan ini
+            {t("dashboard.this_month") || "Bulan ini"}
           </p>
         </div>
       </div>
@@ -274,7 +307,7 @@ export function DashboardClient() {
                 letterSpacing: "0.05em",
               }}
             >
-              Dompet & Aset
+              {t("dashboard.wallet_assets") || "Dompet & Aset"}
             </h3>
             <Link
               href="/aset-hutang"
@@ -285,7 +318,7 @@ export function DashboardClient() {
                 textDecoration: "none",
               }}
             >
-              Atur Aset
+              {t("dashboard.manage_assets") || "Atur Aset"}
             </Link>
           </div>
           <div
@@ -347,32 +380,39 @@ export function DashboardClient() {
         </div>
       )}
 
-      {/* KPI Section */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", // Lowered from 240px for 2-column on mobile
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: "1rem",
         }}
       >
-        <KPICard title="Total Saldo" amount={stats.totalSaldo} icon="💰" />
         <KPICard
-          title="Pemasukan"
+          title={t("dashboard.total_balance")}
+          amount={stats.totalSaldo}
+          icon="💰"
+          onClick={() => router.push("/transaksi")}
+        />
+        <KPICard
+          title={t("dashboard.income")}
           amount={stats.totalPemasukan}
           type="income"
           icon="📈"
+          onClick={() => router.push("/transaksi?type=pemasukan")}
         />
         <KPICard
-          title="Pengeluaran"
+          title={t("dashboard.expense")}
           amount={stats.totalPengeluaran}
           type="expense"
           icon="📉"
+          onClick={() => router.push("/transaksi?type=pengeluaran")}
         />
         <KPICard
-          title="Tabungan"
+          title={t("dashboard.savings")}
           amount={stats.totalTabungan}
           type="saving"
           icon="🏦"
+          onClick={() => router.push("/tabungan")}
         />
       </div>
 

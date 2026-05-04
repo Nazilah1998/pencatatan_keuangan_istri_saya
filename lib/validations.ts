@@ -95,9 +95,12 @@ export const debtSchema = z.object({
 export const settingsSchema = z.object({
   mata_uang: z.literal("IDR"),
   format_tanggal: z.enum(["DD/MM/YYYY", "YYYY-MM-DD"]),
-  nama_pengguna: z.string().min(2, "Nama minimal 2 karakter"),
+  bahasa: z.string().optional(),
+  nama_pengguna: z.string().optional(),
+  nama_panggilan: z.string().optional(),
   nama_rumah_tangga: z.string().min(2, "Nama rumah tangga minimal 2 karakter"),
   tema_warna: z.string().optional(),
+  logo_url: z.string().optional(),
 });
 
 export type TransactionSchema = z.infer<typeof transactionSchema>;

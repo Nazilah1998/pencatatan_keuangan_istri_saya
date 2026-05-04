@@ -4,7 +4,9 @@ import { Toaster } from "react-hot-toast";
 
 import { PWAProvider } from "@/components/providers/PWAProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { BiometricLockProvider } from "@/components/providers/BiometricLockProvider";
+import { LanguageSyncProvider } from "@/components/providers/LanguageSyncProvider";
+import { ProfileSyncProvider } from "@/components/providers/ProfileSyncProvider";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: {
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | Tyaaa Financee",
   },
   description:
-    "Pencatatan keuangan rumah tangga terintegrasi Google Sheets. Lacak pemasukan, pengeluaran, anggaran, dan tabungan dengan Tyaaa Financee.",
+    "Raih kendali penuh atas masa depan finansial Anda dengan cara yang cerdas dan eksklusif bersama Tyaaa Financee.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -67,34 +69,50 @@ export default async function RootLayout({
       <body>
         <PWAProvider>
           <DataSyncProvider>
-            <BiometricLockProvider>
-              <ThemeProvider />
-              {children}
-              <Toaster
-                position="bottom-center"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: "var(--color-surface)",
-                    color: "var(--color-text)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-lg)",
-                    fontFamily: "var(--font-body)",
-                    fontSize: "0.875rem",
-                    boxShadow: "var(--shadow-lg)",
-                    padding: "0.75rem 1rem",
-                  },
-                  success: {
-                    iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
-                  },
-                  error: {
-                    iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
-                  },
-                }}
-              />
-            </BiometricLockProvider>
+            <ThemeProvider />
+            <LanguageSyncProvider />
+            <ProfileSyncProvider>{children}</ProfileSyncProvider>
+            <Toaster
+              position="bottom-center"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-lg)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.875rem",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: "0.75rem 1rem",
+                },
+                success: {
+                  iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
+                },
+                error: {
+                  iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
+                },
+              }}
+            />
           </DataSyncProvider>
         </PWAProvider>
+
+        {/* Google Translate Integration */}
+        <div id="google_translate_element" style={{ display: "none" }}></div>
+        <Script
+          strategy="afterInteractive"
+          src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+        />
+        <Script id="google-translate-init" strategy="afterInteractive">
+          {`
+            function googleTranslateElementInit() {
+              new google.translate.TranslateElement({
+                pageLanguage: 'id',
+                autoDisplay: false
+              }, 'google_translate_element');
+            }
+          `}
+        </Script>
       </body>
     </html>
   );

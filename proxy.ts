@@ -38,7 +38,9 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Jika belum login dan bukan di halaman login
+  // Jika belum login, kita biarkan saja (Guest Mode)
+  // User tetap bisa melihat dashboard, tapi fitur tambah data sudah diproteksi di level komponen
+  /*
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
@@ -48,6 +50,7 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+  */
 
   // Jika sudah login dan mencoba ke halaman login
   if (user && request.nextUrl.pathname.startsWith("/login")) {

@@ -6,15 +6,6 @@ import toast from "react-hot-toast";
 import { transactionSchema } from "@/lib/validations";
 import { addTransaction, updateTransaction } from "@/app/actions/transactions";
 import { useAppStore } from "@/store/useAppStore";
-import {
-  PEMASUKAN_CATEGORIES,
-  PENGELUARAN_CATEGORIES,
-  DOMPET_OPTIONS,
-  SUB_CATEGORIES,
-  CATEGORY_ICONS,
-  SUB_CATEGORY_ICONS,
-  DOMPET_ICONS,
-} from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -32,8 +23,14 @@ export function TransactionForm({
   rowIndex,
 }: TransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [jenis, setJenis] = useState<"pemasukan" | "pengeluaran">(
-    initialData?.jenis || "pengeluaran",
+  const { settings } = useAppStore();
+  const custom_categories = React.useMemo(
+    () => settings.custom_categories || [],
+    [settings.custom_categories],
+  );
+  const custom_wallets = React.useMemo(
+    () => settings.custom_wallets || [],
+    [settings.custom_wallets],
   );
 
   const {
@@ -56,7 +53,7 @@ export function TransactionForm({
           jumlah: 0,
           kategori: "",
           sub_kategori: "",
-          dompet: DOMPET_OPTIONS[0],
+          dompet: custom_wallets[0]?.name || "Cash",
           deskripsi: "",
         },
   });
@@ -64,7 +61,33 @@ export function TransactionForm({
   const selectedKategori = useWatch({ control, name: "kategori" });
   const selectedSubKategori = useWatch({ control, name: "sub_kategori" });
   const selectedDompet = useWatch({ control, name: "dompet" });
-  const subCategoryOptions = SUB_CATEGORIES[selectedKategori] || [];
+  const watchedJenis = useWatch({ control, name: "jenis" }) || "pengeluaran";
+
+  const handleJenisChange = (val: "pemasukan" | "pengeluaran") => {
+    setValue("jenis", val);
+    setValue("kategori", "");
+  };
+
+  const currentCategory = custom_categories.find(
+    (c) => c.name === selectedKategori,
+  );
+  const subCategoryOptions =
+    currentCategory?.sub_categories.map((s) => s.name) || [];
+
+  // Force reset form when component mounts or initialData changes
+  useEffect(() => {
+    if (!initialData) {
+      reset({
+        tanggal: new Date().toISOString().split("T")[0],
+        jenis: "pengeluaran",
+        jumlah: 0,
+        kategori: "",
+        sub_kategori: "",
+        dompet: custom_wallets[0]?.name || "Cash",
+        deskripsi: "",
+      });
+    }
+  }, [reset, initialData, custom_wallets]);
 
   // Reset sub_kategori if parent kategori changes
   useEffect(() => {
@@ -145,7 +168,7 @@ export function TransactionForm({
       if (!initialData) {
         reset({
           tanggal: new Date().toISOString().split("T")[0],
-          jenis,
+          jenis: watchedJenis,
           dompet: data.dompet,
         });
       }
@@ -154,15 +177,6 @@ export function TransactionForm({
       toast.error(result.error || "Gagal menyimpan transaksi");
     }
   };
-
-  const handleJenisChange = (val: "pemasukan" | "pengeluaran") => {
-    setJenis(val);
-    setValue("jenis", val);
-    setValue("kategori", "");
-  };
-
-  const categories =
-    jenis === "pemasukan" ? PEMASUKAN_CATEGORIES : PENGELUARAN_CATEGORIES;
 
   const tabStyle = (active: boolean, color: string) => ({
     flex: 1,
@@ -218,20 +232,26 @@ export function TransactionForm({
         >
           <button
             type="button"
-            style={tabStyle(jenis === "pemasukan", "var(--color-income)")}
+            style={tabStyle(
+              watchedJenis === "pemasukan",
+              "var(--color-income)",
+            )}
             onClick={() => handleJenisChange("pemasukan")}
           >
             📈 Pemasukan
           </button>
           <button
             type="button"
-            style={tabStyle(jenis === "pengeluaran", "var(--color-expense)")}
+            style={tabStyle(
+              watchedJenis === "pengeluaran",
+              "var(--color-expense)",
+            )}
             onClick={() => handleJenisChange("pengeluaran")}
           >
             📉 Pengeluaran
           </button>
         </div>
-        <input type="hidden" {...register("jenis")} value={jenis} />
+        <input type="hidden" {...register("jenis")} value={watchedJenis} />
       </div>
 
       {/* Jumlah Input */}
@@ -276,7 +296,37 @@ export function TransactionForm({
 
         {/* Dompet Selector (Modern Grid) */}
         <div className="form-group">
-          <label className="form-label">Pilih Dompet *</label>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <label className="form-label" style={{ margin: 0 }}>
+              Pilih Dompet *
+            </label>
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/pengaturan/dompet")}
+              style={{
+                fontSize: "0.75rem",
+                background: "var(--color-primary-highlight)",
+                color: "var(--color-primary)",
+                border: "none",
+                padding: "2px 8px",
+                borderRadius: "6px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <span>+ Tambah</span>
+            </button>
+          </div>
           <div
             style={{
               display: "grid",
@@ -284,14 +334,14 @@ export function TransactionForm({
               gap: "0.625rem",
             }}
           >
-            {DOMPET_OPTIONS.map((d) => {
-              const isSelected = selectedDompet === d;
-              const icon = DOMPET_ICONS[d] || "💳";
+            {custom_wallets.map((wallet) => {
+              const isSelected = selectedDompet === wallet.name;
+              const icon = wallet.icon || "💳";
               return (
                 <button
-                  key={d}
+                  key={wallet.id}
                   type="button"
-                  onClick={() => setValue("dompet", d)}
+                  onClick={() => setValue("dompet", wallet.name)}
                   className="grid-item-btn"
                   style={{
                     display: "flex",
@@ -320,7 +370,7 @@ export function TransactionForm({
                         : "var(--color-text)",
                     }}
                   >
-                    {d}
+                    {wallet.name}
                   </span>
                 </button>
               );
@@ -334,7 +384,37 @@ export function TransactionForm({
 
       {/* Kategori Grid */}
       <div className="form-group">
-        <label className="form-label">Pilih Kategori *</label>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "0.5rem",
+          }}
+        >
+          <label className="form-label" style={{ margin: 0 }}>
+            Pilih Kategori *
+          </label>
+          <button
+            type="button"
+            onClick={() => (window.location.href = "/pengaturan/kategori")}
+            style={{
+              fontSize: "0.75rem",
+              background: "var(--color-primary-highlight)",
+              color: "var(--color-primary)",
+              border: "none",
+              padding: "2px 8px",
+              borderRadius: "6px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <span>+ Tambah</span>
+          </button>
+        </div>
         <div
           style={{
             display: "grid",
@@ -342,75 +422,15 @@ export function TransactionForm({
             gap: "0.625rem",
           }}
         >
-          {categories.map((cat) => {
-            const isSelected = selectedKategori === cat;
-            const icon = CATEGORY_ICONS[cat] || "📁";
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setValue("kategori", cat)}
-                className="grid-item-btn"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  borderRadius: "var(--radius-xl)",
-                  border: "2px solid",
-                  borderColor: isSelected
-                    ? "var(--color-primary)"
-                    : "var(--color-border)",
-                  background: isSelected
-                    ? "var(--color-surface-offset)"
-                    : "transparent",
-                  cursor: "pointer",
-                  transition: "all var(--transition)",
-                  boxShadow: isSelected ? "var(--shadow-sm)" : "none",
-                }}
-              >
-                <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-                <span
-                  style={{
-                    fontSize: "0.6875rem",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    color: isSelected
-                      ? "var(--color-primary)"
-                      : "var(--color-text)",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {cat}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {errors.kategori && (
-          <span className="form-error">{errors.kategori.message}</span>
-        )}
-      </div>
-
-      {/* Sub Kategori - Only show if current category has subs */}
-      {subCategoryOptions.length > 0 && (
-        <div className="form-group animate-in fade-in slide-in-from-top-2">
-          <label className="form-label">Pilih Sub Kategori</label>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
-              gap: "0.625rem",
-            }}
-          >
-            {subCategoryOptions.map((sub) => {
-              const isSelected = selectedSubKategori === sub;
-              const icon = SUB_CATEGORY_ICONS[sub] || "🔹";
+          {custom_categories
+            .filter((c) => c.type === watchedJenis)
+            .map((cat) => {
+              const isSelected = selectedKategori === cat.name;
               return (
                 <button
-                  key={sub}
+                  key={cat.id}
                   type="button"
-                  onClick={() => setValue("sub_kategori", sub)}
+                  onClick={() => setValue("kategori", cat.name)}
                   className="grid-item-btn"
                   style={{
                     display: "flex",
@@ -430,7 +450,7 @@ export function TransactionForm({
                     boxShadow: isSelected ? "var(--shadow-sm)" : "none",
                   }}
                 >
-                  <span style={{ fontSize: "1.5rem" }}>{icon}</span>
+                  <span style={{ fontSize: "1.5rem" }}>{cat.icon || "📁"}</span>
                   <span
                     style={{
                       fontSize: "0.6875rem",
@@ -442,7 +462,67 @@ export function TransactionForm({
                       lineHeight: 1.2,
                     }}
                   >
-                    {sub}
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
+        </div>
+        {errors.kategori && (
+          <span className="form-error">{errors.kategori.message}</span>
+        )}
+      </div>
+
+      {/* Sub Kategori - Only show if current category has subs */}
+      {subCategoryOptions.length > 0 && (
+        <div className="form-group animate-in fade-in slide-in-from-top-2">
+          <label className="form-label">Pilih Sub Kategori</label>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+              gap: "0.625rem",
+            }}
+          >
+            {currentCategory?.sub_categories.map((sub) => {
+              const isSelected = selectedSubKategori === sub.name;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setValue("sub_kategori", sub.name)}
+                  className="grid-item-btn"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    borderRadius: "var(--radius-xl)",
+                    border: "2px solid",
+                    borderColor: isSelected
+                      ? "var(--color-primary)"
+                      : "var(--color-border)",
+                    background: isSelected
+                      ? "var(--color-surface-offset)"
+                      : "transparent",
+                    cursor: "pointer",
+                    transition: "all var(--transition)",
+                    boxShadow: isSelected ? "var(--shadow-sm)" : "none",
+                  }}
+                >
+                  <span style={{ fontSize: "1.5rem" }}>{sub.icon || "🔹"}</span>
+                  <span
+                    style={{
+                      fontSize: "0.6875rem",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      color: isSelected
+                        ? "var(--color-primary)"
+                        : "var(--color-text)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {sub.name}
                   </span>
                 </button>
               );

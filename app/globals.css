@@ -674,3 +674,20 @@ h6 {
   background: var(--color-expense-bg);
   color: var(--color-expense);
 }
+
+/* ============================================================
+   GOOGLE TRANSLATE HIDE UI
+   ============================================================ */
+
+body {
+  top: 0 !important;
+}
+.skiptranslate iframe {
+  display: none !important;
+}
+#goog-gt-tt {
+  display: none !important;
+}
+.goog-te-spinner-pos {
+  display: none !important;
+}

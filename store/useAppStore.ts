@@ -8,7 +8,20 @@ import {
   Debt,
   AppSettings,
   Profile,
+  CustomCategory,
+  CustomWallet,
 } from "@/types";
+
+import {
+  PEMASUKAN_CATEGORIES,
+  PENGELUARAN_CATEGORIES,
+  SUB_CATEGORIES,
+  CATEGORY_ICONS,
+  CATEGORY_COLORS,
+  SUB_CATEGORY_ICONS,
+  DOMPET_OPTIONS,
+  DOMPET_ICONS,
+} from "@/lib/constants";
 
 interface AppState {
   user: Profile | null;
@@ -24,13 +37,9 @@ interface AppState {
   debts: Debt[];
   lastSynced: string | null;
   isPrivateMode: boolean;
-  isBiometricEnabled: boolean;
-  isAppLocked: boolean;
 
   // Actions
   togglePrivateMode: () => void;
-  setBiometricEnabled: (enabled: boolean) => void;
-  setAppLocked: (locked: boolean) => void;
   setUser: (user: Profile | null) => void;
   setSettings: (settings: Partial<AppSettings>) => void;
   toggleSidebar: () => void;
@@ -50,15 +59,48 @@ interface AppState {
     assets: Asset[];
     debts: Debt[];
   }) => void;
+  syncSettingsWithCloud: () => Promise<void>;
 }
+
+const INITIAL_CUSTOM_CATEGORIES: CustomCategory[] = [
+  ...PEMASUKAN_CATEGORIES.map((name) => ({
+    id: name.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    type: "pemasukan" as const,
+    icon: CATEGORY_ICONS[name] || "💰",
+    color: CATEGORY_COLORS[name] || "#10b981",
+    sub_categories: [],
+  })),
+  ...PENGELUARAN_CATEGORIES.map((name) => ({
+    id: name.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    type: "pengeluaran" as const,
+    icon: CATEGORY_ICONS[name] || "💸",
+    color: CATEGORY_COLORS[name] || "#ef4444",
+    sub_categories: (SUB_CATEGORIES[name] || []).map((sub) => ({
+      id: sub.toLowerCase().replace(/\s+/g, "-"),
+      name: sub,
+      icon: SUB_CATEGORY_ICONS[sub] || "🔹",
+    })),
+  })),
+];
+
+const INITIAL_CUSTOM_WALLETS: CustomWallet[] = DOMPET_OPTIONS.map((name) => ({
+  id: name.toLowerCase().replace(/\s+/g, "-"),
+  name,
+  icon: DOMPET_ICONS[name] || "💳",
+}));
 
 const DEFAULT_SETTINGS: AppSettings = {
   mata_uang: "IDR",
   format_tanggal: "DD/MM/YYYY",
   nama_pengguna: "",
+  nama_panggilan: "",
   nama_rumah_tangga: "Rumah Tangga Saya",
   anggota: [],
   tema_warna: "#ff85a2",
+  custom_categories: INITIAL_CUSTOM_CATEGORIES,
+  custom_wallets: INITIAL_CUSTOM_WALLETS,
 };
 
 export const useAppStore = create<AppState>()(
@@ -80,9 +122,16 @@ export const useAppStore = create<AppState>()(
       setUser: (user) => set({ user }),
 
       setSettings: (partial) =>
-        set((state) => ({
-          settings: { ...state.settings, ...partial },
-        })),
+        set((state) => {
+          const newSettings = { ...state.settings, ...partial };
+          // Safety fallback for old users
+          if (!newSettings.custom_categories)
+            newSettings.custom_categories = INITIAL_CUSTOM_CATEGORIES;
+          if (!newSettings.custom_wallets)
+            newSettings.custom_wallets = INITIAL_CUSTOM_WALLETS;
+
+          return { settings: newSettings };
+        }),
 
       toggleSidebar: () =>
         set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
@@ -97,10 +146,6 @@ export const useAppStore = create<AppState>()(
       isPrivateMode: true,
       togglePrivateMode: () =>
         set((state) => ({ isPrivateMode: !state.isPrivateMode })),
-      isBiometricEnabled: false,
-      isAppLocked: false,
-      setBiometricEnabled: (enabled) => set({ isBiometricEnabled: enabled }),
-      setAppLocked: (locked) => set({ isAppLocked: locked }),
       setTransactions: (transactions) => set({ transactions }),
       setBudgets: (budgets) => set({ budgets }),
       setSavings: (savings) => set({ savings }),
@@ -111,6 +156,12 @@ export const useAppStore = create<AppState>()(
           ...data,
           lastSynced: new Date().toISOString(),
         }),
+
+      syncSettingsWithCloud: async () => {
+        const { settings } = useAppStore.getState();
+        const { updateProfile } = await import("@/app/actions/profiles");
+        await updateProfile(settings);
+      },
     }),
     {
       name: "rumah-catat-store",
@@ -123,8 +174,6 @@ export const useAppStore = create<AppState>()(
         assets: state.assets,
         debts: state.debts,
         lastSynced: state.lastSynced,
-        isPrivateMode: state.isPrivateMode,
-        isBiometricEnabled: state.isBiometricEnabled,
       }),
     },
   ),

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { deleteTransaction } from "@/app/actions/transactions";
 import { useAppStore } from "@/store/useAppStore";
+import { useSearchParams } from "next/navigation";
 import { TransactionForm } from "./TransactionForm";
 import { CATEGORY_COLORS } from "@/lib/constants";
 import toast from "react-hot-toast";
@@ -21,7 +22,9 @@ export function TransactionTable({
   transactions,
   onRefresh,
 }: TransactionTableProps) {
-  const { isPrivateMode } = useAppStore();
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get("type");
+
   const now = new Date();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -36,7 +39,22 @@ export function TransactionTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [typeFilter, setTypeFilter] = useState<
     "all" | "pemasukan" | "pengeluaran"
-  >("all");
+  >(
+    initialType === "pemasukan" || initialType === "pengeluaran"
+      ? initialType
+      : "all",
+  );
+
+  // Pattern: Adjusting state when a search param changes without useEffect
+  const [prevInitialType, setPrevInitialType] = useState(initialType);
+  if (initialType !== prevInitialType) {
+    setPrevInitialType(initialType);
+    setTypeFilter(
+      initialType === "pemasukan" || initialType === "pengeluaran"
+        ? initialType
+        : "all",
+    );
+  }
 
   const filtered = useMemo(() => {
     return transactions
@@ -662,9 +680,7 @@ export function TransactionTable({
                                 }}
                               >
                                 {isIncome ? "+" : "-"}
-                                {isPrivateMode
-                                  ? "Rp ••••••"
-                                  : formatCurrency(tx.jumlah)}
+                                {formatCurrency(tx.jumlah)}
                               </span>
                             </div>
                           </div>
