@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { savingsSchema, SavingsSchema } from "@/lib/validations";
 import { addSavings, updateSavings } from "@/app/actions/savings";
-import { useAppStore } from "@/store/useAppStore";
 import { SAVINGS_ICONS, SAVINGS_COLORS } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
