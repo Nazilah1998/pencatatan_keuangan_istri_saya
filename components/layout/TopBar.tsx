@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Eye, EyeOff } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -17,7 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function TopBar() {
   const pathname = usePathname();
-  const { toggleSidebar } = useAppStore();
+  const { toggleSidebar, isPrivateMode, togglePrivateMode } = useAppStore();
 
   const pageTitle = PAGE_TITLES[pathname] || "Tyaaa Financee";
 
@@ -77,6 +77,23 @@ export function TopBar() {
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         {/* Potentially add profile or notification icons here in future */}
+        <button
+          onClick={togglePrivateMode}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--color-text-muted)",
+            padding: "0.5rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            borderRadius: "50%",
+            transition: "background 0.2s",
+          }}
+          title={isPrivateMode ? "Tampilkan Saldo" : "Sembunyikan Saldo"}
+        >
+          {isPrivateMode ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
         <div
           style={{
             width: 32,

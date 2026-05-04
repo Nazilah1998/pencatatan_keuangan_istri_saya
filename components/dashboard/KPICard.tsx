@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useAppStore } from "@/store/useAppStore";
 
 interface KPICardProps {
   title: string;
@@ -20,7 +21,14 @@ export const KPICard = React.memo(function KPICard({
   icon,
   subtitle,
 }: KPICardProps) {
+  const { isPrivateMode } = useAppStore();
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [displayed, setDisplayed] = useState(0);
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
   const frameRef = useRef<number>(null);
   const startRef = useRef<number>(null);
   const duration = 1200;
@@ -156,7 +164,11 @@ export const KPICard = React.memo(function KPICard({
           lineHeight: 1.1,
         }}
       >
-        {formatCurrency(displayed)}
+        {!hasHydrated
+          ? "Rp ..."
+          : isPrivateMode
+            ? "Rp ••••••"
+            : formatCurrency(displayed)}
       </div>
 
       {(trend !== undefined || subtitle) && (

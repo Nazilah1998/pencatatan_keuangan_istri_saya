@@ -51,10 +51,12 @@ export const assetSchema = z.object({
     "kas",
     "rekening",
     "investasi",
+    "emas",
     "properti",
     "kendaraan",
     "lainnya",
   ]),
+
   nilai: z
     .number({ message: "Nilai harus berupa angka" })
     .min(0, "Nilai tidak boleh negatif"),

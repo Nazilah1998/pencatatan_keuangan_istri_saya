@@ -14,6 +14,7 @@ import {
 import { savingsSchema } from "@/lib/validations";
 import { generateId } from "@/lib/utils";
 import { SavingsGoal, ActionResult, SavingsFormData } from "@/types";
+import { addTransaction } from "./transactions";
 
 function getConfig() {
   const sheetId = process.env.DEFAULT_SHEET_ID || "";
@@ -110,11 +111,21 @@ export async function addSavings(
   return { success: true, data: goal };
 }
 
+async function findRowIndexById(
+  sheetId: string,
+  tab: string,
+  id: string,
+): Promise<number> {
+  const rows = await readSheet(sheetId, tab, "A:A");
+  return rows.findIndex((row) => row[0] === id);
+}
+
 export async function addFundsToSavings(
   savingsId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   currentAmount: number,
   additionalAmount: number,
+  walletName: string, // New parameter
   sheetId?: string,
   tabName?: string,
 ): Promise<ActionResult> {
@@ -126,25 +137,52 @@ export async function addFundsToSavings(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
-    const rows = await readSheet(id, tab);
-    const targetRow = rows[rowIndex + 1]; // +1 for header
-    if (!targetRow) return { success: false, error: "Data tidak ditemukan" };
+    // 1. Record a transaction (Expense)
+    const txResult = await addTransaction(
+      {
+        tanggal: new Date().toISOString().split("T")[0],
+        jenis: "pengeluaran",
+        jumlah: additionalAmount,
+        kategori: "Tabungan",
+        dompet: walletName,
+        deskripsi: `Tabungan: Penambahan dana`,
+      },
+      id,
+    );
 
+    if (!txResult.success) {
+      return {
+        success: false,
+        error: `Gagal mencatat transaksi: ${txResult.error}`,
+      };
+    }
+
+    // 2. Update Savings Goal Row
+    const rows = await readSheet(id, tab);
+    const realRowIndex = rows.findIndex((row) => row[0] === savingsId);
+
+    if (realRowIndex === -1) {
+      return { success: false, error: "Data tidak ditemukan" };
+    }
+
+    const targetRow = rows[realRowIndex];
     targetRow[3] = String(currentAmount + additionalAmount);
 
-    const result = await updateRow(id, tab, rowIndex + 2, [targetRow]); // +2 for header + 1-based
+    const result = await updateRow(id, tab, realRowIndex + 1, [targetRow]);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath("/tabungan");
+    revalidatePath("/");
     return { success: true };
-  } catch {
+  } catch (error) {
+    console.error("[addFundsToSavings] Error:", error);
     return { success: false, error: "Gagal menambah dana" };
   }
 }
 
 export async function deleteSavings(
   savingsId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   sheetId?: string,
   tabName?: string,
 ): Promise<ActionResult> {
@@ -156,8 +194,13 @@ export async function deleteSavings(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+    const realRowIndex = await findRowIndexById(id, tab, savingsId);
+    if (realRowIndex === -1) {
+      return { success: false, error: "Tabungan tidak ditemukan" };
+    }
+
     const sheetInternalId = await getSheetInternalId(id, tab);
-    const result = await deleteRow(id, tab, sheetInternalId, rowIndex + 1);
+    const result = await deleteRow(id, tab, sheetInternalId, realRowIndex);
 
     if (!result.success) return { success: false, error: result.error };
 
@@ -167,9 +210,10 @@ export async function deleteSavings(
     return { success: false, error: "Gagal menghapus tabungan" };
   }
 }
+
 export async function updateSavings(
   savingsId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   formData: SavingsFormData,
   sheetId?: string,
   tabName?: string,
@@ -188,6 +232,11 @@ export async function updateSavings(
 
   if (!id)
     return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+
+  const realRowIndex = await findRowIndexById(id, tab, savingsId);
+  if (realRowIndex === -1) {
+    return { success: false, error: "Tabungan tidak ditemukan" };
+  }
 
   const updatedGoal: SavingsGoal = {
     id: savingsId,
@@ -208,7 +257,7 @@ export async function updateSavings(
     updatedGoal.deskripsi || "",
   ];
 
-  const result = await updateRow(id, tab, rowIndex + 2, [row]); // +2 for header + 1-based
+  const result = await updateRow(id, tab, realRowIndex + 1, [row]);
   if (!result.success) return { success: false, error: result.error };
 
   revalidatePath("/tabungan");

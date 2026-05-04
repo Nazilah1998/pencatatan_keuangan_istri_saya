@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Loader2,
   Palette,
+  Fingerprint,
+  ShieldAlert,
 } from "lucide-react";
 import { InstallModal } from "@/components/layout/InstallModal";
 import { AppSettings } from "@/types";
@@ -27,7 +29,8 @@ const PRESET_COLORS = [
 ];
 
 export default function PengaturanPage() {
-  const { settings, setSettings } = useAppStore();
+  const { settings, setSettings, isBiometricEnabled, setBiometricEnabled } =
+    useAppStore();
   const [isSyncing, setIsLoading] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isActuallyInstalled, setIsActuallyInstalled] = useState(false);
@@ -359,6 +362,115 @@ export default function PengaturanPage() {
                   kustom.
                 </p>
               </div>
+            </div>
+
+            <div
+              style={{
+                borderBottom: "1px solid var(--color-divider)",
+                paddingBottom: "1.5rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  marginBottom: "1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <ShieldAlert size={18} color="var(--color-primary)" /> Keamanan
+              </h3>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "var(--color-surface-offset)",
+                  padding: "1rem",
+                  borderRadius: "16px",
+                  border: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                <div
+                  style={{ display: "flex", gap: "1rem", alignItems: "center" }}
+                >
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: "12px",
+                      background: isBiometricEnabled
+                        ? "var(--color-primary-highlight)"
+                        : "var(--color-border)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: isBiometricEnabled
+                        ? "var(--color-primary)"
+                        : "var(--color-text-muted)",
+                    }}
+                  >
+                    <Fingerprint size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>
+                      Kunci Biometrik
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      Gunakan Sidik Jari / FaceID
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setBiometricEnabled(!isBiometricEnabled)}
+                  style={{
+                    width: "52px",
+                    height: "28px",
+                    borderRadius: "14px",
+                    background: isBiometricEnabled
+                      ? "var(--color-primary)"
+                      : "var(--color-border)",
+                    position: "relative",
+                    cursor: "pointer",
+                    border: "none",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    padding: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "2px",
+                      left: isBiometricEnabled ? "26px" : "2px",
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "white",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    }}
+                  />
+                </button>
+              </div>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--color-text-muted)",
+                  marginTop: "0.75rem",
+                }}
+              >
+                Jika diaktifkan, Anda perlu melakukan verifikasi sidik jari
+                setiap kali membuka aplikasi.
+              </p>
             </div>
 
             <div

@@ -97,9 +97,18 @@ export async function addBudget(
   return { success: true, data: budget };
 }
 
+async function findRowIndexById(
+  sheetId: string,
+  tab: string,
+  id: string,
+): Promise<number> {
+  const rows = await readSheet(sheetId, tab, "A:A");
+  return rows.findIndex((row) => row[0] === id);
+}
+
 export async function deleteBudget(
   budgetId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   sheetId?: string,
   tabName?: string,
 ): Promise<ActionResult> {
@@ -111,8 +120,13 @@ export async function deleteBudget(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+    const realRowIndex = await findRowIndexById(id, tab, budgetId);
+    if (realRowIndex === -1) {
+      return { success: false, error: "Anggaran tidak ditemukan" };
+    }
+
     const sheetInternalId = await getSheetInternalId(id, tab);
-    const result = await deleteRow(id, tab, sheetInternalId, rowIndex + 1);
+    const result = await deleteRow(id, tab, sheetInternalId, realRowIndex);
 
     if (!result.success) return { success: false, error: result.error };
 

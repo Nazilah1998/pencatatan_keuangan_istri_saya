@@ -97,6 +97,62 @@ export function TransactionForm({
       toast.success(
         initialData ? "Transaksi diperbarui!" : "Transaksi berhasil dicatat!",
       );
+
+      // --- INSTANT UPDATE LOGIC ---
+      if (result.data) {
+        const currentTransactions = useAppStore.getState().transactions;
+        if (initialData) {
+          // Update existing
+          const updated = currentTransactions.map((t) =>
+            t.id === initialData.id ? result.data! : t,
+          );
+          useAppStore.getState().setTransactions(updated);
+        } else {
+          // Add new
+          useAppStore
+            .getState()
+            .setTransactions([result.data, ...currentTransactions]);
+        }
+
+        // --- INSTANT ASSET BALANCE UPDATE (SMART CALCULATION) ---
+        const currentAssets = useAppStore.getState().assets;
+        const targetDompet = result.data.dompet;
+
+        let amountChange = 0;
+        const newAmount = result.data.jumlah;
+        const isPemasukan = result.data.jenis === "pemasukan";
+
+        if (initialData) {
+          // If editing: we need to revert old and apply new
+          const oldAmount = initialData.jumlah;
+          const wasPemasukan = initialData.jenis === "pemasukan";
+
+          // Reverse old amount
+          const oldEffect = wasPemasukan ? -oldAmount : oldAmount;
+          // Apply new amount
+          const newEffect = isPemasukan ? newAmount : -newAmount;
+
+          amountChange = oldEffect + newEffect;
+        } else {
+          // If adding new
+          amountChange = isPemasukan ? newAmount : -newAmount;
+        }
+
+        const updatedAssets = currentAssets.map((asset) => {
+          if (asset.nama === targetDompet) {
+            return { ...asset, nilai: asset.nilai + amountChange };
+          }
+          return asset;
+        });
+        useAppStore.getState().setAssets(updatedAssets);
+        // -------------------------------------------------------
+
+        // Trigger a background sync to update budgets/etc
+        // We use window focus event as a trick to trigger DataSyncProvider's sync
+        window.dispatchEvent(new Event("focus"));
+      }
+      // ----------------------------
+
       if (!initialData) {
         reset({
           tanggal: new Date().toISOString().split("T")[0],

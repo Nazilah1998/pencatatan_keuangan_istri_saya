@@ -3,17 +3,16 @@ import React, { useEffect, useState } from "react";
 import { getAssets, getDebts } from "@/app/actions/assets";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
-import { Asset, Debt } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { AssetForm } from "@/components/aset-hutang/AssetForm";
 import { DebtForm } from "@/components/aset-hutang/DebtForm";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function AsetHutangPage() {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [debts, setDebts] = useState<Debt[]>([]);
+  const { assets, setAssets, debts, setDebts, isPrivateMode } = useAppStore();
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"aset" | "hutang">("aset");
@@ -29,7 +28,11 @@ export default function AsetHutangPage() {
   };
 
   useEffect(() => {
-    Promise.resolve().then(() => fetchData());
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalAset = assets.reduce((s, a) => s + a.nilai, 0);
@@ -124,7 +127,7 @@ export default function AsetHutangPage() {
             marginTop: "0.5rem",
           }}
         >
-          {formatCurrency(kekayaanBersih)}
+          {isPrivateMode ? "Rp ••••••" : formatCurrency(kekayaanBersih)}
         </div>
         <div
           style={{
@@ -138,7 +141,7 @@ export default function AsetHutangPage() {
           <div>
             <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>Total Aset</div>
             <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-              {formatCurrency(totalAset)}
+              {isPrivateMode ? "Rp ••••••" : formatCurrency(totalAset)}
             </div>
           </div>
           <div>
@@ -146,7 +149,7 @@ export default function AsetHutangPage() {
               Total Hutang
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-              {formatCurrency(totalHutang)}
+              {isPrivateMode ? "Rp ••••••" : formatCurrency(totalHutang)}
             </div>
           </div>
         </div>
@@ -225,17 +228,47 @@ export default function AsetHutangPage() {
                     alignItems: "center",
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{a.nama}</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.875rem",
+                    }}
+                  >
                     <div
                       style={{
-                        fontSize: "0.8125rem",
-                        color: "var(--color-text-muted)",
+                        fontSize: "1.25rem",
+                        width: "40px",
+                        height: "40px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "var(--color-surface-offset)",
+                        borderRadius: "12px",
                       }}
                     >
-                      {a.jenis} • {a.institusi || "-"}
+                      {a.jenis === "kas" && "💵"}
+                      {a.jenis === "rekening" && "🏦"}
+                      {a.jenis === "investasi" && "📈"}
+                      {a.jenis === "emas" && "🟡"}
+                      {a.jenis === "properti" && "🏠"}
+                      {a.jenis === "kendaraan" && "🚗"}
+                      {a.jenis === "lainnya" && "📦"}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{a.nama}</div>
+                      <div
+                        style={{
+                          fontSize: "0.8125rem",
+                          color: "var(--color-text-muted)",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {a.jenis} • {a.institusi || "-"}
+                      </div>
                     </div>
                   </div>
+
                   <div style={{ textAlign: "right" }}>
                     <div
                       style={{
@@ -244,7 +277,7 @@ export default function AsetHutangPage() {
                         color: "var(--color-income)",
                       }}
                     >
-                      {formatCurrency(a.nilai)}
+                      {isPrivateMode ? "Rp ••••••" : formatCurrency(a.nilai)}
                     </div>
                     <div
                       style={{
@@ -301,7 +334,9 @@ export default function AsetHutangPage() {
                         color: "var(--color-expense)",
                       }}
                     >
-                      {formatCurrency(d.sisa_hutang)}
+                      {isPrivateMode
+                        ? "Rp ••••••"
+                        : formatCurrency(d.sisa_hutang)}
                     </div>
                     <div
                       style={{
@@ -309,7 +344,10 @@ export default function AsetHutangPage() {
                         color: "var(--color-text-muted)",
                       }}
                     >
-                      Cicilan: {formatCurrency(d.cicilan_bulanan)}/bln
+                      Cicilan:{" "}
+                      {isPrivateMode
+                        ? "Rp ••••••"
+                        : `${formatCurrency(d.cicilan_bulanan)}/bln`}
                     </div>
                   </div>
                 </div>

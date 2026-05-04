@@ -16,8 +16,9 @@ interface AssetFormProps {
 const ASSET_TYPES = [
   { value: "kas", label: "Uang Tunai (Cash)", icon: "💵" },
   { value: "rekening", label: "Tabungan/Bank", icon: "🏦" },
-  { value: "investasi", label: "Investasi (Emas/Saham)", icon: "📈" },
-  { value: "properti", label: "Properti (Tanah/Rumah)", icon: "🏠" },
+  { value: "investasi", label: "Investasi", icon: "📈" },
+  { value: "emas", label: "Emas/Perhiasan", icon: "🟡" },
+  { value: "properti", label: "Properti", icon: "🏠" },
   { value: "kendaraan", label: "Kendaraan", icon: "🚗" },
   { value: "lainnya", label: "Aset Lainnya", icon: "📦" },
 ];
@@ -130,6 +131,38 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
         </div>
       </div>
 
+      {selectedJenis === "emas" && (
+        <div
+          style={{
+            padding: "0.875rem",
+            background: "#fff9db",
+            borderRadius: "var(--radius-lg)",
+            border: "1px solid #fab005",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.25rem",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.8125rem",
+              fontWeight: 700,
+              color: "#856404",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.375rem",
+            }}
+          >
+            <span>💡</span> Tips Pencatatan Emas
+          </div>
+          <p style={{ fontSize: "0.75rem", color: "#856404", margin: 0 }}>
+            Anda bisa mencatat <strong>berat (gram)</strong> dan{" "}
+            <strong>harga beli</strong> di kolom Catatan di bawah agar
+            riwayatnya lebih lengkap.
+          </p>
+        </div>
+      )}
+
       <div className="form-group">
         <Controller
           control={control}
@@ -169,6 +202,16 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
             <span className="form-error">{errors.tanggal_update.message}</span>
           )}
         </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Catatan</label>
+        <textarea
+          placeholder="Tambahkan detail (misal: berat emas, harga beli, atau keterangan lainnya)"
+          className="input"
+          style={{ minHeight: "80px", resize: "vertical", padding: "0.75rem" }}
+          {...register("catatan")}
+        />
       </div>
 
       <Button type="submit" loading={isLoading} style={{ width: "100%" }}>

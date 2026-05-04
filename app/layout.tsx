@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { PWAProvider } from "@/components/providers/PWAProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { BiometricLockProvider } from "@/components/providers/BiometricLockProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -43,13 +44,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+import { DataSyncProvider } from "@/components/providers/DataSyncProvider";
+import { auth } from "@/lib/auth";
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang="id" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link
           rel="preconnect"
@@ -62,32 +68,36 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <SessionProvider>
+        <SessionProvider session={session}>
           <PWAProvider>
-            <ThemeProvider />
-            {children}
-            <Toaster
-              position="bottom-center"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-lg)",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.875rem",
-                  boxShadow: "var(--shadow-lg)",
-                  padding: "0.75rem 1rem",
-                },
-                success: {
-                  iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
-                },
-                error: {
-                  iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
-                },
-              }}
-            />
+            <DataSyncProvider>
+              <BiometricLockProvider>
+                <ThemeProvider />
+                {children}
+                <Toaster
+                  position="bottom-center"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: "var(--color-surface)",
+                      color: "var(--color-text)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-lg)",
+                      fontFamily: "var(--font-body)",
+                      fontSize: "0.875rem",
+                      boxShadow: "var(--shadow-lg)",
+                      padding: "0.75rem 1rem",
+                    },
+                    success: {
+                      iconTheme: { primary: "#FFC107", secondary: "#FFF8E1" },
+                    },
+                    error: {
+                      iconTheme: { primary: "#e74c3c", secondary: "#fbecec" },
+                    },
+                  }}
+                />
+              </BiometricLockProvider>
+            </DataSyncProvider>
           </PWAProvider>
         </SessionProvider>
       </body>

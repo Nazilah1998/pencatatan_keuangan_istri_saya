@@ -8,6 +8,7 @@ import {
   appendToSheet,
   readSheet,
   deleteRow,
+  updateRow,
   getSheetInternalId,
 } from "@/lib/google-sheets";
 import { assetSchema, debtSchema } from "@/lib/validations";
@@ -102,9 +103,18 @@ export async function addAsset(
   return { success: true, data: asset };
 }
 
+async function findRowIndexById(
+  sheetId: string,
+  tab: string,
+  id: string,
+): Promise<number> {
+  const rows = await readSheet(id, tab, "A:A");
+  return rows.findIndex((row) => row[0] === id);
+}
+
 export async function deleteAsset(
   assetId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   sheetId?: string,
 ): Promise<ActionResult> {
   try {
@@ -113,8 +123,13 @@ export async function deleteAsset(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+    const realRowIndex = await findRowIndexById(id, asetTab, assetId);
+    if (realRowIndex === -1) {
+      return { success: false, error: "Aset tidak ditemukan" };
+    }
+
     const sheetInternalId = await getSheetInternalId(id, asetTab);
-    const result = await deleteRow(id, asetTab, sheetInternalId, rowIndex + 1);
+    const result = await deleteRow(id, asetTab, sheetInternalId, realRowIndex);
     if (!result.success) return { success: false, error: result.error };
 
     revalidatePath("/aset-hutang");
@@ -124,7 +139,34 @@ export async function deleteAsset(
   }
 }
 
-// -------------------- Debts --------------------
+export async function updateAssetBalance(
+  sheetId: string,
+  assetName: string,
+  amountChange: number, // positive to increase, negative to decrease
+): Promise<ActionResult> {
+  try {
+    const { asetTab } = getConfig();
+    const rows = await readSheet(sheetId, asetTab);
+    // Find asset by name (case insensitive)
+    const rowIndex = rows.findIndex(
+      (row) => row[1]?.toLowerCase() === assetName.toLowerCase(),
+    );
+
+    if (rowIndex === -1)
+      return { success: false, error: "Aset tidak ditemukan" };
+
+    const assetRow = rows[rowIndex];
+    const currentNilai = Number(assetRow[3]) || 0;
+    assetRow[3] = String(currentNilai + amountChange);
+    assetRow[4] = new Date().toISOString().split("T")[0]; // Update tanggal_update
+
+    return await updateRow(sheetId, asetTab, rowIndex + 1, [assetRow]);
+  } catch (error) {
+    console.error("[updateAssetBalance] Error:", error);
+    return { success: false, error: "Gagal sinkronisasi aset" };
+  }
+}
+
 function rowToDebt(row: string[]): Debt {
   return {
     id: row[0] || "",
@@ -209,7 +251,7 @@ export async function addDebt(
 
 export async function deleteDebt(
   debtId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   sheetId?: string,
 ): Promise<ActionResult> {
   try {
@@ -218,12 +260,17 @@ export async function deleteDebt(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+    const realRowIndex = await findRowIndexById(id, hutangTab, debtId);
+    if (realRowIndex === -1) {
+      return { success: false, error: "Hutang tidak ditemukan" };
+    }
+
     const sheetInternalId = await getSheetInternalId(id, hutangTab);
     const result = await deleteRow(
       id,
       hutangTab,
       sheetInternalId,
-      rowIndex + 1,
+      realRowIndex,
     );
     if (!result.success) return { success: false, error: result.error };
 

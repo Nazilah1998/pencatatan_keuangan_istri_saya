@@ -15,6 +15,8 @@ import { transactionSchema } from "@/lib/validations";
 import { generateId } from "@/lib/utils";
 import { Transaction, ActionResult, TransactionFormData } from "@/types";
 
+import { updateAssetBalance } from "./assets";
+
 function getConfig() {
   const sheetId = process.env.DEFAULT_SHEET_ID || "";
   const tab = process.env.TRANSAKSI_TAB || "Transaksi";
@@ -103,14 +105,22 @@ export async function addTransaction(
   const result = await appendToSheet(id, tab, [row]);
   if (!result.success) return { success: false, error: result.error };
 
+  // Sync Asset Balance
+  const amountChange =
+    transaction.jenis === "pemasukan"
+      ? transaction.jumlah
+      : -transaction.jumlah;
+  await updateAssetBalance(id, transaction.dompet, amountChange);
+
   revalidatePath("/");
   revalidatePath("/transaksi");
+  revalidatePath("/aset-hutang");
   return { success: true, data: transaction };
 }
 
 export async function deleteTransaction(
   transactionId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   sheetId?: string,
   tabName?: string,
 ): Promise<ActionResult> {
@@ -122,13 +132,26 @@ export async function deleteTransaction(
     if (!id)
       return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+    const rows = await readSheet(id, tab);
+    const realRowIndex = rows.findIndex((row) => row[0] === transactionId);
+    if (realRowIndex === -1) {
+      return { success: false, error: "Transaksi tidak ditemukan" };
+    }
+
+    const txToDelete = rowToTransaction(rows[realRowIndex]);
     const sheetInternalId = await getSheetInternalId(id, tab);
-    const result = await deleteRow(id, tab, sheetInternalId, rowIndex + 1); // +1 for header
+    const result = await deleteRow(id, tab, sheetInternalId, realRowIndex);
 
     if (!result.success) return { success: false, error: result.error };
 
+    // Sync Asset Balance (Reverse the transaction)
+    const amountChange =
+      txToDelete.jenis === "pemasukan" ? -txToDelete.jumlah : txToDelete.jumlah;
+    await updateAssetBalance(id, txToDelete.dompet, amountChange);
+
     revalidatePath("/");
     revalidatePath("/transaksi");
+    revalidatePath("/aset-hutang");
     return { success: true };
   } catch {
     return { success: false, error: "Gagal menghapus transaksi" };
@@ -137,7 +160,7 @@ export async function deleteTransaction(
 
 export async function updateTransaction(
   transactionId: string,
-  rowIndex: number,
+  _unused_rowIndex: number,
   formData: TransactionFormData,
   sheetId?: string,
   tabName?: string,
@@ -157,6 +180,17 @@ export async function updateTransaction(
   if (!id)
     return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
 
+  // Fetch full row to preserve original created_at and for sync logic
+  const rows = await readSheet(id, tab);
+  const realRowIndex = rows.findIndex((row) => row[0] === transactionId);
+
+  if (realRowIndex === -1) {
+    return { success: false, error: "Transaksi tidak ditemukan" };
+  }
+
+  const originalRow = rows[realRowIndex];
+  const oldTx = rowToTransaction(originalRow);
+
   const transaction: Transaction = {
     id: transactionId,
     tanggal: parsed.data.tanggal,
@@ -166,7 +200,7 @@ export async function updateTransaction(
     sub_kategori: parsed.data.sub_kategori || "",
     dompet: parsed.data.dompet,
     deskripsi: parsed.data.deskripsi || "",
-    created_at: new Date().toISOString(), // Optional: preserve original created_at if needed, but for simplicity we refresh it
+    created_at: originalRow[8] || new Date().toISOString(),
   };
 
   const row = [
@@ -181,11 +215,24 @@ export async function updateTransaction(
     transaction.created_at,
   ];
 
-  // rowIndex + 2: +1 for 0-based to 1-based, +1 for header row
-  const result = await updateRow(id, tab, rowIndex + 2, [row]);
+  const result = await updateRow(id, tab, realRowIndex + 1, [row]);
   if (!result.success) return { success: false, error: result.error };
+
+  // Sync Asset Balance
+  // 1. Reverse old transaction
+  const reverseOldAmount =
+    oldTx.jenis === "pemasukan" ? -oldTx.jumlah : oldTx.jumlah;
+  await updateAssetBalance(id, oldTx.dompet, reverseOldAmount);
+
+  // 2. Apply new transaction
+  const applyNewAmount =
+    transaction.jenis === "pemasukan"
+      ? transaction.jumlah
+      : -transaction.jumlah;
+  await updateAssetBalance(id, transaction.dompet, applyNewAmount);
 
   revalidatePath("/");
   revalidatePath("/transaksi");
+  revalidatePath("/aset-hutang");
   return { success: true, data: transaction };
 }

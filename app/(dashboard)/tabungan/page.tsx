@@ -6,6 +6,8 @@ import {
   deleteSavings,
   addFundsToSavings,
 } from "@/app/actions/savings";
+import { getAssets } from "@/app/actions/assets";
+
 import { SavingsGoalCard } from "@/components/tabungan/SavingsGoalCard";
 import { SavingsForm } from "@/components/tabungan/SavingsForm";
 import { Button } from "@/components/ui/Button";
@@ -33,12 +35,15 @@ export default function TabunganPage() {
     idx: number;
   } | null>(null);
   const [addAmount, setAddAmount] = useState("");
+  const [selectedWallet, setSelectedWallet] = useState("Cash");
   const [isAddingFunds, setIsAddingFunds] = useState(false);
+  const [assets, setAssets] = useState<{ nama: string }[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
-    const res = await getSavings();
-    if (res.success && res.data) setSavings(res.data);
+    const [sRes, aRes] = await Promise.all([getSavings(), getAssets()]);
+    if (sRes.success && sRes.data) setSavings(sRes.data);
+    if (aRes.success && aRes.data) setAssets(aRes.data);
     setLoading(false);
   };
 
@@ -72,7 +77,9 @@ export default function TabunganPage() {
       addFundsGoal.idx,
       addFundsGoal.goal.jumlah_terkumpul,
       amount,
+      selectedWallet,
     );
+
     setIsAddingFunds(false);
 
     if (result.success) {
@@ -312,6 +319,24 @@ export default function TabunganPage() {
               Tambah dana untuk:{" "}
               <strong>{addFundsGoal.goal.nama_tujuan}</strong>
             </p>
+            <div className="form-group">
+              <label className="form-label">Sumber Dana (Dompet)</label>
+              <select
+                className="input"
+                value={selectedWallet}
+                onChange={(e) => setSelectedWallet(e.target.value)}
+              >
+                {assets.length > 0 ? (
+                  assets.map((a) => (
+                    <option key={a.nama} value={a.nama}>
+                      {a.nama}
+                    </option>
+                  ))
+                ) : (
+                  <option value="Cash">Cash</option>
+                )}
+              </select>
+            </div>
             <div className="form-group">
               <label className="form-label">Nominal (Rp)</label>
               <input

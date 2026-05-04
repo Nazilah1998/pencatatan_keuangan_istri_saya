@@ -79,6 +79,7 @@ export type AssetType =
   | "kas"
   | "rekening"
   | "investasi"
+  | "emas"
   | "properti"
   | "kendaraan"
   | "lainnya";

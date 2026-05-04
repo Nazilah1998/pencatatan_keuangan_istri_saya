@@ -30,7 +30,7 @@ export const PENGELUARAN_CATEGORIES = [
 ] as const;
 
 export const SUB_CATEGORIES: Record<string, string[]> = {
-  "Jajan Comel": ["Makan Diluar", "Jajan Kecil"],
+  "Jajan Comel": ["Makan Diluar", "Jajan Kecil", "Rokok Suami"],
   "Tagihan & Utilitas": ["Listrik", "Wifi", "PDAM", "Kost", "Paket Data"],
   "Belanja Online": ["Pakaian", "Skincare", "Perabotan Rumah", "Peliharaan"],
   "Belanja Offline": ["Mini Market", "Pasar", "Peliharaan"],
@@ -73,6 +73,7 @@ export const SUB_CATEGORY_ICONS: Record<string, string> = {
   Pasar: "🧺",
   "Makan Diluar": "🍔",
   "Jajan Kecil": "🍬",
+  "Rokok Suami": "🚬",
   Bensin: "⛽",
   Konsumsi: "🍽️",
   Penginapan: "🏨",
