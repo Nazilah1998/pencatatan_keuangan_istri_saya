@@ -23,7 +23,6 @@ export function SavingsForm({
   rowIndex,
   onSuccess,
 }: SavingsFormProps) {
-  const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const isEdit = !!initialData && rowIndex !== undefined;
 
@@ -52,18 +51,8 @@ export function SavingsForm({
   const onSubmit = async (data: SavingsSchema) => {
     setIsLoading(true);
     const result = isEdit
-      ? await updateSavings(
-          initialData.id,
-          rowIndex,
-          data,
-          settings.google_sheet_id,
-          settings.sheet_tabs.tabungan,
-        )
-      : await addSavings(
-          data,
-          settings.google_sheet_id,
-          settings.sheet_tabs.tabungan,
-        );
+      ? await updateSavings(initialData.id, data)
+      : await addSavings(data);
 
     setIsLoading(false);
     if (result.success) {

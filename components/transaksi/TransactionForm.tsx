@@ -76,11 +76,7 @@ export function TransactionForm({
     let result;
 
     if (initialData && rowIndex !== undefined) {
-      result = await updateTransaction(
-        initialData.id,
-        data,
-        initialData
-      );
+      result = await updateTransaction(initialData.id, data, initialData);
     } else {
       result = await addTransaction(data);
     }

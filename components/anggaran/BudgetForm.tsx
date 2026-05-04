@@ -18,7 +18,6 @@ interface BudgetFormProps {
 }
 
 export function BudgetForm({ onSuccess }: BudgetFormProps) {
-  const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -36,11 +35,7 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
 
   const onSubmit = async (data: BudgetSchema) => {
     setIsLoading(true);
-    const result = await addBudget(
-      data,
-      settings.google_sheet_id,
-      settings.sheet_tabs.anggaran,
-    );
+    const result = await addBudget(data);
     setIsLoading(false);
     if (result.success) {
       toast.success("Anggaran berhasil disimpan!");

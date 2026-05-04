@@ -72,10 +72,7 @@ export default function TabunganPage() {
     }
 
     setIsAddingFunds(true);
-    const result = await addFundsToSavings(
-      addFundsGoal.goal.id,
-      amount,
-    );
+    const result = await addFundsToSavings(addFundsGoal.goal.id, amount);
 
     setIsAddingFunds(false);
 
