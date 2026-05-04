@@ -193,7 +193,7 @@ export function DashboardClient() {
         >
           <h1
             style={{
-              fontSize: "1.75rem",
+              fontSize: "min(1.75rem, 6vw)",
               fontWeight: 800,
               color: "var(--color-text)",
               letterSpacing: "-0.03em",
@@ -351,8 +351,8 @@ export function DashboardClient() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "1.25rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", // Lowered from 240px for 2-column on mobile
+          gap: "1rem",
         }}
       >
         <KPICard title="Total Saldo" amount={stats.totalSaldo} icon="💰" />
@@ -379,8 +379,8 @@ export function DashboardClient() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "1.5rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", // Lowered from 320px
+          gap: "1rem",
         }}
       >
         <SpendingChart data={stats.weeklyData} />

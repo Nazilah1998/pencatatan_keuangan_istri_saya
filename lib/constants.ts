@@ -4,7 +4,7 @@
 
 export const APP_NAME = "Tyaaa Financee";
 export const APP_DESCRIPTION =
-  "Smart personal financial tracking integrated with Google Sheets";
+  "Smart personal financial tracking powered by Supabase";
 
 // -------------------- Transaction Categories --------------------
 export const PEMASUKAN_CATEGORIES = [
@@ -123,71 +123,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Freelance: "#4ade80",
   Investasi: "#2563eb",
   Hadiah: "#e879f9",
-};
-
-// -------------------- Default Sheet Tabs --------------------
-export const DEFAULT_SHEET_TABS = {
-  transaksi: "Transaksi",
-  anggaran: "Anggaran",
-  tabungan: "Tabungan",
-  aset: "Aset",
-  hutang: "Hutang",
-};
-
-// -------------------- Sheet Headers --------------------
-export const SHEET_HEADERS = {
-  transaksi: [
-    "id",
-    "tanggal",
-    "jenis",
-    "jumlah",
-    "kategori",
-    "sub_kategori",
-    "dompet",
-    "deskripsi",
-    "created_at",
-  ],
-  anggaran: [
-    "id",
-    "periode",
-    "kategori",
-    "batas_bulanan",
-    "catatan",
-    "created_at",
-  ],
-  tabungan: [
-    "id",
-    "nama_tujuan",
-    "target_jumlah",
-    "jumlah_terkumpul",
-    "target_tanggal",
-    "ikon",
-    "warna",
-    "prioritas",
-    "status",
-    "deskripsi",
-  ],
-  aset: [
-    "id",
-    "nama",
-    "jenis",
-    "nilai",
-    "tanggal_update",
-    "institusi",
-    "catatan",
-  ],
-  hutang: [
-    "id",
-    "nama_hutang",
-    "jenis",
-    "total_awal",
-    "sisa_hutang",
-    "cicilan_bulanan",
-    "tanggal_jatuh_tempo",
-    "suku_bunga",
-    "kreditur",
-    "catatan",
-  ],
 };
 
 // -------------------- Navigation --------------------

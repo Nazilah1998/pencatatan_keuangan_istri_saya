@@ -82,7 +82,7 @@ export const KPICard = React.memo(function KPICard({
     <div
       className="card"
       style={{
-        padding: "1.25rem 1.5rem",
+        padding: "var(--card-padding)",
         display: "flex",
         flexDirection: "column",
         gap: "0.75rem",

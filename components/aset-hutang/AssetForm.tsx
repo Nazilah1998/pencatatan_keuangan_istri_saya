@@ -4,12 +4,14 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { assetSchema, AssetSchema } from "@/lib/validations";
-import { addAsset } from "@/app/actions/assets";
+import { addAsset, updateAsset } from "@/app/actions/assets";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { Asset } from "@/types";
 
 interface AssetFormProps {
+  initialData?: Asset;
   onSuccess?: () => void;
 }
 
@@ -23,7 +25,7 @@ const ASSET_TYPES = [
   { value: "lainnya", label: "Aset Lainnya", icon: "📦" },
 ];
 
-export function AssetForm({ onSuccess }: AssetFormProps) {
+export function AssetForm({ onSuccess, initialData }: AssetFormProps) {
   const { settings } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,12 +36,19 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
     formState: { errors },
   } = useForm<AssetSchema>({
     resolver: zodResolver(assetSchema),
-    defaultValues: {
-      nilai: 0,
-      tanggal_update: new Date().toISOString().split("T")[0],
-      jenis: "kas",
-      institusi: "",
-    },
+    defaultValues: initialData
+      ? {
+          nama: initialData.nama,
+          jenis: initialData.jenis,
+          nilai: initialData.nilai,
+          tanggal_update: initialData.tanggal_update,
+          catatan: initialData.catatan || "",
+        }
+      : {
+          nilai: 0,
+          tanggal_update: new Date().toISOString().split("T")[0],
+          jenis: "kas",
+        },
   });
 
   const selectedJenis = useWatch({
@@ -49,13 +58,23 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
 
   const onSubmit = async (data: AssetSchema) => {
     setIsLoading(true);
-    const result = await addAsset(data, settings.google_sheet_id);
+    let result;
+    if (initialData) {
+      result = await updateAsset(initialData.id, data);
+    } else {
+      result = await addAsset(data);
+    }
     setIsLoading(false);
     if (result.success) {
-      toast.success("Aset berhasil dicatat!");
+      toast.success(
+        initialData ? "Aset diperbarui!" : "Aset berhasil dicatat!",
+      );
       onSuccess?.();
     } else {
-      toast.error(result.error || "Gagal mencatat aset");
+      toast.error(
+        result.error ||
+          (initialData ? "Gagal memperbarui aset" : "Gagal mencatat aset"),
+      );
     }
   };
 
@@ -179,29 +198,16 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
         />
       </div>
 
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
-      >
-        <div className="form-group">
-          <label className="form-label">Institusi</label>
-          <input
-            type="text"
-            placeholder="Contoh: BCA, Pegadaian"
-            className="input"
-            {...register("institusi")}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Tanggal Update *</label>
-          <input
-            type="date"
-            className={`input ${errors.tanggal_update ? "input-error" : ""}`}
-            {...register("tanggal_update")}
-          />
-          {errors.tanggal_update && (
-            <span className="form-error">{errors.tanggal_update.message}</span>
-          )}
-        </div>
+      <div className="form-group">
+        <label className="form-label">Tanggal Update *</label>
+        <input
+          type="date"
+          className={`input ${errors.tanggal_update ? "input-error" : ""}`}
+          {...register("tanggal_update")}
+        />
+        {errors.tanggal_update && (
+          <span className="form-error">{errors.tanggal_update.message}</span>
+        )}
       </div>
 
       <div className="form-group">
@@ -215,7 +221,7 @@ export function AssetForm({ onSuccess }: AssetFormProps) {
       </div>
 
       <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
-        Simpan Aset
+        {initialData ? "Simpan Perubahan" : "Simpan Aset"}
       </Button>
     </form>
   );

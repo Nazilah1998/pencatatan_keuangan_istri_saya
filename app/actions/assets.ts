@@ -1,282 +1,197 @@
 "use server";
-// ============================================================
-// Tyaaa Financee — Assets & Debts Server Actions
-// ============================================================
 
+import { createClient } from "@/lib/supabase/server";
+import { Asset, Debt, AssetFormData, DebtFormData } from "@/types";
 import { revalidatePath } from "next/cache";
-import {
-  appendToSheet,
-  readSheet,
-  deleteRow,
-  updateRow,
-  getSheetInternalId,
-} from "@/lib/google-sheets";
-import { assetSchema, debtSchema } from "@/lib/validations";
-import { generateId } from "@/lib/utils";
-import {
-  Asset,
-  Debt,
-  ActionResult,
-  AssetFormData,
-  DebtFormData,
-} from "@/types";
 
-function getConfig() {
-  const sheetId = process.env.DEFAULT_SHEET_ID || "";
-  return {
-    sheetId,
-    asetTab: process.env.ASET_TAB || "Aset",
-    hutangTab: process.env.HUTANG_TAB || "Hutang",
-  };
+/**
+ * Server Actions for Supabase (SSR Version)
+ */
+
+export async function getAssets() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: data as Asset[] };
 }
 
-// -------------------- Assets --------------------
-function rowToAsset(row: string[]): Asset {
-  return {
-    id: row[0] || "",
-    nama: row[1] || "",
-    jenis: (row[2] as Asset["jenis"]) || "lainnya",
-    nilai: Number(row[3]) || 0,
-    tanggal_update: row[4] || "",
-    institusi: row[5] || "",
-    catatan: row[6] || "",
-  };
-}
+export async function addAsset(formData: AssetFormData) {
+  const supabase = await createClient();
 
-export async function getAssets(
-  sheetId?: string,
-): Promise<ActionResult<Asset[]>> {
-  try {
-    const { sheetId: defaultId, asetTab } = getConfig();
-    const id = sheetId || defaultId;
-    if (!id) return { success: true, data: [] };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Silakan login terlebih dahulu" };
 
-    const rows = await readSheet(id, asetTab);
-    if (rows.length <= 1) return { success: true, data: [] };
+  const { data, error } = await supabase
+    .from("assets")
+    .insert([
+      {
+        user_id: user.id,
+        nama: formData.nama,
+        jenis: formData.jenis,
+        nilai: formData.nilai,
+        tanggal_update: formData.tanggal_update,
+        catatan: formData.catatan,
+      },
+    ])
+    .select()
+    .single();
 
-    return { success: true, data: rows.slice(1).map(rowToAsset) };
-  } catch {
-    return { success: false, error: "Gagal memuat aset" };
-  }
-}
-
-export async function addAsset(
-  formData: AssetFormData,
-  sheetId?: string,
-): Promise<ActionResult<Asset>> {
-  const parsed = assetSchema.safeParse(formData);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "Data tidak valid",
-    };
-  }
-
-  const { sheetId: defaultId, asetTab } = getConfig();
-  const id = sheetId || defaultId;
-  if (!id)
-    return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
-
-  const asset: Asset = {
-    id: generateId(),
-    nama: parsed.data.nama,
-    jenis: parsed.data.jenis,
-    nilai: parsed.data.nilai,
-    tanggal_update: parsed.data.tanggal_update,
-    institusi: parsed.data.institusi || "",
-    catatan: parsed.data.catatan || "",
-  };
-
-  const row = [
-    asset.id,
-    asset.nama,
-    asset.jenis,
-    String(asset.nilai),
-    asset.tanggal_update,
-    asset.institusi || "",
-    asset.catatan || "",
-  ];
-  const result = await appendToSheet(id, asetTab, [row]);
-  if (!result.success) return { success: false, error: result.error };
-
+  if (error) return { success: false, error: error.message };
   revalidatePath("/aset-hutang");
-  return { success: true, data: asset };
+  return { success: true, data: data as Asset };
 }
 
-async function findRowIndexById(
-  sheetId: string,
-  tab: string,
-  id: string,
-): Promise<number> {
-  const rows = await readSheet(id, tab, "A:A");
-  return rows.findIndex((row) => row[0] === id);
+export async function updateAsset(assetId: string, formData: AssetFormData) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("assets")
+    .update({
+      nama: formData.nama,
+      jenis: formData.jenis,
+      nilai: formData.nilai,
+      tanggal_update: formData.tanggal_update,
+      catatan: formData.catatan,
+    })
+    .eq("id", assetId)
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/aset-hutang");
+  return { success: true, data: data as Asset };
 }
 
-export async function deleteAsset(
-  assetId: string,
-  _unused_rowIndex: number,
-  sheetId?: string,
-): Promise<ActionResult> {
-  try {
-    const { sheetId: defaultId, asetTab } = getConfig();
-    const id = sheetId || defaultId;
-    if (!id)
-      return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+export async function deleteAsset(assetId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("assets").delete().eq("id", assetId);
 
-    const realRowIndex = await findRowIndexById(id, asetTab, assetId);
-    if (realRowIndex === -1) {
-      return { success: false, error: "Aset tidak ditemukan" };
-    }
-
-    const sheetInternalId = await getSheetInternalId(id, asetTab);
-    const result = await deleteRow(id, asetTab, sheetInternalId, realRowIndex);
-    if (!result.success) return { success: false, error: result.error };
-
-    revalidatePath("/aset-hutang");
-    return { success: true };
-  } catch {
-    return { success: false, error: "Gagal menghapus aset" };
-  }
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/aset-hutang");
+  return { success: true };
 }
 
+// --- DEBT ACTIONS ---
+
+export async function getDebts() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("debts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: data as Debt[] };
+}
+
+export async function addDebt(formData: DebtFormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Silakan login terlebih dahulu" };
+
+  const { data, error } = await supabase
+    .from("debts")
+    .insert([
+      {
+        user_id: user.id,
+        nama_hutang: formData.nama_hutang,
+        jenis: formData.jenis,
+        total_awal: formData.total_awal,
+        sisa_hutang: formData.sisa_hutang,
+        cicilan_bulanan: formData.cicilan_bulanan,
+        tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
+        catatan: formData.catatan,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/aset-hutang");
+  return { success: true, data: data as Debt };
+}
+
+export async function updateDebt(debtId: string, formData: DebtFormData) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("debts")
+    .update({
+      nama_hutang: formData.nama_hutang,
+      jenis: formData.jenis,
+      total_awal: formData.total_awal,
+      sisa_hutang: formData.sisa_hutang,
+      cicilan_bulanan: formData.cicilan_bulanan,
+      tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
+      catatan: formData.catatan,
+    })
+    .eq("id", debtId)
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/aset-hutang");
+  return { success: true, data: data as Debt };
+}
+
+export async function deleteDebt(debtId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("debts").delete().eq("id", debtId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/aset-hutang");
+  return { success: true };
+}
+
+/**
+ * Update Asset Balance based on transaction
+ * Used by transaction actions
+ */
 export async function updateAssetBalance(
-  sheetId: string,
+  _sheetId: string, // Kept for compatibility with old transaction calls
   assetName: string,
-  amountChange: number, // positive to increase, negative to decrease
-): Promise<ActionResult> {
-  try {
-    const { asetTab } = getConfig();
-    const rows = await readSheet(sheetId, asetTab);
-    // Find asset by name (case insensitive)
-    const rowIndex = rows.findIndex(
-      (row) => row[1]?.toLowerCase() === assetName.toLowerCase(),
-    );
+  amountChange: number,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Silakan login" };
 
-    if (rowIndex === -1)
-      return { success: false, error: "Aset tidak ditemukan" };
+  // Cari aset berdasarkan nama untuk user ini
+  const { data: asset, error: findError } = await supabase
+    .from("assets")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("nama", assetName)
+    .single();
 
-    const assetRow = rows[rowIndex];
-    const currentNilai = Number(assetRow[3]) || 0;
-    assetRow[3] = String(currentNilai + amountChange);
-    assetRow[4] = new Date().toISOString().split("T")[0]; // Update tanggal_update
-
-    return await updateRow(sheetId, asetTab, rowIndex + 1, [assetRow]);
-  } catch (error) {
-    console.error("[updateAssetBalance] Error:", error);
-    return { success: false, error: "Gagal sinkronisasi aset" };
-  }
-}
-
-function rowToDebt(row: string[]): Debt {
-  return {
-    id: row[0] || "",
-    nama_hutang: row[1] || "",
-    jenis: (row[2] as Debt["jenis"]) || "lainnya",
-    total_awal: Number(row[3]) || 0,
-    sisa_hutang: Number(row[4]) || 0,
-    cicilan_bulanan: Number(row[5]) || 0,
-    tanggal_jatuh_tempo: row[6] || "",
-    suku_bunga: Number(row[7]) || 0,
-    kreditur: row[8] || "",
-    catatan: row[9] || "",
-  };
-}
-
-export async function getDebts(
-  sheetId?: string,
-): Promise<ActionResult<Debt[]>> {
-  try {
-    const { sheetId: defaultId, hutangTab } = getConfig();
-    const id = sheetId || defaultId;
-    if (!id) return { success: true, data: [] };
-
-    const rows = await readSheet(id, hutangTab);
-    if (rows.length <= 1) return { success: true, data: [] };
-
-    return { success: true, data: rows.slice(1).map(rowToDebt) };
-  } catch {
-    return { success: false, error: "Gagal memuat hutang" };
-  }
-}
-
-export async function addDebt(
-  formData: DebtFormData,
-  sheetId?: string,
-): Promise<ActionResult<Debt>> {
-  const parsed = debtSchema.safeParse(formData);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "Data tidak valid",
-    };
+  if (findError || !asset) {
+    console.error("Asset not found for sync:", assetName);
+    return { success: false, error: "Aset tidak ditemukan" };
   }
 
-  const { sheetId: defaultId, hutangTab } = getConfig();
-  const id = sheetId || defaultId;
-  if (!id)
-    return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+  // Update nilai aset
+  const newNilai = (asset.nilai || 0) + amountChange;
+  const { error: updateError } = await supabase
+    .from("assets")
+    .update({
+      nilai: newNilai,
+      tanggal_update: new Date().toISOString().split("T")[0],
+    })
+    .eq("id", asset.id);
 
-  const debt: Debt = {
-    id: generateId(),
-    nama_hutang: parsed.data.nama_hutang,
-    jenis: parsed.data.jenis,
-    total_awal: parsed.data.total_awal,
-    sisa_hutang: parsed.data.sisa_hutang,
-    cicilan_bulanan: parsed.data.cicilan_bulanan,
-    tanggal_jatuh_tempo: parsed.data.tanggal_jatuh_tempo,
-    suku_bunga: parsed.data.suku_bunga,
-    kreditur: parsed.data.kreditur || "",
-    catatan: parsed.data.catatan || "",
-  };
-
-  const row = [
-    debt.id,
-    debt.nama_hutang,
-    debt.jenis,
-    String(debt.total_awal),
-    String(debt.sisa_hutang),
-    String(debt.cicilan_bulanan),
-    debt.tanggal_jatuh_tempo,
-    String(debt.suku_bunga),
-    debt.kreditur || "",
-    debt.catatan || "",
-  ];
-
-  const result = await appendToSheet(id, hutangTab, [row]);
-  if (!result.success) return { success: false, error: result.error };
+  if (updateError) return { success: false, error: updateError.message };
 
   revalidatePath("/aset-hutang");
-  return { success: true, data: debt };
-}
-
-export async function deleteDebt(
-  debtId: string,
-  _unused_rowIndex: number,
-  sheetId?: string,
-): Promise<ActionResult> {
-  try {
-    const { sheetId: defaultId, hutangTab } = getConfig();
-    const id = sheetId || defaultId;
-    if (!id)
-      return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
-
-    const realRowIndex = await findRowIndexById(id, hutangTab, debtId);
-    if (realRowIndex === -1) {
-      return { success: false, error: "Hutang tidak ditemukan" };
-    }
-
-    const sheetInternalId = await getSheetInternalId(id, hutangTab);
-    const result = await deleteRow(
-      id,
-      hutangTab,
-      sheetInternalId,
-      realRowIndex,
-    );
-    if (!result.success) return { success: false, error: result.error };
-
-    revalidatePath("/aset-hutang");
-    return { success: true };
-  } catch {
-    return { success: false, error: "Gagal menghapus hutang" };
-  }
+  return { success: true };
 }

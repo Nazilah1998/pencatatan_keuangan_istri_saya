@@ -103,7 +103,7 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
     <div
       className="card"
       style={{
-        padding: "1.5rem",
+        padding: "var(--card-padding)",
         display: "flex",
         flexDirection: "column",
         gap: "1.25rem",
@@ -254,7 +254,7 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
             gap: "0.75rem",
             marginTop: "0.25rem",
           }}

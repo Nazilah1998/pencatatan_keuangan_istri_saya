@@ -86,12 +86,13 @@ export type AssetType =
 
 export interface Asset {
   id: string;
+  user_id: string;
   nama: string;
   jenis: AssetType;
   nilai: number;
   tanggal_update: string;
   catatan?: string;
-  institusi?: string;
+  created_at?: string;
 }
 
 export interface AssetFormData {
@@ -113,6 +114,7 @@ export type DebtType =
 
 export interface Debt {
   id: string;
+  user_id: string;
   nama_hutang: string;
   jenis: DebtType;
   total_awal: number;
@@ -121,7 +123,7 @@ export interface Debt {
   tanggal_jatuh_tempo: string;
   suku_bunga: number;
   catatan?: string;
-  kreditur?: string;
+  created_at?: string;
 }
 
 export interface DebtFormData {
@@ -137,17 +139,8 @@ export interface DebtFormData {
 }
 
 // -------------------- Settings --------------------
-export interface SheetTabs {
-  transaksi: string;
-  anggaran: string;
-  tabungan: string;
-  aset: string;
-  hutang: string;
-}
 
 export interface AppSettings {
-  google_sheet_id: string;
-  sheet_tabs: SheetTabs;
   mata_uang: "IDR";
   format_tanggal: DateFormat;
   nama_pengguna: string;
@@ -184,9 +177,10 @@ export interface CategoryChartData {
 }
 
 // -------------------- Auth --------------------
-export interface UserProfile {
+export interface Profile {
   id: string;
-  name: string;
   email: string;
-  image?: string;
+  full_name?: string;
+  avatar_url?: string;
+  updated_at?: string;
 }

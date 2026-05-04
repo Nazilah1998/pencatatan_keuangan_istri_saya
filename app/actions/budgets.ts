@@ -1,138 +1,81 @@
 "use server";
-// ============================================================
-// Tyaaa Financee — Budget Server Actions
-// ============================================================
 
+import { createClient } from "@/lib/supabase/server";
+import { BudgetEntry, BudgetFormData } from "@/types";
 import { revalidatePath } from "next/cache";
-import {
-  appendToSheet,
-  readSheet,
-  deleteRow,
-  getSheetInternalId,
-} from "@/lib/google-sheets";
-import { budgetSchema } from "@/lib/validations";
-import { generateId } from "@/lib/utils";
-import { BudgetEntry, ActionResult, BudgetFormData } from "@/types";
 
-function getConfig() {
-  const sheetId = process.env.DEFAULT_SHEET_ID || "";
-  const tab = process.env.ANGGARAN_TAB || "Anggaran";
-  return { sheetId, tab };
+/**
+ * Server Actions for Budgets (Supabase Version)
+ */
+
+export async function getBudgets() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("budgets")
+    .select("*")
+    .order("kategori", { ascending: true });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: data as BudgetEntry[] };
 }
 
-function rowToBudget(row: string[]): BudgetEntry {
-  return {
-    id: row[0] || "",
-    periode: row[1] || "",
-    kategori: row[2] || "",
-    batas_bulanan: Number(row[3]) || 0,
-    catatan: row[4] || "",
-    created_at: row[5] || "",
-  };
-}
+export async function addBudget(formData: BudgetFormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Silakan login" };
 
-export async function getBudgets(
-  sheetId?: string,
-  tabName?: string,
-): Promise<ActionResult<BudgetEntry[]>> {
-  try {
-    const { sheetId: defaultSheetId, tab: defaultTab } = getConfig();
-    const id = sheetId || defaultSheetId;
-    const tab = tabName || defaultTab;
+  const { data, error } = await supabase
+    .from("budgets")
+    .insert([
+      {
+        user_id: user.id,
+        kategori: formData.kategori,
+        batas_bulanan: formData.batas_bulanan,
+        periode: formData.periode,
+        catatan: formData.catatan,
+      },
+    ])
+    .select()
+    .single();
 
-    if (!id) return { success: true, data: [] };
+  if (error) return { success: false, error: error.message };
 
-    const rows = await readSheet(id, tab);
-    if (rows.length <= 1) return { success: true, data: [] };
-
-    const budgets = rows.slice(1).map(rowToBudget);
-    return { success: true, data: budgets };
-  } catch {
-    return { success: false, error: "Gagal memuat anggaran" };
-  }
-}
-
-export async function addBudget(
-  formData: BudgetFormData,
-  sheetId?: string,
-  tabName?: string,
-): Promise<ActionResult<BudgetEntry>> {
-  const parsed = budgetSchema.safeParse(formData);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "Data tidak valid",
-    };
-  }
-
-  const { sheetId: defaultSheetId, tab: defaultTab } = getConfig();
-  const id = sheetId || defaultSheetId;
-  const tab = tabName || defaultTab;
-
-  if (!id)
-    return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
-
-  const budget: BudgetEntry = {
-    id: generateId(),
-    periode: parsed.data.periode,
-    kategori: parsed.data.kategori,
-    batas_bulanan: parsed.data.batas_bulanan,
-    catatan: parsed.data.catatan || "",
-    created_at: new Date().toISOString(),
-  };
-
-  const row = [
-    budget.id,
-    budget.periode,
-    budget.kategori,
-    String(budget.batas_bulanan),
-    budget.catatan || "",
-    budget.created_at,
-  ];
-
-  const result = await appendToSheet(id, tab, [row]);
-  if (!result.success) return { success: false, error: result.error };
-
+  revalidatePath("/");
   revalidatePath("/anggaran");
-  return { success: true, data: budget };
+  return { success: true, data: data as BudgetEntry };
 }
 
-async function findRowIndexById(
-  sheetId: string,
-  tab: string,
-  id: string,
-): Promise<number> {
-  const rows = await readSheet(sheetId, tab, "A:A");
-  return rows.findIndex((row) => row[0] === id);
+export async function updateBudget(id: string, formData: BudgetFormData) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("budgets")
+    .update({
+      kategori: formData.kategori,
+      batas_bulanan: formData.batas_bulanan,
+      periode: formData.periode,
+      catatan: formData.catatan,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/anggaran");
+  return { success: true, data: data as BudgetEntry };
 }
 
-export async function deleteBudget(
-  budgetId: string,
-  _unused_rowIndex: number,
-  sheetId?: string,
-  tabName?: string,
-): Promise<ActionResult> {
-  try {
-    const { sheetId: defaultSheetId, tab: defaultTab } = getConfig();
-    const id = sheetId || defaultSheetId;
-    const tab = tabName || defaultTab;
+export async function deleteBudget(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("budgets").delete().eq("id", id);
 
-    if (!id)
-      return { success: false, error: "Google Sheet ID belum dikonfigurasi" };
+  if (error) return { success: false, error: error.message };
 
-    const realRowIndex = await findRowIndexById(id, tab, budgetId);
-    if (realRowIndex === -1) {
-      return { success: false, error: "Anggaran tidak ditemukan" };
-    }
-
-    const sheetInternalId = await getSheetInternalId(id, tab);
-    const result = await deleteRow(id, tab, sheetInternalId, realRowIndex);
-
-    if (!result.success) return { success: false, error: result.error };
-
-    revalidatePath("/anggaran");
-    return { success: true };
-  } catch {
-    return { success: false, error: "Gagal menghapus anggaran" };
-  }
+  revalidatePath("/");
+  revalidatePath("/anggaran");
+  return { success: true };
 }

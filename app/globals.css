@@ -19,6 +19,7 @@
   --color-surface-offset: #ffeef2;
   --color-border: #f7d1d9;
   --color-divider: #fae1e6;
+  --card-padding: 1.5rem;
 
   /* Text */
   --color-text: #4a3a3d;
@@ -170,8 +171,11 @@ h6 {
 @media (max-width: 1023px) {
   .main-content {
     margin-left: 0;
-    padding: 1.25rem;
-    padding-bottom: 5.5rem; /* space for bottom nav */
+    padding: 1rem;
+    padding-bottom: 5.5rem;
+  }
+  :root {
+    --card-padding: 1rem;
   }
 }
 

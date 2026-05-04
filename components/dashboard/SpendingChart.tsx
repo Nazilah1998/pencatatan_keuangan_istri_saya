@@ -87,7 +87,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 export function SpendingChart({ data }: SpendingChartProps) {
   return (
-    <div className="card" style={{ padding: "1.5rem" }}>
+    <div className="card" style={{ padding: "var(--card-padding)" }}>
       <div style={{ marginBottom: "1.25rem" }}>
         <h3
           style={{

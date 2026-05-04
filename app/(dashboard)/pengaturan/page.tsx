@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 import { settingsSchema, SettingsSchema } from "@/lib/validations";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
-import { initializeSheet } from "@/lib/google-sheets";
 import { usePWA } from "@/components/providers/PWAProvider";
 import {
   Smartphone,
@@ -31,7 +30,6 @@ const PRESET_COLORS = [
 export default function PengaturanPage() {
   const { settings, setSettings, isBiometricEnabled, setBiometricEnabled } =
     useAppStore();
-  const [isSyncing, setIsLoading] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isActuallyInstalled, setIsActuallyInstalled] = useState(false);
   const { isInstallable, isIOS, installApp } = usePWA();
@@ -80,21 +78,6 @@ export default function PengaturanPage() {
     toast.success("Pengaturan berhasil disimpan");
   };
 
-  const handleSyncSheets = async () => {
-    if (!settings.google_sheet_id) {
-      toast.error("Google Sheet ID belum diisi");
-      return;
-    }
-    setIsLoading(true);
-    const result = await initializeSheet(settings.google_sheet_id);
-    setIsLoading(false);
-    if (result.success) {
-      toast.success("Berhasil sinkronisasi dan membuat tab di Google Sheets");
-    } else {
-      toast.error(result.error || "Gagal sinkronisasi");
-    }
-  };
-
   const handleInstallClick = () => {
     setShowInstallModal(true);
   };
@@ -117,7 +100,7 @@ export default function PengaturanPage() {
           Pengaturan
         </h2>
         <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-          Konfigurasi aplikasi dan Google Sheets
+          Konfigurasi tampilan dan keamanan aplikasi
         </p>
       </div>
 
@@ -471,59 +454,6 @@ export default function PengaturanPage() {
                 Jika diaktifkan, Anda perlu melakukan verifikasi sidik jari
                 setiap kali membuka aplikasi.
               </p>
-            </div>
-
-            <div
-              style={{
-                borderBottom: "1px solid var(--color-divider)",
-                paddingBottom: "1.5rem",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "1rem",
-                }}
-              >
-                <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>
-                  Koneksi Google Sheets
-                </h3>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleSyncSheets}
-                  loading={isSyncing}
-                >
-                  Sync & Buat Tab
-                </Button>
-              </div>
-              <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Spreadsheet ID</label>
-                <input
-                  type="text"
-                  placeholder="ID dari URL Google Sheets..."
-                  className={`input ${errors.google_sheet_id ? "input-error" : ""}`}
-                  {...register("google_sheet_id")}
-                />
-                {errors.google_sheet_id && (
-                  <span className="form-error">
-                    {errors.google_sheet_id.message}
-                  </span>
-                )}
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "var(--color-text-muted)",
-                    marginTop: "0.25rem",
-                  }}
-                >
-                  Contoh: https://docs.google.com/spreadsheets/d/
-                  <strong>1A2b3C...</strong>/edit
-                </p>
-              </div>
             </div>
 
             <Button type="submit">Simpan Pengaturan</Button>

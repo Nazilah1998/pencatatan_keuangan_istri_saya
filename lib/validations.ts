@@ -93,18 +93,10 @@ export const debtSchema = z.object({
 });
 
 export const settingsSchema = z.object({
-  google_sheet_id: z.string(),
-  sheet_tabs: z.object({
-    transaksi: z.string(),
-    anggaran: z.string(),
-    tabungan: z.string(),
-    aset: z.string(),
-    hutang: z.string(),
-  }),
   mata_uang: z.literal("IDR"),
   format_tanggal: z.enum(["DD/MM/YYYY", "YYYY-MM-DD"]),
-  nama_pengguna: z.string(),
-  nama_rumah_tangga: z.string().min(1, "Nama rumah tangga harus diisi"),
+  nama_pengguna: z.string().min(2, "Nama minimal 2 karakter"),
+  nama_rumah_tangga: z.string().min(2, "Nama rumah tangga minimal 2 karakter"),
   tema_warna: z.string().optional(),
 });
 
