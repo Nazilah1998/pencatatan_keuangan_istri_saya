@@ -13,8 +13,10 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { signOut, useSession } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { User } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -28,9 +30,25 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isSidebarOpen, setSidebarOpen, settings } = useAppStore();
-  const { data: session } = useSession();
+  const [user, setUser] = useState<User | null>(null);
   const [mounted, setMounted] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => {
@@ -228,7 +246,7 @@ export function Sidebar() {
         </nav>
 
         {/* User Account Section */}
-        {session?.user && (
+        {user && (
           <div
             style={{
               margin: "0 0.75rem 1rem",
@@ -241,10 +259,10 @@ export function Sidebar() {
               border: "1px solid var(--color-border)",
             }}
           >
-            {session.user.image ? (
+            {user.user_metadata?.avatar_url ? (
               <Image
-                src={session.user.image}
-                alt={session.user.name || "User"}
+                src={user.user_metadata.avatar_url}
+                alt={user.user_metadata.full_name || "User"}
                 width={36}
                 height={36}
                 style={{
@@ -270,7 +288,7 @@ export function Sidebar() {
                   flexShrink: 0,
                 }}
               >
-                {session.user.name?.[0]?.toUpperCase() || "U"}
+                {user.user_metadata?.full_name?.[0]?.toUpperCase() || "U"}
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -284,7 +302,7 @@ export function Sidebar() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {session.user.name}
+                {user.user_metadata?.full_name}
               </div>
               <div
                 style={{
@@ -295,11 +313,14 @@ export function Sidebar() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {session.user.email}
+                {user.email}
               </div>
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/login");
+              }}
               title="Keluar"
               style={{
                 padding: "0.5rem",
