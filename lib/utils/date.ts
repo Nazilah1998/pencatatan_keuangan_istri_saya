@@ -1,7 +1,6 @@
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { id as localeId, type Locale } from "date-fns/locale";
 
-
 export function formatDate(
   dateStr: string,
   fmt = "dd MMM yyyy",
@@ -14,8 +13,6 @@ export function formatDate(
     return dateStr;
   }
 }
-
-
 
 export function formatDateInput(dateStr: string): string {
   try {
@@ -39,8 +36,6 @@ export function getPeriodLabel(period: string, customLocale?: Locale): string {
     return period;
   }
 }
-
-
 
 export function getMonthRange(period: string): { start: string; end: string } {
   const [year, month] = period.split("-");

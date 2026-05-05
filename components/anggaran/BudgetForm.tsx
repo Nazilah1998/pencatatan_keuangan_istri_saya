@@ -12,7 +12,6 @@ import { MonthPicker } from "@/components/ui/MonthPicker";
 import { BudgetCategorySelector } from "./sections/BudgetCategorySelector";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
-
 interface BudgetFormProps {
   onSuccess?: () => void;
 }
@@ -109,4 +108,3 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
     </form>
   );
 }
-

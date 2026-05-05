@@ -34,15 +34,19 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
           suku_bunga: initialData.suku_bunga,
           tanggal_jatuh_tempo: initialData.tanggal_jatuh_tempo,
           jenis: initialData.jenis,
+          catatan: initialData.catatan || "",
         }
       : {
+          nama_hutang: "",
           total_awal: 0,
           sisa_hutang: 0,
           cicilan_bulanan: 0,
           suku_bunga: 0,
           tanggal_jatuh_tempo: new Date().toISOString().split("T")[0],
           jenis: "lainnya",
+          catatan: "",
         },
+
   });
 
   const selectedJenis = useWatch({ control, name: "jenis" });

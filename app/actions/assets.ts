@@ -109,8 +109,10 @@ export async function addDebt(formData: DebtFormData) {
         sisa_hutang: formData.sisa_hutang,
         cicilan_bulanan: formData.cicilan_bulanan,
         tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
+        suku_bunga: formData.suku_bunga,
         catatan: formData.catatan,
       },
+
     ])
     .select()
     .single();
@@ -132,8 +134,10 @@ export async function updateDebt(debtId: string, formData: DebtFormData) {
       sisa_hutang: formData.sisa_hutang,
       cicilan_bulanan: formData.cicilan_bulanan,
       tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
+      suku_bunga: formData.suku_bunga,
       catatan: formData.catatan,
     })
+
     .eq("id", debtId)
     .select()
     .single();

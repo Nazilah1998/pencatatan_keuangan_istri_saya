@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/Button";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { id as localeId, enUS as localeEn } from "date-fns/locale";
 
-
 interface BudgetCardProps {
   budget: BudgetEntry;
   transactions: Transaction[];
@@ -204,4 +203,3 @@ export const BudgetCard = React.memo(function BudgetCard({
     </div>
   );
 });
-

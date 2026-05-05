@@ -34,10 +34,13 @@ export function AssetForm({ onSuccess, initialData }: AssetFormProps) {
           catatan: initialData.catatan || "",
         }
       : {
+          nama: "",
           nilai: 0,
           tanggal_update: new Date().toISOString().split("T")[0],
           jenis: "kas",
+          catatan: "",
         },
+
   });
 
   const selectedJenis = useWatch({ control, name: "jenis" });

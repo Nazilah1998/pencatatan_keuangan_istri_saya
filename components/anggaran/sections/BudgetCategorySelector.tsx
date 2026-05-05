@@ -67,7 +67,9 @@ export function BudgetCategorySelector({
                   fontSize: "0.6875rem",
                   fontWeight: 700,
                   textAlign: "center",
-                  color: isSelected ? "var(--color-primary)" : "var(--color-text)",
+                  color: isSelected
+                    ? "var(--color-primary)"
+                    : "var(--color-text)",
                   lineHeight: 1.2,
                 }}
               >
