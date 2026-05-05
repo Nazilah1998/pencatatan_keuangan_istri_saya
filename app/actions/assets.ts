@@ -112,7 +112,6 @@ export async function addDebt(formData: DebtFormData) {
         suku_bunga: formData.suku_bunga,
         catatan: formData.catatan,
       },
-
     ])
     .select()
     .single();

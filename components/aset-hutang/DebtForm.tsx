@@ -46,25 +46,37 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
           jenis: "lainnya",
           catatan: "",
         },
-
   });
 
   const selectedJenis = useWatch({ control, name: "jenis" });
 
   const onSubmit = async (data: DebtSchema) => {
     setIsLoading(true);
-    const result = initialData ? await updateDebt(initialData.id, data) : await addDebt(data);
+    const result = initialData
+      ? await updateDebt(initialData.id, data)
+      : await addDebt(data);
     setIsLoading(false);
     if (result.success) {
-      toast.success(initialData ? "Data hutang diperbarui!" : "Hutang berhasil dicatat!");
+      toast.success(
+        initialData ? "Data hutang diperbarui!" : "Hutang berhasil dicatat!",
+      );
       onSuccess?.();
     } else {
-      toast.error(result.error || (initialData ? "Gagal memperbarui data hutang" : "Gagal mencatat hutang"));
+      toast.error(
+        result.error ||
+          (initialData
+            ? "Gagal memperbarui data hutang"
+            : "Gagal mencatat hutang"),
+      );
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+      style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+    >
       <div className="form-group">
         <label className="form-label">Nama Hutang/Pinjaman *</label>
         <input
@@ -73,18 +85,28 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
           className={`input ${errors.nama_hutang ? "input-error" : ""}`}
           {...register("nama_hutang")}
         />
-        {errors.nama_hutang && <span className="form-error">{errors.nama_hutang.message}</span>}
+        {errors.nama_hutang && (
+          <span className="form-error">{errors.nama_hutang.message}</span>
+        )}
       </div>
 
       <DebtTypeSelector selectedJenis={selectedJenis} register={register} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
+      >
         <div className="form-group">
           <Controller
             control={control}
             name="total_awal"
             render={({ field: { onChange, value } }) => (
-              <CurrencyInput label="Total Pinjaman Awal" required value={value} onChange={onChange} error={errors.total_awal?.message} />
+              <CurrencyInput
+                label="Total Pinjaman Awal"
+                required
+                value={value}
+                onChange={onChange}
+                error={errors.total_awal?.message}
+              />
             )}
           />
         </div>
@@ -93,32 +115,60 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
             control={control}
             name="sisa_hutang"
             render={({ field: { onChange, value } }) => (
-              <CurrencyInput label="Sisa Hutang Saat Ini" required value={value} onChange={onChange} error={errors.sisa_hutang?.message} />
+              <CurrencyInput
+                label="Sisa Hutang Saat Ini"
+                required
+                value={value}
+                onChange={onChange}
+                error={errors.sisa_hutang?.message}
+              />
             )}
           />
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
+      >
         <div className="form-group">
           <Controller
             control={control}
             name="cicilan_bulanan"
             render={({ field: { onChange, value } }) => (
-              <CurrencyInput label="Cicilan per Bulan" required value={value} onChange={onChange} error={errors.cicilan_bulanan?.message} />
+              <CurrencyInput
+                label="Cicilan per Bulan"
+                required
+                value={value}
+                onChange={onChange}
+                error={errors.cicilan_bulanan?.message}
+              />
             )}
           />
         </div>
         <div className="form-group">
           <label className="form-label">Suku Bunga (%)</label>
-          <input type="number" step="0.01" placeholder="0" className="input" {...register("suku_bunga", { valueAsNumber: true })} />
+          <input
+            type="number"
+            step="0.01"
+            placeholder="0"
+            className="input"
+            {...register("suku_bunga", { valueAsNumber: true })}
+          />
         </div>
       </div>
 
       <div className="form-group">
         <label className="form-label">Jatuh Tempo/Berakhir *</label>
-        <input type="date" className={`input ${errors.tanggal_jatuh_tempo ? "input-error" : ""}`} {...register("tanggal_jatuh_tempo")} />
-        {errors.tanggal_jatuh_tempo && <span className="form-error">{errors.tanggal_jatuh_tempo.message}</span>}
+        <input
+          type="date"
+          className={`input ${errors.tanggal_jatuh_tempo ? "input-error" : ""}`}
+          {...register("tanggal_jatuh_tempo")}
+        />
+        {errors.tanggal_jatuh_tempo && (
+          <span className="form-error">
+            {errors.tanggal_jatuh_tempo.message}
+          </span>
+        )}
       </div>
 
       <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
