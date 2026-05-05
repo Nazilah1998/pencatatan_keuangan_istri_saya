@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { savingsSchema, SavingsSchema } from "@/lib/validations";
@@ -33,8 +34,9 @@ export function SavingsForm({
     control,
     formState: { errors },
   } = useForm<SavingsSchema>({
-    resolver: zodResolver(savingsSchema),
-    defaultValues: initialData || {
+    resolver: zodResolver(savingsSchema) as unknown as Resolver<SavingsSchema>,
+
+    defaultValues: (initialData || {
       ikon: SAVINGS_ICONS[0],
       warna: SAVINGS_COLORS[0],
       prioritas: "sedang",
@@ -42,7 +44,7 @@ export function SavingsForm({
       jumlah_terkumpul: 0,
       deskripsi: "",
       target_tanggal: new Date().toISOString().split("T")[0],
-    },
+    }) as SavingsSchema,
   });
 
   const selectedIcon = useWatch({ control, name: "ikon" });

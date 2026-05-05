@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { assetSchema, AssetSchema } from "@/lib/validations";
@@ -24,7 +25,8 @@ export function AssetForm({ onSuccess, initialData }: AssetFormProps) {
     control,
     formState: { errors },
   } = useForm<AssetSchema>({
-    resolver: zodResolver(assetSchema),
+    resolver: zodResolver(assetSchema) as unknown as Resolver<AssetSchema>,
+
     defaultValues: initialData
       ? {
           nama: initialData.nama,

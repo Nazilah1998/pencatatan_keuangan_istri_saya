@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { debtSchema, DebtSchema } from "@/lib/validations";
@@ -24,7 +25,8 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
     control,
     formState: { errors },
   } = useForm<DebtSchema>({
-    resolver: zodResolver(debtSchema),
+    resolver: zodResolver(debtSchema) as unknown as Resolver<DebtSchema>,
+
     defaultValues: initialData
       ? {
           nama_hutang: initialData.nama_hutang,

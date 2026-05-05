@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { transactionSchema } from "@/lib/validations";
@@ -54,7 +55,10 @@ export function TransactionForm({
     setValue,
     formState: { errors },
   } = useForm<TransactionSchema>({
-    resolver: zodResolver(transactionSchema),
+    resolver: zodResolver(
+      transactionSchema,
+    ) as unknown as Resolver<TransactionSchema>,
+
     defaultValues: initialData
       ? { ...initialData, tanggal: initialData.tanggal.split("T")[0] }
       : {

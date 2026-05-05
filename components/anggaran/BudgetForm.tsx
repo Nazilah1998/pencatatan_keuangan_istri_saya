@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { budgetSchema, BudgetSchema } from "@/lib/validations";
@@ -27,7 +28,7 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
     setValue,
     formState: { errors },
   } = useForm<BudgetSchema>({
-    resolver: zodResolver(budgetSchema),
+    resolver: zodResolver(budgetSchema) as unknown as Resolver<BudgetSchema>,
     defaultValues: { periode: getCurrentPeriod(), catatan: "" },
   });
 

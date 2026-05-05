@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const transactionSchema = z.object({
   jenis: z.enum(["pemasukan", "pengeluaran"]),
-  jumlah: z.coerce.number().min(1, "Jumlah harus lebih dari 0"),
+  jumlah: z.number().min(1, "Jumlah harus lebih dari 0"),
   kategori: z.string().min(1, "Kategori harus dipilih"),
   sub_kategori: z.string().optional().nullable(),
   tanggal: z.string().min(1, "Tanggal harus diisi"),
