@@ -1,0 +1,62 @@
+/* Utility Colors */
+.text-income { color: var(--color-income); }
+.text-expense { color: var(--color-expense); }
+.text-warning { color: var(--color-warning); }
+.text-muted { color: var(--color-text-muted); }
+.text-faint { color: var(--color-text-faint); }
+.text-primary { color: var(--color-primary); }
+
+/* Backgrounds */
+.bg-surface { background: var(--color-surface); }
+.bg-surface-2 { background: var(--color-surface-2); }
+.bg-offset { background: var(--color-surface-offset); }
+
+/* Common Helpers */
+.divider {
+  height: 1px;
+  background: var(--color-divider);
+  margin: 0.75rem 0;
+}
+
+.shadow-card { box-shadow: var(--shadow-sm); }
+.shadow-float { box-shadow: var(--shadow-lg); }
+.rounded-card { border-radius: var(--radius-xl); }
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-xl);
+  transition: all var(--transition);
+  z-index: 100;
+}
+
+.fab:hover {
+  background: var(--color-primary-hover);
+  transform: scale(1.1) rotate(45deg);
+}
+
+@media (max-width: 1023px) {
+  .fab { bottom: 6rem; right: 1.25rem; }
+}
+
+/* Recharts Overrides */
+.recharts-tooltip-wrapper { outline: none !important; }
+.recharts-default-tooltip {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+  color: var(--color-text) !important;
+}

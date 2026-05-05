@@ -12,6 +12,8 @@ import {
 import { WeeklyChartData } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
+import { useTranslation } from "@/lib/i18n/useTranslation";
+
 interface SpendingChartProps {
   data: WeeklyChartData[];
 }
@@ -27,6 +29,14 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+  const { t, currentLang } = useTranslation();
+  const intlLocale =
+    currentLang === "id"
+      ? "id-ID"
+      : currentLang === "en"
+        ? "en-US"
+        : currentLang;
+
   if (!active || !payload?.length) return null;
   return (
     <div
@@ -68,7 +78,10 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
             }}
           />
           <span style={{ color: "var(--color-text-muted)" }}>
-            {entry.name === "pemasukan" ? "Pemasukan" : "Pengeluaran"}:
+            {entry.name === "pemasukan"
+              ? t("dashboard.income")
+              : t("dashboard.expense")}
+            :
           </span>
           <span
             style={{
@@ -77,7 +90,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
               fontFamily: "var(--font-mono)",
             }}
           >
-            {formatCurrency(entry.value)}
+            {formatCurrency(entry.value, intlLocale)}
           </span>
         </div>
       ))}
@@ -86,6 +99,8 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 export function SpendingChart({ data }: SpendingChartProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="card" style={{ padding: "var(--card-padding)" }}>
       <div style={{ marginBottom: "1.25rem" }}>
@@ -96,7 +111,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
             color: "var(--color-text)",
           }}
         >
-          Pemasukan vs Pengeluaran
+          {t("dashboard.weekly_title")}
         </h3>
         <p
           style={{
@@ -105,7 +120,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
             marginTop: "0.25rem",
           }}
         >
-          Ringkasan per minggu bulan ini
+          {t("dashboard.weekly_subtitle")}
         </p>
       </div>
       <ResponsiveContainer width="100%" height={240}>
@@ -122,7 +137,9 @@ export function SpendingChart({ data }: SpendingChartProps) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={(v) => `${v / 1000000}jt`}
+            tickFormatter={(v) =>
+              `${v / 1000000}${t("dashboard.weekly_week")[0] === "M" ? "jt" : "M"}`
+            }
             tick={{ fontSize: 11, fill: "var(--color-text-muted)" }}
             axisLine={false}
             tickLine={false}

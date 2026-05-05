@@ -1,9 +1,10 @@
 "use client";
 import React, { useRef } from "react";
 import { format, parseISO } from "date-fns";
-import { id } from "date-fns/locale";
+import { id as idLocale, enUS as enLocale } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface DatePickerProps {
   value: string;
@@ -20,15 +21,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   error,
   required,
 }) => {
+  const { t, currentLang } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleContainerClick = () => {
     inputRef.current?.showPicker();
   };
 
+  const dateLocale = currentLang === "id" ? idLocale : enLocale;
+
   const displayDate = value
-    ? format(parseISO(value), "EEEE, d MMMM yyyy", { locale: id })
-    : "Pilih tanggal...";
+    ? format(parseISO(value), "EEEE, d MMMM yyyy", { locale: dateLocale })
+    : t("transactions.form.date_instruction");
 
   return (
     <div className="form-group">
@@ -90,7 +94,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   color: "var(--color-text-muted)",
                 }}
               >
-                Ketuk untuk ubah tanggal
+                {t("transactions.form.date_instruction")}
               </span>
             )}
           </div>

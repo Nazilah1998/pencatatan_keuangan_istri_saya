@@ -20,7 +20,7 @@ export default function PengaturanPage() {
     {
       id: "preferensi",
       title: t("settings.pref_title"),
-      description: "Nama panggilan dan nama rumah tangga",
+      description: t("settings.pref_desc"),
       icon: <User2 size={22} />,
       href: "/pengaturan/preferensi",
       color: "#6366f1",
@@ -28,7 +28,7 @@ export default function PengaturanPage() {
     {
       id: "tema",
       title: t("settings.theme_title"),
-      description: "Sesuaikan warna utama aplikasi",
+      description: t("settings.theme_desc"),
       icon: <Palette size={22} />,
       href: "/pengaturan/tema",
       color: "#ec4899",
@@ -36,7 +36,7 @@ export default function PengaturanPage() {
     {
       id: "bahasa",
       title: t("settings.lang_title"),
-      description: "Pilih bahasa aplikasi",
+      description: t("settings.lang_desc"),
       icon: <Languages size={22} />,
       href: "/pengaturan/bahasa",
       color: "#10b981",
@@ -44,7 +44,7 @@ export default function PengaturanPage() {
     {
       id: "dompet",
       title: t("settings.wallet_title"),
-      description: "Atur daftar dompet dan akun bank",
+      description: t("settings.wallet_desc"),
       icon: <CreditCard size={22} />,
       href: "/pengaturan/dompet",
       color: "#f59e0b",
@@ -52,7 +52,7 @@ export default function PengaturanPage() {
     {
       id: "kategori",
       title: t("settings.cat_title"),
-      description: "Atur kategori transaksi dan sub-kategori",
+      description: t("settings.cat_desc"),
       icon: <Tags size={22} />,
       href: "/pengaturan/kategori",
       color: "#8b5cf6",
@@ -60,7 +60,7 @@ export default function PengaturanPage() {
     {
       id: "install",
       title: t("settings.install_title"),
-      description: "Pasang aplikasi di layar utama HP",
+      description: t("settings.install_desc"),
       icon: <Smartphone size={22} />,
       href: "/pengaturan/install",
       color: "#06b6d4",

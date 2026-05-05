@@ -1,0 +1,59 @@
+:root {
+  /* Surfaces */
+  --color-bg: #fff5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #fffbfd;
+  --color-surface-offset: #ffeef2;
+  --color-border: #f7d1d9;
+  --color-divider: #fae1e6;
+  --card-padding: 1.5rem;
+
+  /* Text */
+  --color-text: #4a3a3d;
+  --color-text-muted: #8e7a7e;
+  --color-text-faint: #cbbec1;
+
+  /* Primary — Pink Pastel */
+  --color-primary: #ff85a2;
+  --color-primary-hover: #ff6b8e;
+  --color-primary-highlight: #ffe0e6;
+
+  /* Semantic */
+  --color-income: #52b788;
+  --color-income-bg: #e2f3ec;
+  --color-expense: #f25c7d;
+  --color-expense-bg: #ffeef2;
+  --color-warning: #f4a261;
+  --color-warning-bg: #fdf2e9;
+  --color-info: #48cae4;
+  --color-info-bg: #eefbff;
+
+  /* Effects */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 2px 4px rgba(255, 133, 162, 0.05);
+  --shadow-md: 0 4px 12px rgba(255, 133, 162, 0.08);
+  --shadow-lg: 0 12px 24px rgba(255, 133, 162, 0.12);
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --color-bg: #1a1415;
+  --color-surface: #241c1d;
+  --color-surface-2: #2d2425;
+  --color-surface-offset: #362c2d;
+  --color-border: #3d3133;
+  --color-divider: #362c2d;
+  --color-text: #fceef0;
+  --color-text-muted: #bda6aa;
+  --color-text-faint: #5c4a4d;
+  --color-primary: #ff85a2;
+  --color-primary-hover: #ff9fb6;
+  --color-primary-highlight: #452a30;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.5);
+}

@@ -4,6 +4,7 @@ import { Trash2, Plus, Pencil } from "lucide-react";
 import { SavingsGoal } from "@/types";
 import { formatCurrency, calcPercentage, daysUntil } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { SavingsStatusBadge } from "./sections/SavingsStatusBadge";
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
@@ -76,85 +77,10 @@ export const SavingsGoalCard = React.memo(function SavingsGoalCard({
             >
               {goal.nama_tujuan}
             </h3>
-            {remainingDays > 0 && !isCompleted ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.375rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "var(--color-warning)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "var(--color-text-muted)",
-                    fontWeight: 500,
-                  }}
-                >
-                  Sisa {remainingDays} hari
-                </span>
-              </div>
-            ) : isCompleted ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.375rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "var(--color-income)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "var(--color-income)",
-                    fontWeight: 700,
-                  }}
-                >
-                  Tercapai 🎉
-                </span>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.375rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "var(--color-expense)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "var(--color-expense)",
-                    fontWeight: 500,
-                  }}
-                >
-                  Terlewat {Math.abs(remainingDays)} hari
-                </span>
-              </div>
-            )}
+            <SavingsStatusBadge
+              remainingDays={remainingDays}
+              isCompleted={isCompleted}
+            />
           </div>
         </div>
 

@@ -11,21 +11,38 @@ import {
   Building2,
 } from "lucide-react";
 
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-
-const MOBILE_NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transaksi", label: "Transaksi", icon: ArrowLeftRight },
-  { href: "/anggaran", label: "Anggaran", icon: Wallet },
-  { href: "/tabungan", label: "Tabungan", icon: PiggyBank },
-  { href: "/aset-hutang", label: "Aset", icon: Building2 },
-  { href: "/laporan", label: "Laporan", icon: BarChart3 },
-];
+import { useTranslation } from "@/lib/i18n/useTranslation";
+import { Locale, format } from "date-fns";
+import { id, enUS, zhCN, es, hi, fr, ja, ru, ptBR } from "date-fns/locale";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { t, currentLang } = useTranslation();
   const now = new Date();
+
+  // Map our language IDs to date-fns locales
+  const localeMap: Record<string, Locale> = {
+    id: id,
+    en: enUS,
+    zh: zhCN,
+    es: es,
+    hi: hi,
+    fr: fr,
+    ja: ja,
+    ru: ru,
+    pt: ptBR,
+  };
+
+  const activeLocale = localeMap[currentLang] || id;
+
+  const MOBILE_NAV = [
+    { href: "/", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+    { href: "/transaksi", label: t("sidebar.transactions"), icon: ArrowLeftRight },
+    { href: "/anggaran", label: t("sidebar.budget"), icon: Wallet },
+    { href: "/tabungan", label: t("sidebar.savings"), icon: PiggyBank },
+    { href: "/aset-hutang", label: t("sidebar.assets"), icon: Building2 },
+    { href: "/laporan", label: t("sidebar.reports"), icon: BarChart3 },
+  ];
 
   return (
     <nav
@@ -58,7 +75,7 @@ export function MobileBottomNav() {
           letterSpacing: "0.05em",
         }}
       >
-        {format(now, "EEEE, d MMMM yyyy", { locale: id })}
+        {format(now, "EEEE, d MMMM yyyy", { locale: activeLocale })}
       </div>
 
       <div style={{ display: "flex", flex: 1, alignItems: "stretch" }}>

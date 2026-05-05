@@ -4,22 +4,25 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Dashboard",
-  "/transaksi": "Transaksi",
-  "/transaksi/tambah": "Tambah Transaksi",
-  "/anggaran": "Anggaran",
-  "/tabungan": "Tabungan",
-  "/aset-hutang": "Aset & Hutang",
-  "/laporan": "Laporan",
-  "/pengaturan": "Pengaturan",
-};
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function TopBar() {
   const pathname = usePathname();
   const { toggleSidebar } = useAppStore();
+  const { t } = useTranslation();
 
-  const pageTitle = PAGE_TITLES[pathname] || "Tyaaa Financee";
+  const PAGE_TITLES: Record<string, string> = {
+    "/": t("sidebar.dashboard"),
+    "/transaksi": t("sidebar.transactions"),
+    "/transaksi/tambah": t("transactions.form.add_title"),
+    "/anggaran": t("sidebar.budget"),
+    "/tabungan": t("sidebar.savings"),
+    "/aset-hutang": t("sidebar.assets"),
+    "/laporan": t("sidebar.reports"),
+    "/pengaturan": t("sidebar.settings"),
+  };
+
+  const pageTitle = PAGE_TITLES[pathname] || "Sintya Finance";
 
   return (
     <header

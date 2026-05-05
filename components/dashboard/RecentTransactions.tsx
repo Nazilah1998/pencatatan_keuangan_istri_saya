@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CATEGORY_COLORS } from "@/lib/constants";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -96,6 +97,7 @@ const TransactionItem = React.memo(function TransactionItem({
 });
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  const { t } = useTranslation();
   const recent = transactions.slice(-5).reverse();
 
   return (
@@ -116,7 +118,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               color: "var(--color-text)",
             }}
           >
-            Transaksi Terbaru
+            {t("dashboard.recent_transactions")}
           </h3>
           <p
             style={{
@@ -125,7 +127,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               marginTop: "0.25rem",
             }}
           >
-            5 transaksi terakhir
+            {t("dashboard.recent_subtitle") || "5 transaksi terakhir"}
           </p>
         </div>
         <Link
@@ -141,15 +143,15 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             transition: "gap var(--transition)",
           }}
         >
-          Lihat Semua <ArrowRight size={14} />
+          {t("dashboard.see_all")} <ArrowRight size={14} />
         </Link>
       </div>
 
       {recent.length === 0 ? (
         <EmptyState
           icon="💸"
-          title="Belum ada transaksi"
-          description="Mulai catat transaksi pertamamu"
+          title={t("transactions.empty_state")}
+          description={t("transactions.empty_subtitle")}
         />
       ) : (
         <div>

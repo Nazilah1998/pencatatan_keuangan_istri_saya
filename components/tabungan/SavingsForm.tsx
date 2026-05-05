@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { SavingsGoal } from "@/types";
+import { SavingsIconSelector } from "./sections/SavingsIconSelector";
 
 interface SavingsFormProps {
   initialData?: SavingsGoal;
@@ -52,7 +53,6 @@ export function SavingsForm({
     const result = isEdit
       ? await updateSavings(initialData.id, data)
       : await addSavings(data);
-
     setIsLoading(false);
     if (result.success) {
       toast.success(isEdit ? "Target diperbarui!" : "Target tabungan dibuat!");
@@ -66,58 +66,8 @@ export function SavingsForm({
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="savings-form"
-      style={{ display: "flex", flexDirection: "column" }}
+      style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
     >
-      <style jsx>{`
-        .savings-form {
-          gap: 1.5rem;
-        }
-        .selection-grid {
-          display: flex;
-          gap: 0.625rem;
-          flex-wrap: wrap;
-        }
-        .icon-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: var(--radius-lg);
-          background: transparent;
-          border: 2px solid var(--color-border);
-          font-size: 1.25rem;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all var(--transition);
-        }
-        .icon-btn.selected {
-          border-color: var(--color-primary);
-          background: var(--color-surface-offset);
-          transform: scale(1.05);
-        }
-        .color-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          border: 2px solid transparent;
-          cursor: pointer;
-          transition: all var(--transition);
-          position: relative;
-        }
-        .color-btn.selected {
-          transform: scale(1.2);
-          box-shadow:
-            0 0 0 2px var(--color-surface),
-            0 0 0 4px currentColor;
-        }
-        @media (max-width: 640px) {
-          .savings-form {
-            gap: 1.125rem;
-          }
-        }
-      `}</style>
-
       <div className="form-group">
         <label className="form-label">Nama Tujuan *</label>
         <input
@@ -154,7 +104,6 @@ export function SavingsForm({
             )}
           />
         </div>
-
         <div className="form-group">
           <Controller
             control={control}
@@ -192,7 +141,6 @@ export function SavingsForm({
             />
           )}
         />
-
         <div className="form-group">
           <label className="form-label">Prioritas</label>
           <select className="input" {...register("prioritas")}>
@@ -203,42 +151,12 @@ export function SavingsForm({
         </div>
       </div>
 
-      <div className="form-group">
-        <label className="form-label">Pilih Ikon</label>
-        <div className="selection-grid">
-          {SAVINGS_ICONS.map((icon) => (
-            <button
-              key={icon}
-              type="button"
-              onClick={() => setValue("ikon", icon)}
-              className={`icon-btn ${selectedIcon === icon ? "selected" : ""}`}
-            >
-              {icon}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label className="form-label">Pilih Warna</label>
-        <div
-          className="selection-grid"
-          style={{ gap: "1rem", padding: "0.25rem" }}
-        >
-          {SAVINGS_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              onClick={() => setValue("warna", color)}
-              className={`color-btn ${selectedColor === color ? "selected" : ""}`}
-              style={{
-                backgroundColor: color,
-                color: color,
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      <SavingsIconSelector
+        selectedIcon={selectedIcon}
+        selectedColor={selectedColor}
+        onIconSelect={(icon) => setValue("ikon", icon)}
+        onColorSelect={(color) => setValue("warna", color)}
+      />
 
       <Button
         type="submit"

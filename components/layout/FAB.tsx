@@ -7,8 +7,10 @@ import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function FAB() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const supabase = createClient();
@@ -25,7 +27,7 @@ export function FAB() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      toast.error("Silakan login untuk menambah transaksi");
+      toast.error(t("common.error"));
       router.push("/login");
       return;
     }
@@ -37,7 +39,7 @@ export function FAB() {
       <button
         className="fab"
         onClick={handleOpen}
-        aria-label="Tambah transaksi cepat"
+        aria-label={t("transactions.form.add_title")}
         id="fab-add-transaction"
         style={{
           transform: isOpen ? "scale(0.9)" : "scale(1)",
@@ -65,7 +67,7 @@ export function FAB() {
       <Modal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Tambah Transaksi"
+        title={t("transactions.form.add_title")}
       >
         <TransactionForm onSuccess={() => setIsOpen(false)} />
       </Modal>

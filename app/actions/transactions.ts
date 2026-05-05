@@ -39,6 +39,7 @@ export async function addTransaction(formData: TransactionFormData) {
         sub_kategori: formData.sub_kategori,
         dompet: formData.dompet,
         deskripsi: formData.deskripsi,
+        penerima: formData.penerima,
       },
     ])
     .select()
@@ -74,7 +75,9 @@ export async function updateTransaction(
       sub_kategori: formData.sub_kategori,
       dompet: formData.dompet,
       deskripsi: formData.deskripsi,
+      penerima: formData.penerima,
     })
+
     .eq("id", id)
     .select()
     .single();

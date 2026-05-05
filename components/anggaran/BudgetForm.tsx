@@ -5,18 +5,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { budgetSchema, BudgetSchema } from "@/lib/validations";
 import { addBudget } from "@/app/actions/budgets";
-import { PENGELUARAN_CATEGORIES } from "@/lib/constants";
 import { getCurrentPeriod } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { MonthPicker } from "@/components/ui/MonthPicker";
-import { CATEGORY_ICONS } from "@/lib/constants";
+import { BudgetCategorySelector } from "./sections/BudgetCategorySelector";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+
 
 interface BudgetFormProps {
   onSuccess?: () => void;
 }
 
 export function BudgetForm({ onSuccess }: BudgetFormProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -37,11 +39,11 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
     const result = await addBudget(data);
     setIsLoading(false);
     if (result.success) {
-      toast.success("Anggaran berhasil disimpan!");
+      toast.success(t("budget.form.success"));
       reset({ periode: getCurrentPeriod() });
       onSuccess?.();
     } else {
-      toast.error(result.error || "Gagal menyimpan anggaran");
+      toast.error(result.error || t("budget.form.error"));
     }
   };
 
@@ -49,81 +51,13 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="budget-form"
-      style={{ display: "flex", flexDirection: "column" }}
+      style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
     >
-      <style jsx>{`
-        .budget-form {
-          gap: 1.5rem;
-        }
-        .category-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-          gap: 0.625rem;
-        }
-        .grid-item-btn {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.875rem 0.5rem;
-          border-radius: var(--radius-xl);
-          border: 2px solid var(--color-border);
-          background: transparent;
-          cursor: pointer;
-          transition: all var(--transition);
-        }
-        .grid-item-btn.selected {
-          border-color: var(--color-primary);
-          background: var(--color-surface-offset);
-          box-shadow: var(--shadow-sm);
-        }
-        @media (max-width: 640px) {
-          .budget-form {
-            gap: 1.125rem;
-          }
-          .grid-item-btn {
-            padding: 0.625rem 0.375rem;
-          }
-        }
-      `}</style>
-
-      {/* Kategori Grid */}
-      <div className="form-group">
-        <label className="form-label">Pilih Kategori *</label>
-        <div className="category-grid">
-          {PENGELUARAN_CATEGORIES.map((cat) => {
-            const isSelected = selectedKategori === cat;
-            const icon = CATEGORY_ICONS[cat] || "📁";
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setValue("kategori", cat)}
-                className={`grid-item-btn ${isSelected ? "selected" : ""}`}
-              >
-                <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-                <span
-                  style={{
-                    fontSize: "0.6875rem",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    color: isSelected
-                      ? "var(--color-primary)"
-                      : "var(--color-text)",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {cat}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {errors.kategori && (
-          <span className="form-error">{errors.kategori.message}</span>
-        )}
-      </div>
+      <BudgetCategorySelector
+        selectedKategori={selectedKategori}
+        onSelect={(cat: string) => setValue("kategori", cat)}
+        error={errors.kategori?.message}
+      />
 
       {/* Batas Bulanan */}
       <div className="form-group">
@@ -132,7 +66,7 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
           name="batas_bulanan"
           render={({ field: { onChange, value } }) => (
             <CurrencyInput
-              label="Batas Bulanan"
+              label={t("budget.form.limit_label")}
               required
               value={value}
               onChange={onChange}
@@ -154,7 +88,7 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
         name="periode"
         render={({ field: { onChange, value } }) => (
           <MonthPicker
-            label="Periode Anggaran"
+            label={t("budget.form.period_label")}
             required
             value={value}
             onChange={onChange}
@@ -170,8 +104,9 @@ export function BudgetForm({ onSuccess }: BudgetFormProps) {
         fullWidth
         style={{ marginTop: "0.5rem" }}
       >
-        Simpan Anggaran
+        {t("budget.form.save")}
       </Button>
     </form>
   );
 }
+

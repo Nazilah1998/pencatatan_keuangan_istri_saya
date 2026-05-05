@@ -1,9 +1,10 @@
 "use client";
 import React, { useRef } from "react";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { id as localeId, enUS as localeEn } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface MonthPickerProps {
   value: string; // YYYY-MM
@@ -20,19 +21,22 @@ export const MonthPicker: React.FC<MonthPickerProps> = ({
   error,
   required,
 }) => {
+  const { t, currentLang } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleContainerClick = () => {
     inputRef.current?.showPicker();
   };
 
+  const dateLocale = currentLang === "id" ? localeId : localeEn;
+
   // Convert YYYY-MM to a readable label
   const getDisplayLabel = () => {
-    if (!value) return "Pilih periode...";
+    if (!value) return t("budget.form.period_label") + "...";
     try {
       const [year, month] = value.split("-");
       const date = new Date(Number(year), Number(month) - 1);
-      return format(date, "MMMM yyyy", { locale: id });
+      return format(date, "MMMM yyyy", { locale: dateLocale });
     } catch {
       return value;
     }
@@ -98,11 +102,12 @@ export const MonthPicker: React.FC<MonthPickerProps> = ({
                   color: "var(--color-text-muted)",
                 }}
               >
-                Ketuk untuk ubah periode
+                {t("budget.form.period_instruction")}
               </span>
             )}
           </div>
         </div>
+
         <ChevronRight
           size={18}
           className="text-muted group-hover:translate-x-1 transition-transform"

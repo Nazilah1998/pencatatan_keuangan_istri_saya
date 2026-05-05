@@ -12,8 +12,10 @@ import {
 } from "lucide-react";
 import { InstallModal } from "@/components/layout/InstallModal";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export default function InstallPage() {
+  const { t } = useTranslation();
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isActuallyInstalled, setIsActuallyInstalled] = useState(false);
   const { isInstallable, isIOS, installApp } = usePWA();
@@ -54,7 +56,7 @@ export default function InstallPage() {
           width: "fit-content",
         }}
       >
-        <ChevronLeft size={18} /> Kembali ke Pengaturan
+        <ChevronLeft size={18} /> {t("settings.back")}
       </Link>
 
       <div style={{ marginBottom: "2rem" }}>
@@ -88,11 +90,11 @@ export default function InstallPage() {
               margin: 0,
             }}
           >
-            Install Aplikasi
+            {t("settings.install.title")}
           </h2>
         </div>
         <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-          Gunakan aplikasi layaknya aplikasi mobile asli di HP Anda
+          {t("settings.install.subtitle")}
         </p>
       </div>
 
@@ -132,7 +134,7 @@ export default function InstallPage() {
               marginBottom: "0.75rem",
             }}
           >
-            Tyaaa Financee Pro
+            {t("settings.install.pro_title")}
           </h3>
 
           <p
@@ -143,8 +145,7 @@ export default function InstallPage() {
               marginBottom: "2rem",
             }}
           >
-            Nikmati pengalaman mencatat keuangan yang lebih cepat, lancar, dan
-            praktis tanpa perlu membuka browser setiap saat.
+            {t("settings.install.pro_desc")}
           </p>
 
           {isActuallyInstalled ? (
@@ -161,9 +162,11 @@ export default function InstallPage() {
               }}
             >
               <CheckCircle2 size={32} />
-              <span style={{ fontWeight: 700 }}>Aplikasi Sudah Terpasang</span>
+              <span style={{ fontWeight: 700 }}>
+                {t("settings.install.installed_title")}
+              </span>
               <p style={{ fontSize: "0.8125rem", opacity: 0.8 }}>
-                Anda sudah menjalankan aplikasi versi mobile.
+                {t("settings.install.installed_desc")}
               </p>
             </div>
           ) : (
@@ -178,7 +181,9 @@ export default function InstallPage() {
                 style={{ height: "3.5rem", borderRadius: "16px" }}
               >
                 <Download size={20} style={{ marginRight: "0.75rem" }} />
-                {isIOS ? "Lihat Cara Install" : "Pasang Sekarang"}
+                {isIOS
+                  ? t("settings.install.button_ios")
+                  : t("settings.install.button_android")}
               </Button>
 
               {!isInstallable && !isIOS && (
@@ -193,7 +198,7 @@ export default function InstallPage() {
                   }}
                 >
                   <Loader2 size={14} className="animate-spin" />
-                  Mencari opsi instalasi...
+                  {t("settings.install.searching")}
                 </div>
               )}
             </div>
@@ -215,11 +220,11 @@ export default function InstallPage() {
             style={{ color: "var(--color-primary)", flexShrink: 0 }}
           />
           <div style={{ fontSize: "0.8125rem", lineHeight: 1.5 }}>
-            <strong>Kenapa harus install?</strong>
+            <strong>{t("settings.install.why_title")}</strong>
             <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
-              <li>Akses cepat langsung dari layar utama (Home Screen).</li>
-              <li>Tampilan layar penuh tanpa toolbar browser.</li>
-              <li>Loading lebih cepat dan stabil.</li>
+              <li>{t("settings.install.reason_1")}</li>
+              <li>{t("settings.install.reason_2")}</li>
+              <li>{t("settings.install.reason_3")}</li>
             </ul>
           </div>
         </div>

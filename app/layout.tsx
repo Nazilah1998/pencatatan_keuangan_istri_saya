@@ -6,7 +6,6 @@ import { PWAProvider } from "@/components/providers/PWAProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { LanguageSyncProvider } from "@/components/providers/LanguageSyncProvider";
 import { ProfileSyncProvider } from "@/components/providers/ProfileSyncProvider";
-import Script from "next/script";
 
 export const metadata: Metadata = {
   title: {
@@ -35,6 +34,9 @@ export const metadata: Metadata = {
     type: "website",
     title: "Tyaaa Financee — Smart Financial Tracking",
     description: "Pencatatan keuangan rumah tangga terintegrasi Google Sheets",
+  },
+  other: {
+    google: "notranslate",
   },
 };
 
@@ -96,23 +98,6 @@ export default async function RootLayout({
             />
           </DataSyncProvider>
         </PWAProvider>
-
-        {/* Google Translate Integration */}
-        <div id="google_translate_element" style={{ display: "none" }}></div>
-        <Script
-          strategy="afterInteractive"
-          src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-        />
-        <Script id="google-translate-init" strategy="afterInteractive">
-          {`
-            function googleTranslateElementInit() {
-              new google.translate.TranslateElement({
-                pageLanguage: 'id',
-                autoDisplay: false
-              }, 'google_translate_element');
-            }
-          `}
-        </Script>
       </body>
     </html>
   );

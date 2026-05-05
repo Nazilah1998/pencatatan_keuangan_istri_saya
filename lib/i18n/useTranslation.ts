@@ -4,9 +4,9 @@ import { translations } from "./dictionaries";
 export function useTranslation() {
   const { settings } = useAppStore();
 
-  // Default to 'id' if no language is selected or settings is undefined
-  const currentLang = settings?.bahasa || "id";
-  const dict = translations[currentLang] || translations["id"];
+  // Default to 'en' if no language is selected or settings is undefined
+  const currentLang = settings?.bahasa || "en";
+  const dict = translations[currentLang] || translations["en"];
 
   const t = (keyPath: string): string => {
     const keys = keyPath.split(".");

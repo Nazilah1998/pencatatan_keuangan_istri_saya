@@ -1,14 +1,16 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+import { useAnimatedValue } from "@/lib/hooks/useAnimatedValue";
 
 interface KPICardProps {
   title: string;
   amount: number;
   type?: "default" | "income" | "expense" | "saving";
-  trend?: number; // percentage vs previous period
+  trend?: number;
   icon?: string;
   subtitle?: string;
   onClick?: () => void;
@@ -24,36 +26,20 @@ export const KPICard = React.memo(function KPICard({
   onClick,
 }: KPICardProps) {
   const { isPrivateMode } = useAppStore();
+  const { currentLang } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [displayed, setDisplayed] = useState(0);
+  const displayed = useAnimatedValue(amount, 1200);
+
+  const intlLocale =
+    currentLang === "id"
+      ? "id-ID"
+      : currentLang === "en"
+        ? "en-US"
+        : currentLang;
 
   useEffect(() => {
     setHasHydrated(true);
   }, []);
-
-  const frameRef = useRef<number>(null);
-  const startRef = useRef<number>(null);
-  const duration = 1200;
-
-  useEffect(() => {
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    startRef.current = null;
-    const target = amount;
-
-    const animate = (ts: number) => {
-      if (!startRef.current) startRef.current = ts;
-      const elapsed = ts - startRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 3);
-      setDisplayed(Math.round(target * ease));
-      if (progress < 1) frameRef.current = requestAnimationFrame(animate);
-    };
-
-    frameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [amount]);
 
   const colorMap = {
     default: {
@@ -79,10 +65,11 @@ export const KPICard = React.memo(function KPICard({
   };
 
   const colors = colorMap[type];
+  const currencyPlaceholder = intlLocale === "id-ID" ? "Rp ••••••" : "$ ••••••";
 
   return (
     <div
-      className="card"
+      className="card notranslate"
       onClick={onClick}
       style={{
         padding: "var(--card-padding)",
@@ -103,7 +90,6 @@ export const KPICard = React.memo(function KPICard({
         e.currentTarget.style.boxShadow = "var(--shadow-md)";
       }}
     >
-      {/* Decorative background blob */}
       <div
         aria-hidden
         style={{
@@ -168,10 +154,10 @@ export const KPICard = React.memo(function KPICard({
         }}
       >
         {!hasHydrated
-          ? "Rp ..."
+          ? "..."
           : isPrivateMode
-            ? "Rp ••••••"
-            : formatCurrency(displayed)}
+            ? currencyPlaceholder
+            : formatCurrency(displayed, intlLocale)}
       </div>
 
       {(trend !== undefined || subtitle) && (

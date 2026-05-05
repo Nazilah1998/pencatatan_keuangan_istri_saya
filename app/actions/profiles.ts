@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { AppSettings, ActionResult } from "@/types";
 import { revalidatePath } from "next/cache";
+import { DEFAULT_SETTINGS } from "@/lib/defaults";
 
 export async function getProfile(): Promise<
   ActionResult<Partial<AppSettings>>
@@ -12,7 +13,7 @@ export async function getProfile(): Promise<
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { success: false, error: "Not logged in" };
+  if (!user) return { success: true, data: DEFAULT_SETTINGS };
 
   const { data, error } = await supabase
     .from("profiles")
@@ -20,12 +21,21 @@ export async function getProfile(): Promise<
     .eq("id", user.id)
     .single();
 
-  if (error) {
-    // If profile doesn't exist yet, we might want to return default or handle it
-    return { success: false, error: error.message };
+  if (error || !data) {
+    // If profile doesn't exist yet, return defaults
+    return { success: true, data: DEFAULT_SETTINGS };
   }
 
-  return { success: true, data: data as Partial<AppSettings> };
+  // Ensure categories and wallets have fallbacks if null in DB
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    ...data,
+    custom_categories:
+      data.custom_categories || DEFAULT_SETTINGS.custom_categories,
+    custom_wallets: data.custom_wallets || DEFAULT_SETTINGS.custom_wallets,
+  };
+
+  return { success: true, data: settings as Partial<AppSettings> };
 }
 
 export async function updateProfile(
