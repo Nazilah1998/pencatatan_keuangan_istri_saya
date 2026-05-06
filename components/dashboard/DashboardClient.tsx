@@ -24,7 +24,13 @@ export function DashboardClient() {
   const { t, currentLang } = useTranslation();
 
   const now = useMemo(() => new Date(), []);
-  const stats = useDashboardStats(transactions, savings, now, t);
+  const stats = useDashboardStats(
+    transactions,
+    savings,
+    now,
+    t,
+    settings.custom_wallets,
+  );
 
   // Get display name
   const displayName = useMemo(() => {
@@ -103,6 +109,8 @@ export function DashboardClient() {
         t={t}
       />
 
+      <KPIGrid stats={stats} t={t} />
+
       <AssetQuickGrid
         assets={assets}
         isPrivateMode={isPrivateMode}
@@ -110,8 +118,6 @@ export function DashboardClient() {
         intlLocale={intlLocale}
         t={t}
       />
-
-      <KPIGrid stats={stats} t={t} />
 
       <ChartsGrid
         weeklyData={stats.weeklyData}

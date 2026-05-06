@@ -9,6 +9,7 @@ import { AppSettings } from "@/types";
 import { updateProfile } from "@/app/actions/profiles";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { ICON_CATEGORIES, IconCategory } from "@/lib/constants/icons";
 
 interface KategoriClientProps {
   initialSettings: Partial<AppSettings>;
@@ -40,45 +41,25 @@ export function KategoriClient({}: KategoriClientProps) {
   const [newSubIcon, setNewSubIcon] = useState("🔹");
   const [showSubIconPicker, setShowSubIconPicker] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-
-  const COMMON_ICONS = [
-    "💰",
-    "🍕",
-    "🚗",
-    "🏠",
-    "🎮",
-    "👕",
-    "🏥",
-    "🎓",
-    "🛒",
-    "📱",
-    "💡",
-    "🌐",
-    "🎁",
-    "🔥",
-    "🌟",
-    "🔹",
-    "🔸",
-    "✅",
-    "❌",
-    "📍",
-    "💳",
-    "🏦",
-    "💎",
-    "🛠️",
-    "🧼",
-    "🧴",
-    "🧸",
-    "🐱",
-    "🐶",
-    "☕",
-  ];
+  const [activeIconTab, setActiveIconTab] = useState(ICON_CATEGORIES[0].id);
+  const [showMainIconPicker, setShowMainIconPicker] = useState(false);
 
   const subInputRef = React.useRef<HTMLInputElement>(null);
 
-  const syncSettings = async (newSettings: Partial<AppSettings>) => {
+  const [isPending, startTransition] = React.useTransition();
+
+  const syncSettings = (newSettings: Partial<AppSettings>) => {
+    // 1. Update local UI state immediately (Synchronous)
     setStoreSettings(newSettings);
-    await updateProfile(newSettings);
+
+    // 2. Sync to cloud in transition
+    startTransition(async () => {
+      try {
+        await updateProfile(newSettings);
+      } catch (err) {
+        console.error("Sync failed:", err);
+      }
+    });
   };
 
   const handleAddCategory = (name: string, icon: string) => {
@@ -109,7 +90,10 @@ export function KategoriClient({}: KategoriClientProps) {
     toast.success(`${name} ${t("settings.category.success_added")}`);
   };
 
-  const handleDeleteCategory = (id: string) => {
+  const handleDeleteCategory = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     const updated = {
       ...settings,
       custom_categories: custom_categories.filter((c) => c.id !== id),
@@ -163,7 +147,11 @@ export function KategoriClient({}: KategoriClientProps) {
     );
   };
 
-  const handleStartEditSub = (sub: { id: string; name: string; icon: string }) => {
+  const handleStartEditSub = (sub: {
+    id: string;
+    name: string;
+    icon: string;
+  }) => {
     setEditingSubId(sub.id);
     setNewSubName(sub.name);
     setNewSubIcon(sub.icon || "🔹");
@@ -349,22 +337,132 @@ export function KategoriClient({}: KategoriClientProps) {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
           >
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <input
-                type="text"
-                className="input"
-                placeholder={t("settings.category.custom_placeholder")}
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                autoFocus
-              />
-              <input
-                type="text"
-                className="input"
-                style={{ width: "60px", textAlign: "center" }}
-                value={newCategoryIcon}
-                onChange={(e) => setNewCategoryIcon(e.target.value)}
-              />
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                alignItems: "flex-end",
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder={t("settings.category.custom_placeholder")}
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowMainIconPicker(!showMainIconPicker)}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--color-border)",
+                    background: "white",
+                    fontSize: "1.5rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {newCategoryIcon}
+                </button>
+                {showMainIconPicker && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "60px",
+                      right: 0,
+                      width: "280px",
+                      background: "white",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      padding: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                      boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                      zIndex: 100,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.25rem",
+                        overflowX: "auto",
+                        paddingBottom: "0.5rem",
+                        borderBottom: "1px solid var(--color-border-subtle)",
+                        scrollbarWidth: "none",
+                      }}
+                    >
+                      {ICON_CATEGORIES.map((cat: IconCategory) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setActiveIconTab(cat.id)}
+                          style={{
+                            padding: "0.375rem 0.75rem",
+                            borderRadius: "8px",
+                            border: "none",
+                            background:
+                              activeIconTab === cat.id
+                                ? "var(--color-primary-highlight)"
+                                : "transparent",
+                            color:
+                              activeIconTab === cat.id
+                                ? "var(--color-primary)"
+                                : "var(--color-text-muted)",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(6, 1fr)",
+                        gap: "0.5rem",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {ICON_CATEGORIES.find(
+                        (c: IconCategory) => c.id === activeIconTab,
+                      )?.icons.map((emoji: string) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            setNewCategoryIcon(emoji);
+                            setShowMainIconPicker(false);
+                          }}
+                          style={{
+                            fontSize: "1.5rem",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.25rem",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <Button
@@ -450,17 +548,20 @@ export function KategoriClient({}: KategoriClientProps) {
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button
-                    onClick={() => handleDeleteCategory(cat.id)}
+                    type="button"
+                    onClick={(e) => handleDeleteCategory(e, cat.id)}
+                    disabled={isPending}
                     style={{
                       color: "#ef4444",
                       background: "rgba(239, 68, 68, 0.1)",
                       border: "none",
-                      padding: "0.5rem",
-                      borderRadius: "8px",
+                      padding: "0.625rem",
+                      borderRadius: "10px",
                       cursor: "pointer",
+                      opacity: isPending ? 0.5 : 1,
                     }}
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={20} />
                   </button>
                   <button
                     onClick={() =>
@@ -509,40 +610,100 @@ export function KategoriClient({}: KategoriClientProps) {
                         style={{
                           position: "absolute",
                           top: "60px",
-                          left: "1rem",
-                          right: "1rem",
+                          left: "0",
+                          right: "0",
                           background: "white",
                           border: "1px solid var(--color-border)",
-                          borderRadius: "12px",
-                          padding: "0.75rem",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(6, 1fr)",
-                          gap: "0.5rem",
-                          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                          zIndex: 10,
-                          maxHeight: "180px",
-                          overflowY: "auto",
+                          borderRadius: "16px",
+                          padding: "1rem",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.75rem",
+                          boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                          zIndex: 100,
                         }}
                       >
-                        {COMMON_ICONS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => {
-                              setNewSubIcon(emoji);
-                              setShowSubIconPicker(false);
-                            }}
-                            style={{
-                              fontSize: "1.5rem",
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              padding: "0.25rem",
-                              borderRadius: "8px",
-                            }}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
+                        {/* Category Tabs */}
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "0.25rem",
+                            overflowX: "auto",
+                            paddingBottom: "0.5rem",
+                            borderBottom:
+                              "1px solid var(--color-border-subtle)",
+                            scrollbarWidth: "none",
+                          }}
+                        >
+                          {ICON_CATEGORIES.map((cat: IconCategory) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => setActiveIconTab(cat.id)}
+                              style={{
+                                padding: "0.375rem 0.75rem",
+                                borderRadius: "8px",
+                                border: "none",
+                                background:
+                                  activeIconTab === cat.id
+                                    ? "var(--color-primary-highlight)"
+                                    : "transparent",
+                                color:
+                                  activeIconTab === cat.id
+                                    ? "var(--color-primary)"
+                                    : "var(--color-text-muted)",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {cat.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Icons Grid */}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(6, 1fr)",
+                            gap: "0.5rem",
+                            maxHeight: "180px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          {ICON_CATEGORIES.find(
+                            (c: IconCategory) => c.id === activeIconTab,
+                          )?.icons.map((emoji: string) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                setNewSubIcon(emoji);
+                                setShowSubIconPicker(false);
+                              }}
+                              style={{
+                                fontSize: "1.5rem",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "0.25rem",
+                                borderRadius: "8px",
+                                transition: "background 0.2s",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--color-surface-offset)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background = "none")
+                              }
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <button
@@ -578,7 +739,11 @@ export function KategoriClient({}: KategoriClientProps) {
                     />
                     <div style={{ display: "flex", gap: "0.25rem" }}>
                       <Button size="sm" onClick={() => handleSaveSub(cat.id)}>
-                        {editingSubId ? <Check size={16} /> : <Plus size={16} />}
+                        {editingSubId ? (
+                          <Check size={16} />
+                        ) : (
+                          <Plus size={16} />
+                        )}
                       </Button>
                       {editingSubId && (
                         <Button
@@ -641,6 +806,7 @@ export function KategoriClient({}: KategoriClientProps) {
                         </span>
                         <div
                           onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             handleDeleteSub(cat.id, sub.id);
                           }}
@@ -648,9 +814,10 @@ export function KategoriClient({}: KategoriClientProps) {
                             marginLeft: "0.25rem",
                             color: "#ef4444",
                             cursor: "pointer",
+                            padding: "4px",
                           }}
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </div>
                       </div>
                     ))}

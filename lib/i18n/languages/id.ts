@@ -43,6 +43,7 @@ export const id = {
     pie_empty: "Belum ada data pengeluaran",
     pie_select: "Pilih kategori untuk melihat data",
     reset_filter: "Reset Filter",
+    assets_and_debts: "Aset & Hutang",
   },
   common: {
     back: "Kembali",

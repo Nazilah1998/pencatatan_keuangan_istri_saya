@@ -9,6 +9,7 @@ interface KPIGridProps {
     totalPemasukan: number;
     totalPengeluaran: number;
     totalTabungan: number;
+    walletBalances?: { name: string; balance: number; icon?: string }[];
   };
   t: (key: string) => string;
 }
@@ -17,40 +18,39 @@ export function KPIGrid({ stats, t }: KPIGridProps) {
   const router = useRouter();
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-        gap: "1rem",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* Net Worth - Full Width or Special */}
       <KPICard
         title={t("dashboard.total_balance")}
         amount={stats.totalSaldo}
         icon="💰"
-        onClick={() => router.push("/transaksi")}
+        wallets={stats.walletBalances}
+        isFeatured={true}
       />
-      <KPICard
-        title={t("dashboard.income")}
-        amount={stats.totalPemasukan}
-        type="income"
-        icon="📈"
-        onClick={() => router.push("/transaksi?type=pemasukan")}
-      />
-      <KPICard
-        title={t("dashboard.expense")}
-        amount={stats.totalPengeluaran}
-        type="expense"
-        icon="📉"
-        onClick={() => router.push("/transaksi?type=pengeluaran")}
-      />
-      <KPICard
-        title={t("dashboard.savings")}
-        amount={stats.totalTabungan}
-        type="saving"
-        icon="🏦"
-        onClick={() => router.push("/tabungan")}
-      />
+
+      {/* Income & Expense Row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "1rem",
+        }}
+      >
+        <KPICard
+          title={t("dashboard.income")}
+          amount={stats.totalPemasukan}
+          type="income"
+          icon="📈"
+          onClick={() => router.push("/transaksi?type=pemasukan")}
+        />
+        <KPICard
+          title={t("dashboard.expense")}
+          amount={stats.totalPengeluaran}
+          type="expense"
+          icon="📉"
+          onClick={() => router.push("/transaksi?type=pengeluaran")}
+        />
+      </div>
     </div>
   );
 }

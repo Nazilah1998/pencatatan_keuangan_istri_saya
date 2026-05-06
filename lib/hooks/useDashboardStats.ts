@@ -9,7 +9,8 @@ export function useDashboardStats(
   transactions: Transaction[],
   savings: SavingsGoal[],
   now: Date,
-  t: (key: string) => string
+  t: (key: string) => string,
+  wallets: { id: string; name: string; icon?: string }[] = [],
 ) {
   return useMemo(() => {
     let totalSaldo = 0;
@@ -17,34 +18,62 @@ export function useDashboardStats(
     let totalPengeluaran = 0;
     let totalTabungan = 0;
 
-    const weeklyDataMap = new Map<string, { pemasukan: number; pengeluaran: number }>();
+    const weeklyDataMap = new Map<
+      string,
+      { pemasukan: number; pengeluaran: number }
+    >();
     const categoryDataMap = new Map<string, number>();
+    const walletBalancesMap = new Map<string, number>();
+
+    // Initialize with existing wallets
+    wallets.forEach((w) => walletBalancesMap.set(w.name, 0));
 
     transactions.forEach((tx) => {
       const isThisMonth = isSameMonth(parseISO(tx.tanggal), now);
+      const amount = tx.jumlah;
 
       if (tx.jenis === "pemasukan") {
-        totalSaldo += tx.jumlah;
-        if (isThisMonth) totalPemasukan += tx.jumlah;
+        totalSaldo += amount;
+        walletBalancesMap.set(
+          tx.dompet,
+          (walletBalancesMap.get(tx.dompet) || 0) + amount,
+        );
+        if (isThisMonth) totalPemasukan += amount;
       } else if (tx.jenis === "pengeluaran") {
-        totalSaldo -= tx.jumlah;
-        if (isThisMonth) totalPengeluaran += tx.jumlah;
+        totalSaldo -= amount;
+        walletBalancesMap.set(
+          tx.dompet,
+          (walletBalancesMap.get(tx.dompet) || 0) - amount,
+        );
+        if (isThisMonth) totalPengeluaran += amount;
       }
 
       if (isThisMonth) {
         if (tx.jenis === "pemasukan" || tx.jenis === "pengeluaran") {
           const week = format(parseISO(tx.tanggal), "wo", { locale: id });
           const label = `${t("dashboard.weekly_week") || "Minggu"} ${week}`;
-          const current = weeklyDataMap.get(label) || { pemasukan: 0, pengeluaran: 0 };
+          const current = weeklyDataMap.get(label) || {
+            pemasukan: 0,
+            pengeluaran: 0,
+          };
           current[tx.jenis] += tx.jumlah;
           weeklyDataMap.set(label, current);
         }
 
         if (tx.jenis === "pengeluaran") {
-          categoryDataMap.set(tx.kategori, (categoryDataMap.get(tx.kategori) || 0) + tx.jumlah);
+          categoryDataMap.set(
+            tx.kategori,
+            (categoryDataMap.get(tx.kategori) || 0) + tx.jumlah,
+          );
         }
       }
     });
+
+    const walletBalances = wallets.map((w) => ({
+      name: w.name,
+      balance: walletBalancesMap.get(w.name) || 0,
+      icon: w.icon || "💰",
+    }));
 
     savings.forEach((s) => {
       if (s.status === "aktif") totalTabungan += s.jumlah_terkumpul;
@@ -58,7 +87,16 @@ export function useDashboardStats(
         return numA - numB;
       });
 
-    const colors = ["#f97316", "#3b82f6", "#a855f7", "#ef4444", "#10b981", "#06b6d4", "#f59e0b", "#ec4899"];
+    const colors = [
+      "#f97316",
+      "#3b82f6",
+      "#a855f7",
+      "#ef4444",
+      "#10b981",
+      "#06b6d4",
+      "#f59e0b",
+      "#ec4899",
+    ];
     const categoryData = Array.from(categoryDataMap.entries())
       .map(([kategori, total], i) => ({
         kategori,
@@ -67,16 +105,18 @@ export function useDashboardStats(
       }))
       .sort((a, b) => b.total - a.total);
 
-    const spendingRatio = totalPemasukan > 0 ? (totalPengeluaran / totalPemasukan) * 100 : 0;
+    const spendingRatio =
+      totalPemasukan > 0 ? (totalPengeluaran / totalPemasukan) * 100 : 0;
 
     return {
       totalSaldo,
       totalPemasukan,
       totalPengeluaran,
       totalTabungan,
+      walletBalances,
       weeklyData,
       categoryData,
       spendingRatio,
     };
-  }, [transactions, savings, now, t]);
+  }, [transactions, savings, now, t, wallets]);
 }

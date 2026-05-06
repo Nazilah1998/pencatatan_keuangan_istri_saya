@@ -43,6 +43,7 @@ export const en = {
     pie_empty: "No expense data yet",
     pie_select: "Select category to see data",
     reset_filter: "Reset Filter",
+    assets_and_debts: "Assets & Debts",
   },
   common: {
     back: "Back",

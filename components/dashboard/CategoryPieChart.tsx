@@ -15,11 +15,18 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data }: CategoryPieChartProps) {
   const { t, currentLang } = useTranslation();
-  const intlLocale = currentLang === "id" ? "id-ID" : currentLang === "en" ? "en-US" : currentLang;
+  const intlLocale =
+    currentLang === "id"
+      ? "id-ID"
+      : currentLang === "en"
+        ? "en-US"
+        : currentLang;
 
   const categoryKeys = data.map((d) => d.kategori).join(",");
   const [prevKeys, setPrevKeys] = useState(categoryKeys);
-  const [activeCategories, setActiveCategories] = useState<string[]>(data.map((d) => d.kategori));
+  const [activeCategories, setActiveCategories] = useState<string[]>(
+    data.map((d) => d.kategori),
+  );
 
   // Sync active categories when data categories change
   if (categoryKeys !== prevKeys) {
@@ -33,14 +40,27 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
 
   const toggleCategory = (kategori: string) => {
     setActiveCategories((prev) =>
-      prev.includes(kategori) ? prev.filter((c) => c !== kategori) : [...prev, kategori]
+      prev.includes(kategori)
+        ? prev.filter((c) => c !== kategori)
+        : [...prev, kategori],
     );
   };
 
   if (!data.length) {
     return (
-      <div className="card" style={{ padding: "1.5rem", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
-        <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem" }}>{t("dashboard.pie_empty")}</p>
+      <div
+        className="card"
+        style={{
+          padding: "1.5rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 280,
+        }}
+      >
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem" }}>
+          {t("dashboard.pie_empty")}
+        </p>
       </div>
     );
   }
@@ -48,7 +68,20 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
   const totalFiltered = filteredData.reduce((s, d) => s + d.total, 0);
 
   return (
-    <div className="card" style={{ padding: "var(--card-padding)", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <div
+      className="card"
+      style={{
+        padding: "1.25rem",
+        background:
+          "linear-gradient(135deg, var(--color-surface) 0%, #fff 100%)",
+        border: "1px solid var(--color-border-subtle)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.03)",
+        borderRadius: "var(--radius-2xl)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+      }}
+    >
       <CategoryFilter
         data={data}
         activeCategories={activeCategories}
@@ -81,13 +114,26 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
+          <div
+            style={{
+              height: 200,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-muted)",
+              fontSize: "0.875rem",
+            }}
+          >
             {t("dashboard.pie_select")}
           </div>
         )}
       </div>
 
-      <CategoryLegend filteredData={filteredData} totalFiltered={totalFiltered} intlLocale={intlLocale} />
+      <CategoryLegend
+        filteredData={filteredData}
+        totalFiltered={totalFiltered}
+        intlLocale={intlLocale}
+      />
     </div>
   );
 }

@@ -31,26 +31,25 @@ export function DashboardHeader({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "0.5rem",
+        gap: "0.75rem",
         padding: "0.5rem 0",
-        borderBottom: "1px solid var(--color-border-subtle)",
-        marginBottom: "0.5rem",
       }}
     >
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
+          alignItems: "center",
         }}
       >
         <h1
           style={{
-            fontSize: "min(1.75rem, 6vw)",
-            fontWeight: 800,
+            fontSize: "clamp(1.5rem, 5vw, 1.875rem)",
+            fontWeight: 900,
             color: "var(--color-text)",
-            letterSpacing: "-0.03em",
+            letterSpacing: "-0.04em",
             margin: 0,
+            lineHeight: 1.1,
           }}
         >
           {greeting}
@@ -58,20 +57,26 @@ export function DashboardHeader({
         <button
           onClick={onTogglePrivateMode}
           style={{
-            background: "var(--color-surface-offset)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "12px",
+            background: "rgba(255, 255, 255, 0.8)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid var(--color-border-subtle)",
+            borderRadius: "14px",
             padding: "0.625rem",
             cursor: "pointer",
             color: "var(--color-text-muted)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all 0.2s ease",
+            transition: "all 0.3s ease",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
           }}
-          title={isPrivateMode ? t("dashboard.show_balance") : t("dashboard.hide_balance")}
+          title={
+            isPrivateMode
+              ? t("dashboard.show_balance")
+              : t("dashboard.hide_balance")
+          }
         >
-          {isPrivateMode ? <EyeOff size={18} /> : <Eye size={18} />}
+          {isPrivateMode ? <EyeOff size={20} /> : <Eye size={20} />}
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -80,21 +85,30 @@ export function DashboardHeader({
             display: "flex",
             alignItems: "center",
             gap: "0.375rem",
-            padding: "0.25rem 0.75rem",
+            padding: "0.25rem 0.625rem",
             background: healthStatus.bg,
             borderRadius: "100px",
             width: "fit-content",
             color: healthStatus.color,
+            border: `1px solid ${healthStatus.color}20`,
           }}
         >
           {healthStatus.icon}
-          <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 800 }}>
             {totalPemasukan === 0
               ? healthStatus.label
               : `${healthStatus.label}: ${spendingRatio.toFixed(0)}%`}
           </span>
         </div>
-        <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 500 }}>
+        <p
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--color-text-muted)",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
           {t("dashboard.this_month")}
         </p>
       </div>

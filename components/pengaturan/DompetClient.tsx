@@ -9,6 +9,7 @@ import { AppSettings } from "@/types";
 import { updateProfile } from "@/app/actions/profiles";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { ICON_CATEGORIES, IconCategory } from "@/lib/constants/icons";
 
 interface DompetClientProps {
   initialSettings: Partial<AppSettings>;
@@ -27,10 +28,23 @@ export function DompetClient({}: DompetClientProps) {
   const [isManual, setIsManual] = useState(false);
   const [newWalletName, setNewWalletName] = useState("");
   const [newWalletIcon, setNewWalletIcon] = useState("💳");
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [activeIconTab, setActiveIconTab] = useState(ICON_CATEGORIES[0].id);
 
-  const syncSettings = async (newSettings: Partial<AppSettings>) => {
+  const [isPending, startTransition] = React.useTransition();
+
+  const syncSettings = (newSettings: Partial<AppSettings>) => {
+    // 1. Update local UI state immediately (Synchronous)
     setStoreSettings(newSettings);
-    await updateProfile(newSettings);
+
+    // 2. Sync to cloud in transition to keep UI responsive
+    startTransition(async () => {
+      try {
+        await updateProfile(newSettings);
+      } catch (err) {
+        console.error("Sync failed:", err);
+      }
+    });
   };
 
   const handleAddWallet = (name: string, icon: string) => {
@@ -55,7 +69,10 @@ export function DompetClient({}: DompetClientProps) {
     toast.success(`${name} ${t("settings.wallet.success_added")}`);
   };
 
-  const handleDeleteWallet = (id: string) => {
+  const handleDeleteWallet = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (custom_wallets.length <= 1) {
       toast.error(t("settings.wallet.error_min"));
       return;
@@ -155,34 +172,198 @@ export function DompetClient({}: DompetClientProps) {
           </div>
         ) : (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.25rem",
+              position: "relative",
+            }}
           >
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <input
-                type="text"
-                className="input"
-                placeholder={t("settings.wallet.custom_placeholder")}
-                value={newWalletName}
-                onChange={(e) => setNewWalletName(e.target.value)}
-                autoFocus
-              />
-              <input
-                type="text"
-                className="input"
-                style={{ width: "60px", textAlign: "center" }}
-                value={newWalletIcon}
-                onChange={(e) => setNewWalletIcon(e.target.value)}
-              />
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                alignItems: "flex-end",
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <label
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: "var(--color-text-muted)",
+                    marginBottom: "0.5rem",
+                    display: "block",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {t("settings.wallet.name_label") || "Nama Dompet"}
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder={t("settings.wallet.custom_placeholder")}
+                  value={newWalletName}
+                  onChange={(e) => setNewWalletName(e.target.value)}
+                  autoFocus
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div style={{ position: "relative" }}>
+                <label
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: "var(--color-text-muted)",
+                    marginBottom: "0.5rem",
+                    display: "block",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Icon
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowIconPicker(!showIconPicker)}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--color-border)",
+                    background: "white",
+                    fontSize: "1.5rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  {newWalletIcon}
+                </button>
+                {showIconPicker && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "60px",
+                      right: 0,
+                      width: "280px",
+                      background: "white",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "16px",
+                      padding: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                      boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                      zIndex: 100,
+                    }}
+                  >
+                    {/* Category Tabs */}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.25rem",
+                        overflowX: "auto",
+                        paddingBottom: "0.5rem",
+                        borderBottom: "1px solid var(--color-border-subtle)",
+                        scrollbarWidth: "none",
+                      }}
+                    >
+                      {ICON_CATEGORIES.map((cat: IconCategory) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setActiveIconTab(cat.id)}
+                          style={{
+                            padding: "0.375rem 0.75rem",
+                            borderRadius: "8px",
+                            border: "none",
+                            background:
+                              activeIconTab === cat.id
+                                ? "var(--color-primary-highlight)"
+                                : "transparent",
+                            color:
+                              activeIconTab === cat.id
+                                ? "var(--color-primary)"
+                                : "var(--color-text-muted)",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Icons Grid */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(6, 1fr)",
+                        gap: "0.5rem",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {ICON_CATEGORIES.find(
+                        (c: IconCategory) => c.id === activeIconTab,
+                      )?.icons.map((emoji: string) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            setNewWalletIcon(emoji);
+                            setShowIconPicker(false);
+                          }}
+                          style={{
+                            fontSize: "1.5rem",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.375rem",
+                            borderRadius: "8px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background =
+                              "var(--color-surface-offset)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "none")
+                          }
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
               <Button
                 variant="primary"
-                style={{ flex: 1 }}
+                style={{
+                  flex: 1,
+                  height: "48px",
+                  borderRadius: "12px",
+                  fontWeight: 800,
+                }}
                 onClick={() => handleAddWallet(newWalletName, newWalletIcon)}
               >
                 {t("settings.wallet.save")}
               </Button>
-              <Button variant="ghost" onClick={() => setIsManual(false)}>
+              <Button
+                variant="ghost"
+                style={{ height: "48px", borderRadius: "12px" }}
+                onClick={() => setIsManual(false)}
+              >
                 {t("settings.wallet.cancel")}
               </Button>
             </div>
@@ -239,17 +420,20 @@ export function DompetClient({}: DompetClientProps) {
                 </span>
               </div>
               <button
-                onClick={() => handleDeleteWallet(wallet.id)}
+                type="button"
+                onClick={(e) => handleDeleteWallet(e, wallet.id)}
+                disabled={isPending}
                 style={{
                   color: "#ef4444",
                   background: "rgba(239, 68, 68, 0.1)",
                   border: "none",
-                  padding: "0.5rem",
-                  borderRadius: "8px",
+                  padding: "0.625rem",
+                  borderRadius: "10px",
                   cursor: "pointer",
+                  opacity: isPending ? 0.5 : 1,
                 }}
               >
-                <Trash2 size={18} />
+                <Trash2 size={20} />
               </button>
             </div>
           ))}

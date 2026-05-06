@@ -102,21 +102,35 @@ export function SpendingChart({ data }: SpendingChartProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="card" style={{ padding: "var(--card-padding)" }}>
-      <div style={{ marginBottom: "1.25rem" }}>
+    <div
+      className="card"
+      style={{
+        padding: "1.25rem",
+        background:
+          "linear-gradient(135deg, var(--color-surface) 0%, #fff 100%)",
+        border: "1px solid var(--color-border-subtle)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.03)",
+        borderRadius: "var(--radius-2xl)",
+      }}
+    >
+      <div style={{ marginBottom: "1.5rem" }}>
         <h3
           style={{
             fontSize: "1rem",
-            fontWeight: 700,
+            fontWeight: 800,
             color: "var(--color-text)",
+            letterSpacing: "-0.02em",
           }}
         >
           {t("dashboard.weekly_title")}
         </h3>
         <p
           style={{
-            fontSize: "0.8125rem",
+            fontSize: "0.75rem",
             color: "var(--color-text-muted)",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
             marginTop: "0.25rem",
           }}
         >

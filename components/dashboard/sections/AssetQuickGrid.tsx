@@ -1,7 +1,13 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Building2, CreditCard, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  Banknote,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Asset } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -57,9 +63,12 @@ export function AssetQuickGrid({
 
   const getAssetIcon = (type: string) => {
     switch (type) {
-      case "bank": return <Building2 size={16} />;
-      case "ewallet": return <CreditCard size={16} />;
-      default: return <Banknote size={16} />;
+      case "bank":
+        return <Building2 size={16} />;
+      case "ewallet":
+        return <CreditCard size={16} />;
+      default:
+        return <Banknote size={16} />;
     }
   };
 
@@ -67,11 +76,34 @@ export function AssetQuickGrid({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>
-          {t("dashboard.wallet_assets") || "Dompet & Aset"}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h3
+          style={{
+            fontSize: "0.875rem",
+            fontWeight: 700,
+            color: "var(--color-text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            margin: 0,
+          }}
+        >
+          {t("dashboard.assets_and_debts") || "Aset & Hutang"}
         </h3>
-        <Link href="/aset-hutang" style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-primary)", textDecoration: "none" }}>
+        <Link
+          href="/aset-hutang"
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            color: "var(--color-primary)",
+            textDecoration: "none",
+          }}
+        >
           {t("dashboard.manage_assets") || "Atur Aset"}
         </Link>
       </div>
@@ -80,7 +112,25 @@ export function AssetQuickGrid({
         {assets.length > 2 && canScrollLeft && (
           <button
             onClick={() => scrollAssets("left")}
-            style={{ position: "absolute", left: "-4px", top: "50%", transform: "translateY(-50%)", zIndex: 20, background: "rgba(255, 255, 255, 0.98)", backdropFilter: "blur(8px)", border: "1px solid var(--color-border)", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--color-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.18)" }}
+            style={{
+              position: "absolute",
+              left: "-4px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 20,
+              background: "rgba(255, 255, 255, 0.98)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "50%",
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "var(--color-primary)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+            }}
           >
             <ChevronLeft size={20} />
           </button>
@@ -88,7 +138,25 @@ export function AssetQuickGrid({
         {assets.length > 2 && canScrollRight && (
           <button
             onClick={() => scrollAssets("right")}
-            style={{ position: "absolute", right: "-4px", top: "50%", transform: "translateY(-50%)", zIndex: 20, background: "rgba(255, 255, 255, 0.98)", backdropFilter: "blur(8px)", border: "1px solid var(--color-border)", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--color-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.18)" }}
+            style={{
+              position: "absolute",
+              right: "-4px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 20,
+              background: "rgba(255, 255, 255, 0.98)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "50%",
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "var(--color-primary)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+            }}
           >
             <ChevronRight size={20} />
           </button>
@@ -96,22 +164,79 @@ export function AssetQuickGrid({
 
         <div
           ref={assetScrollRef}
-          style={{ display: "flex", gap: "0.75rem", overflowX: "auto", padding: "0.5rem 0", scrollbarWidth: "none", scrollSnapType: "x mandatory" }}
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            overflowX: "auto",
+            padding: "0.5rem 0",
+            scrollbarWidth: "none",
+            scrollSnapType: "x mandatory",
+          }}
         >
           {assets.map((asset) => (
             <div
               key={asset.id}
               className="card"
-              style={{ flex: "0 0 calc(50% - 0.375rem)", scrollSnapAlign: "start", padding: "0.875rem 1rem", display: "flex", flexDirection: "column", gap: "0.5rem", background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)", boxShadow: "var(--shadow-sm)" }}
+              style={{
+                flex: "0 0 calc(50% - 0.375rem)",
+                scrollSnapAlign: "start",
+                padding: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.375rem",
+                background:
+                  "linear-gradient(135deg, var(--color-surface) 0%, #fff 100%)",
+                border: "1px solid var(--color-border-subtle)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
+                borderRadius: "var(--radius-xl)",
+              }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--color-text-muted)" }}>
-                <span style={{ color: "var(--color-primary)" }}>{getAssetIcon(asset.jenis)}</span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <span
+                  style={{
+                    color: "var(--color-primary)",
+                    background: "var(--color-primary-bg)",
+                    padding: "0.375rem",
+                    borderRadius: "10px",
+                    display: "flex",
+                  }}
+                >
+                  {getAssetIcon(asset.jenis)}
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: "var(--color-text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.02em",
+                  }}
+                >
                   {asset.nama}
                 </span>
               </div>
-              <div style={{ fontSize: "0.9375rem", fontWeight: 800, fontFamily: "var(--font-mono)" }}>
-                {isPrivateMode ? currencyPlaceholder : formatCurrency(asset.nilai, intlLocale)}
+              <div
+                style={{
+                  fontSize: "1.0625rem",
+                  fontWeight: 800,
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--color-text)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {isPrivateMode
+                  ? currencyPlaceholder
+                  : formatCurrency(asset.nilai, intlLocale)}
               </div>
             </div>
           ))}
