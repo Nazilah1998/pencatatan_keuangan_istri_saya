@@ -25,7 +25,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleContainerClick = () => {
-    inputRef.current?.showPicker();
+    // Attempt to focus and show picker for browsers that support it
+    inputRef.current?.focus();
+    if (inputRef.current?.showPicker) {
+      try {
+        inputRef.current.showPicker();
+      } catch (e) {
+        console.error("showPicker failed", e);
+      }
+    }
   };
 
   const dateLocale = currentLang === "id" ? idLocale : enLocale;
@@ -105,7 +113,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           style={{ color: "var(--color-text-muted)" }}
         />
 
-        {/* Hidden but functional input */}
+        {/* 
+            Hidden but functional input. 
+            We make it cover the entire container with opacity 0
+            so that a direct tap on the container triggers the native iOS picker.
+        */}
         <input
           ref={inputRef}
           type="date"
@@ -113,10 +125,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           onChange={(e) => onChange(e.target.value)}
           style={{
             position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             opacity: 0,
-            width: 0,
-            height: 0,
-            pointerEvents: "none",
+            width: "100%",
+            height: "100%",
+            cursor: "pointer",
+            appearance: "none",
           }}
         />
       </div>
