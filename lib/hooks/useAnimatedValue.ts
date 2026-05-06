@@ -37,8 +37,3 @@ export function useAnimatedValue(target: number, duration = 500) {
 
   return display;
 }
-
-/** Formats an animated integer the same way formatCurrency does */
-export function formatAnimated(value: number): string {
-  return "Rp " + value.toLocaleString("id-ID");
-}

@@ -21,26 +21,26 @@ export function LaporanClient({ initialTransactions }: LaporanClientProps) {
   const { t } = useTranslation();
   const [transactions] = useState<Transaction[]>(initialTransactions);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedCategory, setSelectedCategory] = useState(t("common.all"));
+  const ALL_FILTER = "__ALL__";
+  const [selectedCategory, setSelectedCategory] = useState(ALL_FILTER);
 
   const selectedMonth = format(currentDate, "yyyy-MM");
 
   const categories = useMemo(() => {
     const cats = new Set<string>();
     transactions.forEach((tx) => cats.add(tx.kategori));
-    return [t("common.all"), ...Array.from(cats).sort()];
-  }, [transactions, t]);
+    return [ALL_FILTER, ...Array.from(cats).sort()];
+  }, [transactions, ALL_FILTER]);
 
   const monthlyTx = useMemo(
     () =>
       transactions.filter((tx) => {
         const matchMonth = tx.tanggal.startsWith(selectedMonth);
         const matchCategory =
-          selectedCategory === t("common.all") ||
-          tx.kategori === selectedCategory;
+          selectedCategory === ALL_FILTER || tx.kategori === selectedCategory;
         return matchMonth && matchCategory;
       }),
-    [transactions, selectedMonth, selectedCategory, t],
+    [transactions, selectedMonth, selectedCategory, ALL_FILTER],
   );
 
   const income = useMemo(

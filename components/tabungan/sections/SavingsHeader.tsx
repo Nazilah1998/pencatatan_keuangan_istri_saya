@@ -2,12 +2,14 @@
 import React from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface SavingsHeaderProps {
   onAdd: () => void;
 }
 
 export function SavingsHeader({ onAdd }: SavingsHeaderProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -29,7 +31,7 @@ export function SavingsHeader({ onAdd }: SavingsHeaderProps) {
             margin: 0,
           }}
         >
-          Tabungan & Impian
+          {t("savings.title")}
         </h2>
         <p
           style={{
@@ -38,7 +40,7 @@ export function SavingsHeader({ onAdd }: SavingsHeaderProps) {
             marginTop: "0.25rem",
           }}
         >
-          Kelola dana cadangan dan target impian masa depan
+          {t("savings.subtitle")}
         </p>
       </div>
       <Button
@@ -51,7 +53,7 @@ export function SavingsHeader({ onAdd }: SavingsHeaderProps) {
         }}
       >
         <Plus size={18} strokeWidth={3} />
-        <span style={{ fontWeight: 700 }}>Buat Target</span>
+        <span style={{ fontWeight: 700 }}>{t("savings.add_button")}</span>
       </Button>
     </div>
   );

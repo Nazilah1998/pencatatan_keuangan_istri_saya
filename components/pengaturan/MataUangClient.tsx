@@ -6,24 +6,17 @@ import toast from "react-hot-toast";
 import { settingsSchema, SettingsSchema } from "@/lib/validations";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
-import { Check, ChevronLeft, Languages } from "lucide-react";
+import { Check, ChevronLeft, Banknote } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { updateProfile } from "@/app/actions/profiles";
-import {
-  translations,
-  LANGUAGES as ALL_LANGUAGES,
-} from "@/lib/i18n/dictionaries";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+import { CURRENCIES } from "@/lib/utils/currency";
 
-const LANGUAGES = ALL_LANGUAGES.map((l) => ({
-  code: l.id,
-  name: l.name,
-  flag: l.flag,
-}));
-
-export function BahasaClient() {
+export function MataUangClient() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { settings: storeSettings, setSettings: setStoreSettings } =
     useAppStore();
 
@@ -31,36 +24,13 @@ export function BahasaClient() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       ...storeSettings,
-      bahasa: (storeSettings.bahasa as keyof typeof translations) || "id",
+      mata_uang: storeSettings.mata_uang || "IDR",
     } as SettingsSchema,
   });
-  const currentLang = useWatch({
+  const currentCurrency = useWatch({
     control,
-    name: "bahasa",
-  }) as keyof typeof translations;
-
-  // Local translation function for preview
-  const tp = (keyPath: string): string => {
-    const dict = translations[currentLang] || translations["id"];
-    const keys = keyPath.split(".");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let current: any = dict;
-    for (const key of keys) {
-      if (!current || current[key] === undefined) {
-        // Fallback to ID for preview too
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let fallback: any = translations["id"];
-        for (const fbKey of keys) {
-          if (fallback && fallback[fbKey] !== undefined)
-            fallback = fallback[fbKey];
-          else return keyPath;
-        }
-        return fallback as string;
-      }
-      current = current[key];
-    }
-    return current as string;
-  };
+    name: "mata_uang",
+  });
 
   const onSubmit = async (data: SettingsSchema) => {
     const updatedSettings = {
@@ -68,22 +38,21 @@ export function BahasaClient() {
       ...data,
     };
 
-    // Always update local store first for instant response (especially for Guests)
     setStoreSettings(updatedSettings);
 
-    // Attempt to sync with cloud if logged in
     await updateProfile(updatedSettings);
 
-    toast.success(tp("settings.lang.success"));
+    toast.success(
+      t("settings.currency.success") || "Mata uang berhasil diperbarui",
+    );
 
-    // Redirect to previous page automatically
     setTimeout(() => {
       router.back();
     }, 500);
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto" }}>
+    <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: "2rem" }}>
       <Link
         href="/pengaturan"
         style={{
@@ -98,7 +67,7 @@ export function BahasaClient() {
           width: "fit-content",
         }}
       >
-        <ChevronLeft size={18} /> {tp("settings.back")}
+        <ChevronLeft size={18} /> {t("settings.back")}
       </Link>
 
       <div style={{ marginBottom: "2rem" }}>
@@ -115,14 +84,14 @@ export function BahasaClient() {
               width: 40,
               height: 40,
               borderRadius: "12px",
-              background: "rgba(16, 185, 129, 0.1)",
-              color: "#10b981",
+              background: "rgba(245, 158, 11, 0.1)",
+              color: "#f59e0b",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Languages size={20} />
+            <Banknote size={20} />
           </div>
           <h2
             style={{
@@ -132,11 +101,12 @@ export function BahasaClient() {
               margin: 0,
             }}
           >
-            {tp("settings.lang.title")}
+            {t("settings.currency.title") || "Pilih Mata Uang"}
           </h2>
         </div>
         <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-          {tp("settings.lang.subtitle")}
+          {t("settings.currency.subtitle") ||
+            "Sesuaikan mata uang yang akan ditampilkan"}
         </p>
       </div>
 
@@ -148,12 +118,12 @@ export function BahasaClient() {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
           >
-            {LANGUAGES.map((lang) => (
+            {CURRENCIES.map((currency) => (
               <button
-                key={lang.code}
+                key={currency.code}
                 type="button"
                 onClick={() =>
-                  setValue("bahasa", lang.code, { shouldDirty: true })
+                  setValue("mata_uang", currency.code, { shouldDirty: true })
                 }
                 style={{
                   display: "flex",
@@ -162,11 +132,11 @@ export function BahasaClient() {
                   padding: "1.25rem",
                   borderRadius: "16px",
                   border:
-                    currentLang === lang.code
+                    currentCurrency === currency.code
                       ? "2px solid var(--color-primary)"
                       : "1px solid var(--color-border)",
                   background:
-                    currentLang === lang.code
+                    currentCurrency === currency.code
                       ? "var(--color-primary-highlight)"
                       : "var(--color-surface)",
                   cursor: "pointer",
@@ -176,27 +146,37 @@ export function BahasaClient() {
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "1rem" }}
                 >
-                  <span style={{ fontSize: "1.5rem" }}>{lang.flag}</span>
+                  <span
+                    style={{
+                      fontSize: "1.25rem",
+                      fontWeight: 700,
+                      color: "var(--color-text-muted)",
+                      width: "32px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {currency.symbol}
+                  </span>
                   <span
                     style={{
                       fontWeight: 600,
                       color:
-                        currentLang === lang.code
+                        currentCurrency === currency.code
                           ? "var(--color-primary)"
                           : "var(--color-text)",
                     }}
                   >
-                    {lang.name}
+                    {currency.name} ({currency.code})
                   </span>
                 </div>
-                {currentLang === lang.code && (
+                {currentCurrency === currency.code && (
                   <Check size={20} color="var(--color-primary)" />
                 )}
               </button>
             ))}
           </div>
           <Button type="submit" fullWidth>
-            {tp("settings.lang.save")}
+            {t("settings.currency.save") || "Simpan Mata Uang"}
           </Button>
         </form>
       </div>

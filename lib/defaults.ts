@@ -44,7 +44,7 @@ export const INITIAL_CUSTOM_WALLETS: CustomWallet[] = DOMPET_OPTIONS.map(
 export const DEFAULT_SETTINGS: AppSettings = {
   mata_uang: "IDR",
   format_tanggal: "DD/MM/YYYY",
-  bahasa: "en",
+  bahasa: "id",
   nama_pengguna: "",
   nama_panggilan: "",
   nama_rumah_tangga: "Rumah Tangga Saya",

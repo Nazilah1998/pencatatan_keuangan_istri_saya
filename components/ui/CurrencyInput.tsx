@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Input, InputProps } from "./Input";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { useAppStore } from "@/store/useAppStore";
+import { getCurrencySymbol } from "@/lib/utils/currency";
 
 interface CurrencyInputProps extends Omit<InputProps, "onChange" | "value"> {
   value?: number;
@@ -14,10 +16,11 @@ export const CurrencyInput = React.memo(function CurrencyInput({
   ...props
 }: CurrencyInputProps) {
   const { currentLang } = useTranslation();
+  const { settings } = useAppStore();
   const [displayValue, setDisplayValue] = useState("");
 
   const locale = currentLang === "id" ? "id-ID" : "en-US";
-  const currencyPrefix = currentLang === "id" ? "Rp." : "$";
+  const currencyPrefix = getCurrencySymbol(settings.mata_uang || "IDR");
 
   useEffect(() => {
     if (value !== undefined) {

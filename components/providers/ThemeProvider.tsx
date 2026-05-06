@@ -17,14 +17,14 @@ function adjustColor(hex: string, amount: number) {
 
   const num = parseInt(color, 16);
   let r = (num >> 16) + amount;
-  let b = ((num >> 8) & 0x00ff) + amount;
-  let g = (num & 0x0000ff) + amount;
+  let g = ((num >> 8) & 0x00ff) + amount;
+  let b = (num & 0x0000ff) + amount;
 
   r = Math.max(Math.min(255, r), 0);
-  b = Math.max(Math.min(255, b), 0);
   g = Math.max(Math.min(255, g), 0);
+  b = Math.max(Math.min(255, b), 0);
 
-  return `#${(g | (b << 8) | (r << 16)).toString(16).padStart(6, "0")}`;
+  return `#${(b | (g << 8) | (r << 16)).toString(16).padStart(6, "0")}`;
 }
 
 export function ThemeProvider() {

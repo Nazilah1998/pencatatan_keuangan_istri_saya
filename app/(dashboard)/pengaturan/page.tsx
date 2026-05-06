@@ -9,6 +9,7 @@ import {
   Tags,
   Smartphone,
   ChevronRight,
+  Banknote,
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -40,6 +41,14 @@ export default function PengaturanPage() {
       icon: <Languages size={22} />,
       href: "/pengaturan/bahasa",
       color: "#10b981",
+    },
+    {
+      id: "mata-uang",
+      title: t("settings.currency_title") || "Mata Uang",
+      description: t("settings.currency_desc") || "Sesuaikan mata uang",
+      icon: <Banknote size={22} />,
+      href: "/pengaturan/mata-uang",
+      color: "#f59e0b",
     },
     {
       id: "dompet",

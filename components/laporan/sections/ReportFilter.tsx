@@ -2,7 +2,19 @@
 import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import {
+  id as localeId,
+  enUS,
+  zhCN,
+  es,
+  hi,
+  fr,
+  ja,
+  ru,
+  ptBR,
+  type Locale,
+} from "date-fns/locale";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface ReportFilterProps {
   currentDate: Date;
@@ -21,6 +33,19 @@ export function ReportFilter({
   selectedCategory,
   onSelectCategory,
 }: ReportFilterProps) {
+  const { t, currentLang } = useTranslation();
+  const localeMap: Record<string, Locale> = {
+    id: localeId,
+    en: enUS,
+    zh: zhCN,
+    es,
+    hi,
+    fr,
+    ja,
+    ru,
+    pt: ptBR,
+  };
+  const activeLocale = localeMap[currentLang] || localeId;
   return (
     <div
       className="card"
@@ -65,7 +90,7 @@ export function ReportFilter({
             color: "var(--color-text)",
           }}
         >
-          {format(currentDate, "MMMM yyyy", { locale: id })}
+          {format(currentDate, "MMMM yyyy", { locale: activeLocale })}
         </div>
 
         <button
@@ -98,9 +123,15 @@ export function ReportFilter({
               style={{
                 padding: "0.375rem 0.875rem",
                 borderRadius: "999px",
-                border: active ? "1.5px solid var(--color-primary)" : "1.5px solid var(--color-border)",
-                background: active ? "var(--color-primary-highlight)" : "var(--color-surface)",
-                color: active ? "var(--color-primary)" : "var(--color-text-muted)",
+                border: active
+                  ? "1.5px solid var(--color-primary)"
+                  : "1.5px solid var(--color-border)",
+                background: active
+                  ? "var(--color-primary-highlight)"
+                  : "var(--color-surface)",
+                color: active
+                  ? "var(--color-primary)"
+                  : "var(--color-text-muted)",
                 fontSize: "0.8125rem",
                 fontWeight: active ? 700 : 500,
                 cursor: "pointer",
@@ -108,7 +139,7 @@ export function ReportFilter({
                 whiteSpace: "nowrap",
               }}
             >
-              {cat}
+              {cat === "__ALL__" ? t("common.all") : cat}
             </button>
           );
         })}

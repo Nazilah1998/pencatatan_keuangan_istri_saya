@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
-import { useAnimatedValue, formatAnimated } from "@/lib/hooks/useAnimatedValue";
+import { useAnimatedValue } from "@/lib/hooks/useAnimatedValue";
+import { formatCurrency } from "@/lib/utils/currency";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface SummaryCardsProps {
@@ -55,7 +56,7 @@ export function SummaryCards({ income, expense, surplus }: SummaryCardsProps) {
                 fontFamily: "var(--font-mono)",
               }}
             >
-              {formatAnimated(animIncome)}
+              {formatCurrency(animIncome)}
             </h3>
           </div>
           <div
@@ -109,7 +110,7 @@ export function SummaryCards({ income, expense, surplus }: SummaryCardsProps) {
                 fontFamily: "var(--font-mono)",
               }}
             >
-              {formatAnimated(animExpense)}
+              {formatCurrency(animExpense)}
             </h3>
           </div>
           <div
@@ -172,7 +173,7 @@ export function SummaryCards({ income, expense, surplus }: SummaryCardsProps) {
                 fontFamily: "var(--font-mono)",
               }}
             >
-              {formatAnimated(animSurplus)}
+              {formatCurrency(animSurplus)}
             </h3>
           </div>
           <div

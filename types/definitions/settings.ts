@@ -22,7 +22,7 @@ export interface CustomWallet {
 }
 
 export interface AppSettings {
-  mata_uang: "IDR";
+  mata_uang: string;
   format_tanggal: DateFormat;
   bahasa?: string;
   nama_pengguna: string;

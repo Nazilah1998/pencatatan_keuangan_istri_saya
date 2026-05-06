@@ -41,6 +41,39 @@ export function KategoriClient({}: KategoriClientProps) {
   const [showSubIconPicker, setShowSubIconPicker] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
 
+  const COMMON_ICONS = [
+    "💰",
+    "🍕",
+    "🚗",
+    "🏠",
+    "🎮",
+    "👕",
+    "🏥",
+    "🎓",
+    "🛒",
+    "📱",
+    "💡",
+    "🌐",
+    "🎁",
+    "🔥",
+    "🌟",
+    "🔹",
+    "🔸",
+    "✅",
+    "❌",
+    "📍",
+    "💳",
+    "🏦",
+    "💎",
+    "🛠️",
+    "🧼",
+    "🧴",
+    "🧸",
+    "🐱",
+    "🐶",
+    "☕",
+  ];
+
   const subInputRef = React.useRef<HTMLInputElement>(null);
 
   const syncSettings = async (newSettings: Partial<AppSettings>) => {
@@ -128,6 +161,20 @@ export function KategoriClient({}: KategoriClientProps) {
         ? t("settings.category.sub_success_updated")
         : t("settings.category.sub_success_added"),
     );
+  };
+
+  const handleStartEditSub = (sub: { id: string; name: string; icon: string }) => {
+    setEditingSubId(sub.id);
+    setNewSubName(sub.name);
+    setNewSubIcon(sub.icon || "🔹");
+    subInputRef.current?.focus();
+  };
+
+  const handleCancelEditSub = () => {
+    setEditingSubId(null);
+    setNewSubName("");
+    setNewSubIcon("🔹");
+    setShowSubIconPicker(false);
   };
 
   const handleDeleteSub = (catId: string, subId: string) => {
@@ -457,6 +504,47 @@ export function KategoriClient({}: KategoriClientProps) {
                       marginBottom: "1rem",
                     }}
                   >
+                    {showSubIconPicker && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "60px",
+                          left: "1rem",
+                          right: "1rem",
+                          background: "white",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "12px",
+                          padding: "0.75rem",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(6, 1fr)",
+                          gap: "0.5rem",
+                          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                          zIndex: 10,
+                          maxHeight: "180px",
+                          overflowY: "auto",
+                        }}
+                      >
+                        {COMMON_ICONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => {
+                              setNewSubIcon(emoji);
+                              setShowSubIconPicker(false);
+                            }}
+                            style={{
+                              fontSize: "1.5rem",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: "0.25rem",
+                              borderRadius: "8px",
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <button
                       onClick={() => setShowSubIconPicker(!showSubIconPicker)}
                       style={{
@@ -482,34 +570,80 @@ export function KategoriClient({}: KategoriClientProps) {
                       }
                       value={newSubName}
                       onChange={(e) => setNewSubName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveSub(cat.id);
+                        if (e.key === "Escape") handleCancelEditSub();
+                      }}
                       style={{ background: "white", flex: 1 }}
                     />
-                    <Button size="sm" onClick={() => handleSaveSub(cat.id)}>
-                      {editingSubId ? <Check size={16} /> : <Plus size={16} />}
-                    </Button>
+                    <div style={{ display: "flex", gap: "0.25rem" }}>
+                      <Button size="sm" onClick={() => handleSaveSub(cat.id)}>
+                        {editingSubId ? <Check size={16} /> : <Plus size={16} />}
+                      </Button>
+                      {editingSubId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleCancelEditSub}
+                        >
+                          <X size={16} />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div
-                    style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "0.5rem",
+                      minHeight: "40px",
+                    }}
                   >
                     {cat.sub_categories.map((sub) => (
                       <div
                         key={sub.id}
+                        onClick={() =>
+                          handleStartEditSub({
+                            id: sub.id,
+                            name: sub.name,
+                            icon: sub.icon || "🔹",
+                          })
+                        }
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "0.5rem",
                           padding: "0.375rem 0.75rem",
-                          background: "white",
+                          background:
+                            editingSubId === sub.id
+                              ? "var(--color-primary-highlight)"
+                              : "white",
                           borderRadius: "20px",
-                          border: "1px solid var(--color-border)",
+                          border:
+                            editingSubId === sub.id
+                              ? "1px solid var(--color-primary)"
+                              : "1px solid var(--color-border)",
                           fontSize: "0.75rem",
                           fontWeight: 600,
+                          cursor: "pointer",
                         }}
                       >
                         <span>{sub.icon || "🔹"}</span>
-                        <span>{sub.name}</span>
+                        <span
+                          style={{
+                            color:
+                              editingSubId === sub.id
+                                ? "var(--color-primary)"
+                                : "inherit",
+                          }}
+                        >
+                          {sub.name}
+                        </span>
                         <div
-                          onClick={() => handleDeleteSub(cat.id, sub.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSub(cat.id, sub.id);
+                          }}
                           style={{
                             marginLeft: "0.25rem",
                             color: "#ef4444",

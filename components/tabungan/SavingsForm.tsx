@@ -12,6 +12,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { SavingsGoal } from "@/types";
 import { SavingsIconSelector } from "./sections/SavingsIconSelector";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface SavingsFormProps {
   initialData?: SavingsGoal;
@@ -24,6 +25,7 @@ export function SavingsForm({
   rowIndex,
   onSuccess,
 }: SavingsFormProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const isEdit = !!initialData && rowIndex !== undefined;
 
@@ -57,10 +59,12 @@ export function SavingsForm({
       : await addSavings(data);
     setIsLoading(false);
     if (result.success) {
-      toast.success(isEdit ? "Target diperbarui!" : "Target tabungan dibuat!");
+      toast.success(
+        isEdit ? t("savings.success_update") : t("savings.success_create"),
+      );
       onSuccess?.();
     } else {
-      toast.error(result.error || "Gagal menyimpan target");
+      toast.error(result.error || t("savings.error_save"));
     }
   };
 
@@ -71,10 +75,10 @@ export function SavingsForm({
       style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
     >
       <div className="form-group">
-        <label className="form-label">Nama Tujuan *</label>
+        <label className="form-label">{t("savings.goal_name")} *</label>
         <input
           type="text"
-          placeholder="Contoh: Liburan ke Bali"
+          placeholder={t("savings.goal_name_placeholder")}
           className={`input ${errors.nama_tujuan ? "input-error" : ""}`}
           {...register("nama_tujuan")}
         />
@@ -92,7 +96,7 @@ export function SavingsForm({
             name="target_jumlah"
             render={({ field: { onChange, value } }) => (
               <CurrencyInput
-                label="Target Jumlah"
+                label={t("savings.target_amount")}
                 required
                 value={value}
                 onChange={onChange}
@@ -112,7 +116,7 @@ export function SavingsForm({
             name="jumlah_terkumpul"
             render={({ field: { onChange, value } }) => (
               <CurrencyInput
-                label="Sudah Terkumpul"
+                label={t("savings.already_collected")}
                 value={value}
                 onChange={onChange}
                 error={errors.jumlah_terkumpul?.message}
@@ -135,7 +139,7 @@ export function SavingsForm({
           name="target_tanggal"
           render={({ field: { onChange, value } }) => (
             <DatePicker
-              label="Target Selesai"
+              label={t("savings.target_date")}
               required
               value={value}
               onChange={onChange}
@@ -144,11 +148,11 @@ export function SavingsForm({
           )}
         />
         <div className="form-group">
-          <label className="form-label">Prioritas</label>
+          <label className="form-label">{t("savings.priority")}</label>
           <select className="input" {...register("prioritas")}>
-            <option value="rendah">Rendah</option>
-            <option value="sedang">Sedang</option>
-            <option value="tinggi">Tinggi</option>
+            <option value="rendah">{t("savings.priority_low")}</option>
+            <option value="sedang">{t("savings.priority_medium")}</option>
+            <option value="tinggi">{t("savings.priority_high")}</option>
           </select>
         </div>
       </div>
@@ -167,7 +171,7 @@ export function SavingsForm({
         fullWidth
         style={{ marginTop: "0.5rem" }}
       >
-        {isEdit ? "Simpan Perubahan" : "Buat Target Tabungan"}
+        {isEdit ? t("savings.save_changes") : t("savings.create_target")}
       </Button>
     </form>
   );

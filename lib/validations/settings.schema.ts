@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const settingsSchema = z.object({
-  mata_uang: z.literal("IDR"),
+  mata_uang: z.string(),
   format_tanggal: z.enum(["DD/MM/YYYY", "YYYY-MM-DD"]),
   bahasa: z.string().optional(),
   nama_pengguna: z.string().optional(),

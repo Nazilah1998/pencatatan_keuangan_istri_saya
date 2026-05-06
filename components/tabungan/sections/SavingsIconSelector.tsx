@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { SAVINGS_ICONS, SAVINGS_COLORS } from "@/lib/constants";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface SavingsIconSelectorProps {
   selectedIcon: string;
@@ -15,6 +16,7 @@ export function SavingsIconSelector({
   onIconSelect,
   onColorSelect,
 }: SavingsIconSelectorProps) {
+  const { t } = useTranslation();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <style jsx>{`
@@ -59,7 +61,7 @@ export function SavingsIconSelector({
       `}</style>
 
       <div className="form-group">
-        <label className="form-label">Pilih Ikon</label>
+        <label className="form-label">{t("savings.select_icon")}</label>
         <div className="selection-grid">
           {SAVINGS_ICONS.map((icon) => (
             <button
@@ -75,7 +77,7 @@ export function SavingsIconSelector({
       </div>
 
       <div className="form-group">
-        <label className="form-label">Pilih Warna</label>
+        <label className="form-label">{t("savings.select_color")}</label>
         <div
           className="selection-grid"
           style={{ gap: "1rem", padding: "0.25rem" }}

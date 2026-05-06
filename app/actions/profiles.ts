@@ -48,9 +48,30 @@ export async function updateProfile(
 
   if (!user) return { success: false, error: "Not logged in" };
 
+  // Only send fields that actually exist in the DB schema to prevent "column not found" errors
+  const allowedKeys = [
+    "id",
+    "bahasa",
+    "mata_uang",
+    "format_tanggal",
+    "nama_pengguna",
+    "nama_panggilan",
+    "nama_rumah_tangga",
+    "tema_warna",
+    "logo_url",
+    "anggota",
+    "custom_categories",
+    "custom_wallets",
+    "updated_at",
+  ];
+
+  const cleanSettings = Object.fromEntries(
+    Object.entries(settings).filter(([key]) => allowedKeys.includes(key)),
+  );
+
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
-    ...settings,
+    ...cleanSettings,
     updated_at: new Date().toISOString(),
   });
 

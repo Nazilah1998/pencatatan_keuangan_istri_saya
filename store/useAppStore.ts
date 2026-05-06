@@ -32,6 +32,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setFABOpen: (open: boolean) => void;
+  toggleFAB: () => void;
 
   // Data Sync Actions
   setTransactions: (data: Transaction[]) => void;
@@ -125,6 +126,7 @@ export const useAppStore = create<AppState>()(
         savings: state.savings,
         assets: state.assets,
         debts: state.debts,
+        isPrivateMode: state.isPrivateMode,
         lastSynced: state.lastSynced,
       }),
     },

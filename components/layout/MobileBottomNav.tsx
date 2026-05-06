@@ -13,7 +13,7 @@ import {
 
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { Locale, format } from "date-fns";
-import { id, enUS, zhCN, es, hi, fr, ja, ru, ptBR } from "date-fns/locale";
+import { id, enUS, zhCN, es, ar, hi, fr, ja, ru, ptBR } from "date-fns/locale";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -26,6 +26,7 @@ export function MobileBottomNav() {
     en: enUS,
     zh: zhCN,
     es: es,
+    ar: ar,
     hi: hi,
     fr: fr,
     ja: ja,

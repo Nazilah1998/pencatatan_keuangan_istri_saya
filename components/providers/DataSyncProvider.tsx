@@ -37,11 +37,11 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
             assets: aRes.data || [],
             debts: dRes.data || [],
           });
-          if (!silent) toast.success("Data berhasil disinkronkan");
+          if (!silent) toast.success("✅ Data synced");
         }
       } catch (error) {
         console.error("[DataSync] Sync failed:", error);
-        if (!silent) toast.error("Gagal sinkronisasi data");
+        if (!silent) toast.error("Sync failed");
       }
     },
     [setAllData],
@@ -51,18 +51,19 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     // Initial sync
     syncData(true);
 
-    // Sync on focus
-    window.addEventListener("focus", () => syncData(true));
-
-    // Sync on back online
-    window.addEventListener("online", () => {
-      toast.success("Kembali online, menyinkronkan data...");
+    // Stable references for proper cleanup (fixes memory leak)
+    const handleFocus = () => syncData(true);
+    const handleOnline = () => {
+      toast.success("Back online, syncing...");
       syncData(false);
-    });
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleOnline);
 
     return () => {
-      window.removeEventListener("focus", () => syncData(true));
-      window.removeEventListener("online", () => syncData(true));
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleOnline);
     };
   }, [syncData]);
 

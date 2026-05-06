@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     title: "Tyaaa Financee — Smart Financial Tracking",
-    description: "Pencatatan keuangan rumah tangga terintegrasi Google Sheets",
+    description: "Pencatatan keuangan rumah tangga yang cerdas dan eksklusif",
   },
   other: {
     google: "notranslate",
