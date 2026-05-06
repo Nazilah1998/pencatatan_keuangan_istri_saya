@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Asset } from "@/types";
 import { AssetTypeSelector } from "./form/AssetTypeSelector";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 interface AssetFormProps {
   initialData?: Asset;
@@ -134,17 +135,19 @@ export function AssetForm({ onSuccess, initialData }: AssetFormProps) {
         />
       </div>
 
-      <div className="form-group">
-        <label className="form-label">Tanggal Update *</label>
-        <input
-          type="date"
-          className={`input ${errors.tanggal_update ? "input-error" : ""}`}
-          {...register("tanggal_update")}
-        />
-        {errors.tanggal_update && (
-          <span className="form-error">{errors.tanggal_update.message}</span>
+      <Controller
+        control={control}
+        name="tanggal_update"
+        render={({ field: { onChange, value } }) => (
+          <DatePicker
+            label="Tanggal Update"
+            required
+            value={value}
+            onChange={onChange}
+            error={errors.tanggal_update?.message}
+          />
         )}
-      </div>
+      />
 
       <div className="form-group">
         <label className="form-label">Catatan</label>

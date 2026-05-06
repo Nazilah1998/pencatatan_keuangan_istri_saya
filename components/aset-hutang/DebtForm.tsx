@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Debt } from "@/types";
 import { DebtTypeSelector } from "./form/DebtTypeSelector";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 interface DebtFormProps {
   initialData?: Debt;
@@ -151,6 +152,7 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
           <label className="form-label">Suku Bunga (%)</label>
           <input
             type="number"
+            inputMode="decimal"
             step="0.01"
             placeholder="0"
             className="input"
@@ -159,19 +161,19 @@ export function DebtForm({ onSuccess, initialData }: DebtFormProps) {
         </div>
       </div>
 
-      <div className="form-group">
-        <label className="form-label">Jatuh Tempo/Berakhir *</label>
-        <input
-          type="date"
-          className={`input ${errors.tanggal_jatuh_tempo ? "input-error" : ""}`}
-          {...register("tanggal_jatuh_tempo")}
-        />
-        {errors.tanggal_jatuh_tempo && (
-          <span className="form-error">
-            {errors.tanggal_jatuh_tempo.message}
-          </span>
+      <Controller
+        control={control}
+        name="tanggal_jatuh_tempo"
+        render={({ field: { onChange, value } }) => (
+          <DatePicker
+            label="Jatuh Tempo/Berakhir"
+            required
+            value={value}
+            onChange={onChange}
+            error={errors.tanggal_jatuh_tempo?.message}
+          />
         )}
-      </div>
+      />
 
       <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
         {initialData ? "Simpan Perubahan" : "Simpan Hutang"}
