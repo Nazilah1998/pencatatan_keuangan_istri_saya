@@ -22,16 +22,16 @@ export function KPIGrid({ stats, t }: KPIGridProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Net Worth - Full Width Expandable Featured Card */}
+      {/* Wallet Balance - Full Width Expandable Featured Card */}
       <KPICard
-        title={t("assets.net_worth") || "Kekayaan Bersih"}
-        amount={stats.netWorth}
-        icon="💎"
-        wallets={[
-          { name: t("dashboard.total_balance") || "Total Saldo Dompet", balance: stats.totalSaldo, icon: "💰" },
-          { name: t("assets.total_assets") || "Total Aset", balance: stats.totalAset, icon: "🏠" },
-          { name: t("assets.total_debts") || "Total Hutang", balance: -stats.totalHutang, icon: "💳" }
-        ]}
+        title={t("dashboard.total_balance") || "Saldo Dompet"}
+        amount={stats.totalSaldo}
+        icon="💰"
+        wallets={
+          stats.walletBalances && stats.walletBalances.length > 0
+            ? stats.walletBalances
+            : undefined
+        }
         isFeatured={true}
       />
 

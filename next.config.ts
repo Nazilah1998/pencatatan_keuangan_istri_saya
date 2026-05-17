@@ -1,35 +1,42 @@
 import type { NextConfig } from "next";
-import withPWAInit from "next-pwa";
+import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  runtimeCaching: [
-    {
-      urlPattern: /^https:\/\/api\.fontshare\.com\/.*/i,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "fontshare",
-        expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/api\.fontshare\.com\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "fontshare",
+          expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+        },
       },
-    },
-    {
-      urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "google-fonts",
-        expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+      {
+        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "google-fonts",
+          expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+        },
       },
-    },
-  ],
+    ],
+  },
 });
 
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000", "192.168.100.9:3000", "192.168.137.1:3000", "tyaaa-financee.vercel.app"],
+      allowedOrigins: [
+        "localhost:3000",
+        "192.168.100.9:3000",
+        "192.168.137.1:3000",
+        "tyaaa-financee.vercel.app",
+      ],
     },
   },
   images: {
@@ -37,8 +44,6 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "*.supabase.co" },
     ],
-
-
   },
   turbopack: {},
 };
