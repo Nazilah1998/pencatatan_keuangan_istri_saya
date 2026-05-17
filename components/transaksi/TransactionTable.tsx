@@ -42,7 +42,7 @@ export function TransactionTable({
   const [deleteId, setDeleteId] = useState<{ id: string; idx: number } | null>(
     null,
   );
-  const [isDeleting, setIsDeleting] = useState(false);
+
   const [typeFilter, setTypeFilter] = useState<
     "all" | "pemasukan" | "pengeluaran"
   >(
@@ -119,7 +119,7 @@ export function TransactionTable({
         // Silently run sync in the background
         window.dispatchEvent(new Event("focus"));
       }
-    } catch (error) {
+    } catch {
       // Rollback on network/runtime error
       useAppStore.getState().setAssets(previousAssets);
       useAppStore.getState().setTransactions(previousTransactions);
@@ -238,7 +238,7 @@ export function TransactionTable({
             <Button
               variant="danger"
               onClick={handleDelete}
-              loading={isDeleting}
+              loading={false}
               fullWidth
             >
               {t("common.delete")}

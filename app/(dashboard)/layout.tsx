@@ -1,4 +1,6 @@
 import React from "react";
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/db/helpers";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
@@ -9,6 +11,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    redirect("/login");
+  }
   return (
     <div className="app-layout">
       <Sidebar />

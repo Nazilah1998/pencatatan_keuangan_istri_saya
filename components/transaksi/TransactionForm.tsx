@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,7 +34,6 @@ export function TransactionForm({
   initialSettings,
 }: TransactionFormProps) {
   const { t } = useTranslation();
-  const [isLoading, setIsLoading] = useState(false);
   const { settings: storeSettings } = useAppStore();
 
   const settings = initialSettings || storeSettings;
@@ -118,7 +117,7 @@ export function TransactionForm({
         ...data,
       };
     } else {
-      const optimisticId = "opt_" + Math.random().toString(36).substring(2, 11);
+      const optimisticId = "opt_" + crypto.randomUUID().substring(0, 9);
       optimisticTx = {
         id: optimisticId,
         tanggal: data.tanggal,
@@ -229,7 +228,7 @@ export function TransactionForm({
         store.setAssets(previousAssets);
         toast.error(result.error || t("common.error"));
       }
-    } catch (error) {
+    } catch {
       // Rollback on network error
       store.setTransactions(previousTransactions);
       store.setAssets(previousAssets);
@@ -326,7 +325,7 @@ export function TransactionForm({
         )}
       </div>
 
-      <Button type="submit" loading={isLoading} style={{ width: "100%" }}>
+      <Button type="submit" loading={false} style={{ width: "100%" }}>
         {t("transactions.form.save")}
       </Button>
     </form>
