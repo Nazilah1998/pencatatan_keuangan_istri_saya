@@ -10,7 +10,11 @@ export async function getCurrentUserId(): Promise<string | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user?.id ?? null;
+
+  if (!user) return null;
+
+  // SHARED FAMILY MODE: Always return "Tyaaa" user ID so husband & wife share the same data
+  return "fc4ebe72-da3c-415e-899c-796d79ccdb72";
 }
 
 /**

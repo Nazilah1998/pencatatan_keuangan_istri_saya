@@ -44,6 +44,7 @@ export function SidebarHeader({ logoUrl, householdName }: SidebarHeaderProps) {
               src={logoUrl}
               alt="App Logo"
               fill
+              sizes="42px"
               style={{ objectFit: "cover" }}
             />
           ) : (

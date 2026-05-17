@@ -210,6 +210,7 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
                     src={logoUrl}
                     alt="Logo"
                     fill
+                    sizes="100px"
                     style={{ objectFit: "cover" }}
                   />
                 ) : (
