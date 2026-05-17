@@ -5,11 +5,13 @@ import * as schema from "./schema";
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL is not set. Please add it to your .env.local file.\n" +
-      "Get it from Supabase Dashboard: Project Settings → Database → Connection String → URI (Transaction tab)",
+  console.warn(
+    "⚠️ Warning: DATABASE_URL is not set. A fallback placeholder will be used during compilation/build.\n" +
+      "Make sure to define DATABASE_URL in your runtime environment variables (e.g. Supabase Dashboard)."
   );
 }
+
+const activeConnectionString = connectionString || "postgresql://postgres:postgres@localhost:5432/postgres";
 
 declare global {
   var postgresClient: ReturnType<typeof postgres> | undefined;
@@ -19,10 +21,10 @@ declare global {
 let client: ReturnType<typeof postgres>;
 
 if (process.env.NODE_ENV === "production") {
-  client = postgres(connectionString, { prepare: false, max: 2 });
+  client = postgres(activeConnectionString, { prepare: false, max: 2 });
 } else {
   if (!globalThis.postgresClient) {
-    globalThis.postgresClient = postgres(connectionString, { prepare: false, max: 1 });
+    globalThis.postgresClient = postgres(activeConnectionString, { prepare: false, max: 1 });
   }
   client = globalThis.postgresClient;
 }
