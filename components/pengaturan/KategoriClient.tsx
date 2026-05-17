@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Plus, Trash2, ArrowLeft, ChevronRight, X, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { CATEGORY_PRESETS } from "@/lib/constants";
-import { AppSettings } from "@/types";
-import { updateProfile } from "@/app/actions/profiles";
 import { useRouter } from "next/navigation";
+import { AppSettings } from "@/types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { ICON_CATEGORIES, IconCategory } from "@/lib/constants/icons";
 
@@ -46,20 +45,10 @@ export function KategoriClient({}: KategoriClientProps) {
 
   const subInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [isPending, startTransition] = React.useTransition();
-
   const syncSettings = (newSettings: Partial<AppSettings>) => {
-    // 1. Update local UI state immediately (Synchronous)
+    // Update local UI state immediately (Synchronous)
+    // The global ProfileSyncProvider will automatically detect this and sync it to the cloud in the background
     setStoreSettings(newSettings);
-
-    // 2. Sync to cloud in transition
-    startTransition(async () => {
-      try {
-        await updateProfile(newSettings);
-      } catch (err) {
-        console.error("Sync failed:", err);
-      }
-    });
   };
 
   const handleAddCategory = (name: string, icon: string) => {
@@ -550,7 +539,6 @@ export function KategoriClient({}: KategoriClientProps) {
                   <button
                     type="button"
                     onClick={(e) => handleDeleteCategory(e, cat.id)}
-                    disabled={isPending}
                     style={{
                       color: "#ef4444",
                       background: "rgba(239, 68, 68, 0.1)",
@@ -558,7 +546,6 @@ export function KategoriClient({}: KategoriClientProps) {
                       padding: "0.625rem",
                       borderRadius: "10px",
                       cursor: "pointer",
-                      opacity: isPending ? 0.5 : 1,
                     }}
                   >
                     <Trash2 size={20} />

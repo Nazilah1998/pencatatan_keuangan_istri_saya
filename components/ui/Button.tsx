@@ -35,6 +35,17 @@ export const Button = React.memo(function Button({
     icon: "btn-icon",
   }[size];
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try {
+        navigator.vibrate(8);
+      } catch {}
+    }
+    if (props.onClick) {
+      props.onClick(e);
+    }
+  };
+
   return (
     <button
       className={cn("btn", variantClass, sizeClass, className)}
@@ -43,8 +54,10 @@ export const Button = React.memo(function Button({
         width: fullWidth ? "100%" : undefined,
         ...style,
       }}
+      onClick={handleClick}
       {...props}
     >
+
       {loading ? (
         <>
           <span

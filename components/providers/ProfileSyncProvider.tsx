@@ -65,14 +65,26 @@ export function ProfileSyncProvider({
     return () => subscription.unsubscribe();
   }, [supabase.auth, setSettings, setUser]);
 
+  const prevSettingsRef = useRef<string>("");
+
   // 2. Auto-save settings to DB when they change (Debounced)
   useEffect(() => {
+    const settingsStr = JSON.stringify(settings);
+
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      prevSettingsRef.current = settingsStr;
       return;
     }
 
     if (!user) return;
+
+    if (settingsStr === prevSettingsRef.current) {
+      return;
+    }
+
+    // Update ref immediately to prevent duplicate triggers
+    prevSettingsRef.current = settingsStr;
 
     const timer = setTimeout(async () => {
       try {

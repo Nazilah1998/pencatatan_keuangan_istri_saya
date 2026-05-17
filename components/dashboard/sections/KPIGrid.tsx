@@ -9,6 +9,9 @@ interface KPIGridProps {
     totalPemasukan: number;
     totalPengeluaran: number;
     totalTabungan: number;
+    totalAset: number;
+    totalHutang: number;
+    netWorth: number;
     walletBalances?: { name: string; balance: number; icon?: string }[];
   };
   t: (key: string) => string;
@@ -19,12 +22,16 @@ export function KPIGrid({ stats, t }: KPIGridProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Net Worth - Full Width or Special */}
+      {/* Net Worth - Full Width Expandable Featured Card */}
       <KPICard
-        title={t("dashboard.total_balance")}
-        amount={stats.totalSaldo}
-        icon="💰"
-        wallets={stats.walletBalances}
+        title={t("assets.net_worth") || "Kekayaan Bersih"}
+        amount={stats.netWorth}
+        icon="💎"
+        wallets={[
+          { name: t("dashboard.total_balance") || "Total Saldo Dompet", balance: stats.totalSaldo, icon: "💰" },
+          { name: t("assets.total_assets") || "Total Aset", balance: stats.totalAset, icon: "🏠" },
+          { name: t("assets.total_debts") || "Total Hutang", balance: -stats.totalHutang, icon: "💳" }
+        ]}
         isFeatured={true}
       />
 

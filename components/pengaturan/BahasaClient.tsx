@@ -71,8 +71,10 @@ export function BahasaClient() {
     // Always update local store first for instant response (especially for Guests)
     setStoreSettings(updatedSettings);
 
-    // Attempt to sync with cloud if logged in
-    await updateProfile(updatedSettings);
+    // Attempt to sync with cloud in the background (non-blocking!)
+    updateProfile(updatedSettings).catch((err) => {
+      console.error("Failed to sync language settings:", err);
+    });
 
     toast.success(tp("settings.lang.success"));
 

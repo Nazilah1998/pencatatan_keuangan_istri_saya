@@ -1,200 +1,227 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { assets, debts } from "@/db/schema";
+import { getCurrentUserId, requireUserId, parseNumeric } from "@/db/helpers";
 import { Asset, Debt, AssetFormData, DebtFormData } from "@/types";
 import { revalidatePath } from "next/cache";
+import { eq, and, desc } from "drizzle-orm";
 
 /**
- * Server Actions for Supabase (SSR Version)
+ * Server Actions for Assets & Debts (Drizzle ORM Version)
  */
 
-export async function getAssets() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("assets")
-    .select("*")
-    .order("created_at", { ascending: false });
+function rowToAsset(row: typeof assets.$inferSelect): Asset {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    nama: row.nama,
+    jenis: row.jenis as Asset["jenis"],
+    nilai: parseNumeric(row.nilai),
+    tanggal_update: row.tanggalUpdate ?? "",
+    catatan: row.catatan ?? undefined,
+    created_at: row.createdAt?.toISOString(),
+  };
+}
 
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: data as Asset[] };
+function rowToDebt(row: typeof debts.$inferSelect): Debt {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    nama_hutang: row.namaHutang,
+    jenis: row.jenis as Debt["jenis"],
+    total_awal: parseNumeric(row.totalAwal),
+    sisa_hutang: parseNumeric(row.sisaHutang),
+    cicilan_bulanan: parseNumeric(row.cicilanBulanan),
+    tanggal_jatuh_tempo: row.tanggalJatuhTempo ?? "",
+    suku_bunga: 0,
+    catatan: row.catatan ?? undefined,
+    created_at: row.createdAt?.toISOString(),
+  };
+}
+
+// --- ASSET ACTIONS ---
+
+export async function getAssets() {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: true, data: [] as Asset[] };
+
+    const data = await db
+      .select()
+      .from(assets)
+      .where(eq(assets.userId, userId))
+      .orderBy(desc(assets.createdAt));
+
+    return { success: true, data: data.map(rowToAsset) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function addAsset(formData: AssetFormData) {
-  const supabase = await createClient();
+  try {
+    const userId = await requireUserId();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Silakan login terlebih dahulu" };
-
-  const { data, error } = await supabase
-    .from("assets")
-    .insert([
-      {
-        user_id: user.id,
+    const [row] = await db
+      .insert(assets)
+      .values({
+        userId,
         nama: formData.nama,
         jenis: formData.jenis,
-        nilai: formData.nilai,
-        tanggal_update: formData.tanggal_update,
+        nilai: String(formData.nilai),
+        tanggalUpdate: formData.tanggal_update,
         catatan: formData.catatan,
-      },
-    ])
-    .select()
-    .single();
+      })
+      .returning();
 
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Asset };
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToAsset(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function updateAsset(assetId: string, formData: AssetFormData) {
-  const supabase = await createClient();
+  try {
+    const [row] = await db
+      .update(assets)
+      .set({
+        nama: formData.nama,
+        jenis: formData.jenis,
+        nilai: String(formData.nilai),
+        tanggalUpdate: formData.tanggal_update,
+        catatan: formData.catatan,
+      })
+      .where(eq(assets.id, assetId))
+      .returning();
 
-  const { data, error } = await supabase
-    .from("assets")
-    .update({
-      nama: formData.nama,
-      jenis: formData.jenis,
-      nilai: formData.nilai,
-      tanggal_update: formData.tanggal_update,
-      catatan: formData.catatan,
-    })
-    .eq("id", assetId)
-    .select()
-    .single();
-
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Asset };
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToAsset(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function deleteAsset(assetId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("assets").delete().eq("id", assetId);
-
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true };
+  try {
+    await db.delete(assets).where(eq(assets.id, assetId));
+    revalidatePath("/aset-hutang");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 // --- DEBT ACTIONS ---
 
 export async function getDebts() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("debts")
-    .select("*")
-    .order("created_at", { ascending: false });
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: true, data: [] as Debt[] };
 
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: data as Debt[] };
+    const data = await db
+      .select()
+      .from(debts)
+      .where(eq(debts.userId, userId))
+      .orderBy(desc(debts.createdAt));
+
+    return { success: true, data: data.map(rowToDebt) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function addDebt(formData: DebtFormData) {
-  const supabase = await createClient();
+  try {
+    const userId = await requireUserId();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Silakan login terlebih dahulu" };
-
-  const { data, error } = await supabase
-    .from("debts")
-    .insert([
-      {
-        user_id: user.id,
-        nama_hutang: formData.nama_hutang,
+    const [row] = await db
+      .insert(debts)
+      .values({
+        userId,
+        namaHutang: formData.nama_hutang,
         jenis: formData.jenis,
-        total_awal: formData.total_awal,
-        sisa_hutang: formData.sisa_hutang,
-        cicilan_bulanan: formData.cicilan_bulanan,
-        tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
-        suku_bunga: formData.suku_bunga,
+        totalAwal: String(formData.total_awal),
+        sisaHutang: String(formData.sisa_hutang),
+        cicilanBulanan: String(formData.cicilan_bulanan),
+        tanggalJatuhTempo: formData.tanggal_jatuh_tempo,
         catatan: formData.catatan,
-      },
-    ])
-    .select()
-    .single();
+      })
+      .returning();
 
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Debt };
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToDebt(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function updateDebt(debtId: string, formData: DebtFormData) {
-  const supabase = await createClient();
+  try {
+    const [row] = await db
+      .update(debts)
+      .set({
+        namaHutang: formData.nama_hutang,
+        jenis: formData.jenis,
+        totalAwal: String(formData.total_awal),
+        sisaHutang: String(formData.sisa_hutang),
+        cicilanBulanan: String(formData.cicilan_bulanan),
+        tanggalJatuhTempo: formData.tanggal_jatuh_tempo,
+        catatan: formData.catatan,
+      })
+      .where(eq(debts.id, debtId))
+      .returning();
 
-  const { data, error } = await supabase
-    .from("debts")
-    .update({
-      nama_hutang: formData.nama_hutang,
-      jenis: formData.jenis,
-      total_awal: formData.total_awal,
-      sisa_hutang: formData.sisa_hutang,
-      cicilan_bulanan: formData.cicilan_bulanan,
-      tanggal_jatuh_tempo: formData.tanggal_jatuh_tempo,
-      suku_bunga: formData.suku_bunga,
-      catatan: formData.catatan,
-    })
-
-    .eq("id", debtId)
-    .select()
-    .single();
-
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Debt };
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToDebt(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function deleteDebt(debtId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("debts").delete().eq("id", debtId);
-
-  if (error) return { success: false, error: error.message };
-  revalidatePath("/aset-hutang");
-  return { success: true };
+  try {
+    await db.delete(debts).where(eq(debts.id, debtId));
+    revalidatePath("/aset-hutang");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
-/**
- * Update Asset Balance based on transaction
- * Used by transaction actions
- */
+// --- ASSET BALANCE SYNC ---
+
 export async function updateAssetBalance(
-  _sheetId: string, // Kept for compatibility with old transaction calls
+  _sheetId: string,
   assetName: string,
   amountChange: number,
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Silakan login" };
+  try {
+    const userId = await requireUserId();
 
-  // Cari aset berdasarkan nama untuk user ini
-  const { data: asset, error: findError } = await supabase
-    .from("assets")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("nama", assetName)
-    .single();
+    const [asset] = await db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.userId, userId), eq(assets.nama, assetName)));
 
-  if (findError || !asset) {
-    console.error("Asset not found for sync:", assetName);
-    return { success: false, error: "Aset tidak ditemukan" };
+    if (!asset) {
+      console.error("Asset not found for sync:", assetName);
+      return { success: false, error: "Aset tidak ditemukan" };
+    }
+
+    const newNilai = parseNumeric(asset.nilai) + amountChange;
+    await db
+      .update(assets)
+      .set({
+        nilai: String(newNilai),
+        tanggalUpdate: new Date().toISOString().split("T")[0],
+      })
+      .where(eq(assets.id, asset.id));
+
+    revalidatePath("/aset-hutang");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
   }
-
-  // Update nilai aset
-  const newNilai = (asset.nilai || 0) + amountChange;
-  const { error: updateError } = await supabase
-    .from("assets")
-    .update({
-      nilai: newNilai,
-      tanggal_update: new Date().toISOString().split("T")[0],
-    })
-    .eq("id", asset.id);
-
-  if (updateError) return { success: false, error: updateError.message };
-
-  revalidatePath("/aset-hutang");
-  return { success: true };
 }

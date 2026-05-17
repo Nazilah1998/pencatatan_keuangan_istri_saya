@@ -293,7 +293,6 @@ export const NATURE_ICONS = [
   "🐌",
   "🐞",
   "🐜",
-  "🐜",
   "🦗",
   "🕷️",
   "🦂",

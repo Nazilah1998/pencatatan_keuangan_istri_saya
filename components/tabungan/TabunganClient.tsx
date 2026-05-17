@@ -17,12 +17,17 @@ import toast from "react-hot-toast";
 import { SavingsHeader } from "@/components/tabungan/sections/SavingsHeader";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
+import { useAppStore } from "@/store/useAppStore";
+
 interface TabunganClientProps {
   initialGoals: SavingsGoal[];
 }
 
 export function TabunganClient({ initialGoals }: TabunganClientProps) {
   const { t } = useTranslation();
+  const { settings } = useAppStore();
+  const wallets = settings.custom_wallets || [];
+
   const [goals, setGoals] = useState<SavingsGoal[]>(initialGoals);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editGoal, setEditGoal] = useState<{
@@ -31,6 +36,7 @@ export function TabunganClient({ initialGoals }: TabunganClientProps) {
   } | null>(null);
   const [addFundsId, setAddFundsId] = useState<string | null>(null);
   const [fundAmount, setFundAmount] = useState(0);
+  const [selectedWallet, setSelectedWallet] = useState<string>("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const refreshData = async () => {
@@ -52,11 +58,13 @@ export function TabunganClient({ initialGoals }: TabunganClientProps) {
 
   const handleAddFunds = async () => {
     if (!addFundsId || fundAmount <= 0) return;
-    const result = await addFundsToSavings(addFundsId, fundAmount);
+    const walletParam = selectedWallet === "" ? undefined : selectedWallet;
+    const result = await addFundsToSavings(addFundsId, fundAmount, walletParam);
     if (result.success) {
       toast.success(t("common.success"));
       setAddFundsId(null);
       setFundAmount(0);
+      setSelectedWallet("");
       refreshData();
     } else {
       toast.error(t("common.error"));
@@ -119,6 +127,7 @@ export function TabunganClient({ initialGoals }: TabunganClientProps) {
         onClose={() => {
           setAddFundsId(null);
           setFundAmount(0);
+          setSelectedWallet("");
         }}
         title={t("savings.add_funds")}
         footer={
@@ -127,12 +136,56 @@ export function TabunganClient({ initialGoals }: TabunganClientProps) {
           </Button>
         }
       >
-        <CurrencyInput
-          label={t("savings.fund_amount")}
-          value={fundAmount}
-          onChange={setFundAmount}
-          autoFocus
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <CurrencyInput
+            label={t("savings.fund_amount")}
+            value={fundAmount}
+            onChange={setFundAmount}
+            autoFocus
+          />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <label
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {t("transactions.form.select_wallet") || "Pilih Dompet Sumber"}
+            </label>
+            <select
+              value={selectedWallet}
+              onChange={(e) => setSelectedWallet(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.75rem 1rem",
+                fontSize: "0.875rem",
+                outline: "none",
+                background: "var(--color-surface-offset)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                color: "var(--color-text)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <option value="">🚫 {t("settings.wallet.others") || "Hanya Catatan (Tidak Memotong Dompet)"}</option>
+              {wallets.map((w) => (
+                <option key={w.id} value={w.name}>
+                  {w.icon || "💰"} {w.name}
+                </option>
+              ))}
+            </select>
+            <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", lineHeight: 1.4, margin: 0 }}>
+              {selectedWallet
+                ? `Saldo di dompet "${selectedWallet}" akan otomatis terpotong dan tercatat sebagai pengeluaran.`
+                : "Hanya menambah target tabungan tanpa memotong saldo di dompet manapun."}
+            </p>
+          </div>
+        </div>
       </Modal>
 
       <Modal

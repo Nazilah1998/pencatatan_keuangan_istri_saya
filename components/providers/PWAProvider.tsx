@@ -34,6 +34,20 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // In development mode, check and unregister any stale service worker to prevent cached unclickable states
+    if (process.env.NODE_ENV === "development" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister().then((success) => {
+            if (success) {
+              console.log("Stale Service Worker unregistered successfully!");
+              window.location.reload();
+            }
+          });
+        }
+      });
+    }
+
     // Detect iOS
     const timer = requestAnimationFrame(() => {
       const userAgent = window.navigator.userAgent.toLowerCase();

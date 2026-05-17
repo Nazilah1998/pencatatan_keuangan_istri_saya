@@ -11,8 +11,8 @@ import {
 } from "recharts";
 import { WeeklyChartData } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { useAppStore } from "@/store/useAppStore";
 
 interface SpendingChartProps {
   data: WeeklyChartData[];
@@ -100,6 +100,11 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 export function SpendingChart({ data }: SpendingChartProps) {
   const { t } = useTranslation();
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   return (
     <div
@@ -137,46 +142,57 @@ export function SpendingChart({ data }: SpendingChartProps) {
           {t("dashboard.weekly_subtitle")}
         </p>
       </div>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} barCategoryGap="35%" barGap={4}>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="var(--color-divider)"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="week"
-            tick={{ fontSize: 12, fill: "var(--color-text-muted)" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tickFormatter={(v) =>
-              `${v / 1000000}${t("dashboard.weekly_week")[0] === "M" ? "jt" : "M"}`
-            }
-            tick={{ fontSize: 11, fill: "var(--color-text-muted)" }}
-            axisLine={false}
-            tickLine={false}
-            width={42}
-          />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: "var(--color-surface-offset)" }}
-          />
-          <Bar
-            dataKey="pemasukan"
-            fill="var(--color-income)"
-            radius={[4, 4, 0, 0]}
-            name="pemasukan"
-          />
-          <Bar
-            dataKey="pengeluaran"
-            fill="var(--color-expense)"
-            radius={[4, 4, 0, 0]}
-            name="pengeluaran"
-          />
-        </BarChart>
-      </ResponsiveContainer>
+      {mounted ? (
+        <ResponsiveContainer width="100%" height={240} minWidth={0}>
+          <BarChart data={data} barCategoryGap="35%" barGap={4}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--color-divider)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="week"
+              tick={{ fontSize: 12, fill: "var(--color-text-muted)" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tickFormatter={(v) => {
+                const currency = useAppStore.getState().settings.mata_uang || "IDR";
+                if (currency === "IDR") {
+                  return `${v / 1000000}${t("dashboard.weekly_week")[0] === "M" ? "jt" : "M"}`;
+                } else {
+                  return v >= 1000 
+                    ? `${(v / 1000).toFixed(0)}k` 
+                    : `${v}`;
+                }
+              }}
+              tick={{ fontSize: 11, fill: "var(--color-text-muted)" }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+            />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ fill: "var(--color-surface-offset)" }}
+            />
+            <Bar
+              dataKey="pemasukan"
+              fill="var(--color-income)"
+              radius={[4, 4, 0, 0]}
+              name="pemasukan"
+            />
+            <Bar
+              dataKey="pengeluaran"
+              fill="var(--color-expense)"
+              radius={[4, 4, 0, 0]}
+              name="pengeluaran"
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ height: 240 }} />
+      )}
     </div>
   );
 }

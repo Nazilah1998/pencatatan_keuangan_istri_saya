@@ -29,7 +29,7 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000"],
+      allowedOrigins: ["localhost:3000", "192.168.100.9:3000", "192.168.137.1:3000", "tyaaa-financee.vercel.app"],
     },
   },
   images: {

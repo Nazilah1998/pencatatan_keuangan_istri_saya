@@ -47,7 +47,7 @@
   transform: scale(1.1) rotate(45deg);
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
   .fab { bottom: 6rem; right: 1.25rem; }
 }
 

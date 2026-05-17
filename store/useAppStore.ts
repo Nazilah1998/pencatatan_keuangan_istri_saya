@@ -25,6 +25,10 @@ interface AppState {
   lastSynced: string | null;
   isPrivateMode: boolean;
 
+  // Live Exchange Rates
+  exchangeRates: Record<string, number> | null;
+  lastRatesFetch: string | null;
+
   // Actions
   togglePrivateMode: () => void;
   setUser: (user: Profile | null) => void;
@@ -33,6 +37,8 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   setFABOpen: (open: boolean) => void;
   toggleFAB: () => void;
+  resetStore: () => void;
+  fetchExchangeRates: (force?: boolean) => Promise<void>;
 
   // Data Sync Actions
   setTransactions: (data: Transaction[]) => void;
@@ -71,6 +77,8 @@ export const useAppStore = create<AppState>()(
       assets: [],
       debts: [],
       lastSynced: null,
+      exchangeRates: null,
+      lastRatesFetch: null,
 
       setUser: (user) => set({ user }),
 
@@ -95,6 +103,21 @@ export const useAppStore = create<AppState>()(
 
       setFABOpen: (open) => set({ isFABOpen: open }),
 
+      resetStore: () =>
+        set({
+          user: null,
+          settings: DEFAULT_SETTINGS,
+          transactions: [],
+          budgets: [],
+          savings: [],
+          assets: [],
+          debts: [],
+          lastSynced: null,
+          isPrivateMode: true,
+          exchangeRates: null,
+          lastRatesFetch: null,
+        }),
+
       // Data Sync
       isPrivateMode: true,
       togglePrivateMode: () =>
@@ -109,6 +132,50 @@ export const useAppStore = create<AppState>()(
           ...data,
           lastSynced: new Date().toISOString(),
         }),
+
+      fetchExchangeRates: async (force = false) => {
+        const { lastRatesFetch, exchangeRates } = useAppStore.getState();
+        
+        // Fetch only if forced, or no rates, or rates older than 4 hours
+        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+        const isExpired = !lastRatesFetch || new Date(lastRatesFetch) < fourHoursAgo;
+        
+        if (!force && exchangeRates && !isExpired) {
+          return;
+        }
+
+        try {
+          const res = await fetch("https://open.er-api.com/v6/latest/IDR");
+          if (!res.ok) throw new Error("Failed to fetch exchange rates");
+          const data = await res.json();
+          if (data && data.result === "success" && data.rates) {
+            set({
+              exchangeRates: data.rates,
+              lastRatesFetch: new Date().toISOString(),
+            });
+            console.log("Successfully updated live exchange rates:", data.rates);
+          }
+        } catch (error) {
+          console.error("Failed to fetch live exchange rates, keeping previous rates or using fallback:", error);
+          if (!exchangeRates) {
+            set({
+              exchangeRates: {
+                IDR: 1,
+                USD: 0.000062,
+                EUR: 0.000057,
+                GBP: 0.000049,
+                JPY: 0.0097,
+                SGD: 0.000084,
+                AUD: 0.000094,
+                MYR: 0.00029,
+                CNY: 0.00045,
+                KRW: 0.084,
+              },
+              lastRatesFetch: new Date().toISOString(),
+            });
+          }
+        }
+      },
 
       syncSettingsWithCloud: async () => {
         const { settings } = useAppStore.getState();
@@ -128,6 +195,8 @@ export const useAppStore = create<AppState>()(
         debts: state.debts,
         isPrivateMode: state.isPrivateMode,
         lastSynced: state.lastSynced,
+        exchangeRates: state.exchangeRates,
+        lastRatesFetch: state.lastRatesFetch,
       }),
     },
   ),

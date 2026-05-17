@@ -14,7 +14,7 @@ import { SidebarUser } from "./sidebar/SidebarUser";
 
 export function Sidebar() {
   const router = useRouter();
-  const { isSidebarOpen, setSidebarOpen, settings } = useAppStore();
+  const { isSidebarOpen, setSidebarOpen, settings, resetStore } = useAppStore();
   const [user, setUser] = useState<User | null>(null);
   const [mounted, setMounted] = useState(false);
   const supabase = createClient();
@@ -46,6 +46,7 @@ export function Sidebar() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    resetStore();
     router.push("/login");
   };
 
@@ -62,39 +63,13 @@ export function Sidebar() {
     <>
       <SidebarOverlay isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <aside
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          height: "100dvh",
-          width: "var(--sidebar-width)",
-          background: "var(--color-surface)",
-          borderRight: "1px solid var(--color-border)",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 9991,
-          transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s",
-          overflowY: "auto",
-          boxShadow: isSidebarOpen ? "20px 0 25px -5px rgb(0 0 0 / 0.1)" : "none",
-        }}
-      >
+      <aside className={`sidebar-aside ${isSidebarOpen ? "is-open" : ""}`}>
         <SidebarHeader logoUrl={settings.logo_url} householdName={settings.nama_rumah_tangga} />
         
         <SidebarNav onItemClick={() => setSidebarOpen(false)} t={t} />
 
         <SidebarUser user={user} onSignOut={handleSignOut} onSignIn={handleSignIn} />
       </aside>
-
-      <style jsx global>{`
-        @media (max-width: 1023px) {
-          aside { transform: ${isSidebarOpen ? "translateX(0)" : "translateX(-100%)"}; }
-        }
-        @media (min-width: 1024px) {
-          .sidebar-overlay { display: none !important; }
-          aside { transform: none !important; box-shadow: none !important; }
-        }
-      `}</style>
     </>
   );
 }

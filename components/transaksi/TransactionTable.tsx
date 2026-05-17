@@ -81,43 +81,53 @@ export function TransactionTable({
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    setIsDeleting(true);
     const txToDelete = transactions.find((t) => t.id === deleteId.id);
     if (!txToDelete) return;
 
-    const result = await deleteTransaction(deleteId.id, txToDelete);
-    setIsDeleting(false);
+    // Capture current state for potential rollback
+    const previousTransactions = useAppStore.getState().transactions;
+    const previousAssets = useAppStore.getState().assets;
 
-    if (result.success) {
-      toast.success(t("transactions.success_delete"));
+    // Perform optimistic updates immediately
+    const amountToRevert = txToDelete.jenis === "pemasukan" ? -txToDelete.jumlah : txToDelete.jumlah;
+    const updatedAssets = previousAssets.map((asset) =>
+      asset.nama === txToDelete.dompet
+        ? { ...asset, nilai: asset.nilai + amountToRevert }
+        : asset
+    );
 
-      // Instant Update State
-      const currentTransactions = useAppStore.getState().transactions;
-      const tx = currentTransactions.find((t) => t.id === deleteId.id);
-      if (tx) {
-        const currentAssets = useAppStore.getState().assets;
-        const amountToRevert =
-          tx.jenis === "pemasukan" ? -tx.jumlah : tx.jumlah;
-        const updatedAssets = currentAssets.map((asset) =>
-          asset.nama === tx.dompet
-            ? { ...asset, nilai: asset.nilai + amountToRevert }
-            : asset,
-        );
-        useAppStore.getState().setAssets(updatedAssets);
+    // Write instantly to local store
+    useAppStore.getState().setAssets(updatedAssets);
+    useAppStore.getState().setTransactions(
+      previousTransactions.filter((t) => t.id !== deleteId.id)
+    );
+
+    // Instantly close the modal & notify the user
+    setDeleteId(null);
+    toast.success(t("transactions.success_delete"));
+    onRefresh();
+
+    try {
+      const result = await deleteTransaction(txToDelete.id, txToDelete);
+      if (!result.success) {
+        // Rollback state if server action failed
+        useAppStore.getState().setAssets(previousAssets);
+        useAppStore.getState().setTransactions(previousTransactions);
+        toast.error(result.error || t("common.error"));
+        onRefresh();
+      } else {
+        // Silently run sync in the background
+        window.dispatchEvent(new Event("focus"));
       }
-
-      useAppStore
-        .getState()
-        .setTransactions(
-          currentTransactions.filter((t) => t.id !== deleteId.id),
-        );
-      window.dispatchEvent(new Event("focus")); // Trigger background sync
-      setDeleteId(null);
+    } catch (error) {
+      // Rollback on network/runtime error
+      useAppStore.getState().setAssets(previousAssets);
+      useAppStore.getState().setTransactions(previousTransactions);
+      toast.error(t("common.error"));
       onRefresh();
-    } else {
-      toast.error(result.error || t("common.error"));
     }
   };
+
 
   // Grouping for render
   const groupedTransactions = useMemo(() => {

@@ -106,74 +106,137 @@ export function TransactionForm({
   }, [selectedKategori, setValue]);
 
   const onSubmit = async (data: TransactionSchema) => {
-    setIsLoading(true);
-    let result;
+    const store = useAppStore.getState();
+    const previousTransactions = store.transactions;
+    const previousAssets = store.assets;
 
+    // 1. Build the optimistic transaction entry
+    let optimisticTx: Transaction;
     if (initialData && rowIndex !== undefined) {
-      result = await updateTransaction(initialData.id, data, initialData);
+      optimisticTx = {
+        ...initialData,
+        ...data,
+      };
     } else {
-      result = await addTransaction(data);
+      const optimisticId = "opt_" + Math.random().toString(36).substring(2, 11);
+      optimisticTx = {
+        id: optimisticId,
+        tanggal: data.tanggal,
+        jenis: data.jenis,
+        jumlah: data.jumlah,
+        kategori: data.kategori,
+        sub_kategori: data.sub_kategori || null,
+        dompet: data.dompet,
+        deskripsi: data.deskripsi || "",
+        created_at: new Date().toISOString(),
+      };
     }
 
-    setIsLoading(false);
-    if (result.success) {
-      toast.success(
-        initialData
-          ? t("transactions.success_edit")
-          : t("transactions.success_add"),
-      );
 
-      if (result.data) {
-        const store = useAppStore.getState();
-        const currentTransactions = store.transactions;
+    // 2. Perform optimistic updates for wallet balances
+    let updatedAssets = previousAssets;
+    if (initialData) {
+      const oldAmount = initialData.jumlah;
+      const newAmount = data.jumlah;
+      const wasPemasukan = initialData.jenis === "pemasukan";
+      const isPemasukan = data.jenis === "pemasukan";
 
-        // Update Local Store (Transactions)
-        if (initialData) {
-          const updated = currentTransactions.map((t) =>
-            t.id === initialData.id ? result.data! : t,
-          );
-          store.setTransactions(updated);
-        } else {
-          store.setTransactions([result.data, ...currentTransactions]);
-        }
-
-        // Update Local Store (Assets)
-        const currentAssets = store.assets;
-        let amountChange = 0;
-        const newAmount = result.data.jumlah;
-        const isPemasukan = result.data.jenis === "pemasukan";
-
-        if (initialData) {
-          const oldAmount = initialData.jumlah;
-          const wasPemasukan = initialData.jenis === "pemasukan";
-          amountChange =
-            (wasPemasukan ? -oldAmount : oldAmount) +
-            (isPemasukan ? newAmount : -newAmount);
-        } else {
-          amountChange = isPemasukan ? newAmount : -newAmount;
-        }
-
-        const updatedAssets = currentAssets.map((asset) =>
-          asset.nama === result.data!.dompet
-            ? { ...asset, nilai: asset.nilai + amountChange }
-            : asset,
+      if (initialData.dompet === data.dompet) {
+        const amountChange = (wasPemasukan ? -oldAmount : oldAmount) + (isPemasukan ? newAmount : -newAmount);
+        updatedAssets = previousAssets.map((asset) =>
+          asset.nama === data.dompet ? { ...asset, nilai: asset.nilai + amountChange } : asset
         );
-        store.setAssets(updatedAssets);
-        window.dispatchEvent(new Event("focus"));
-      }
-
-      if (!initialData) {
-        reset({
-          tanggal: new Date().toISOString().split("T")[0],
-          jenis: watchedJenis,
-          dompet: data.dompet,
+      } else {
+        const oldWalletAmountChange = wasPemasukan ? -oldAmount : oldAmount;
+        const newWalletAmountChange = isPemasukan ? newAmount : -newAmount;
+        updatedAssets = previousAssets.map((asset) => {
+          if (asset.nama === initialData.dompet) {
+            return { ...asset, nilai: asset.nilai + oldWalletAmountChange };
+          }
+          if (asset.nama === data.dompet) {
+            return { ...asset, nilai: asset.nilai + newWalletAmountChange };
+          }
+          return asset;
         });
       }
-      onSuccess?.();
     } else {
-      toast.error(result.error || t("common.error"));
+      const newAmount = data.jumlah;
+      const isPemasukan = data.jenis === "pemasukan";
+      const amountChange = isPemasukan ? newAmount : -newAmount;
+      updatedAssets = previousAssets.map((asset) =>
+        asset.nama === data.dompet ? { ...asset, nilai: asset.nilai + amountChange } : asset
+      );
+    }
+
+    // 3. Write updates instantly to the local Zustand store
+    if (initialData) {
+      const updated = previousTransactions.map((t) =>
+        t.id === initialData.id ? optimisticTx : t
+      );
+      store.setTransactions(updated);
+    } else {
+      store.setTransactions([optimisticTx, ...previousTransactions]);
+    }
+    store.setAssets(updatedAssets);
+
+    // 4. Instantly notify user and close form/modal
+    toast.success(
+      initialData
+        ? t("transactions.success_edit")
+        : t("transactions.success_add")
+    );
+    onSuccess?.();
+
+    if (!initialData) {
+      reset({
+        tanggal: new Date().toISOString().split("T")[0],
+        jenis: watchedJenis,
+        dompet: data.dompet,
+      });
+    }
+
+    // 5. Execute action in the background
+    try {
+      let result;
+      if (initialData && rowIndex !== undefined) {
+        result = await updateTransaction(initialData.id, data, initialData);
+      } else {
+        result = await addTransaction(data);
+      }
+
+      if (result.success && result.data) {
+        const finalStore = useAppStore.getState();
+        const currentTxs = finalStore.transactions;
+
+        // Replace the optimistic transaction object with the real database record
+        if (initialData) {
+          const finalTxs = currentTxs.map((t) =>
+            t.id === initialData.id ? result.data! : t
+          );
+          finalStore.setTransactions(finalTxs);
+        } else {
+          const finalTxs = currentTxs.map((t) =>
+            t.id === optimisticTx.id ? result.data! : t
+          );
+          finalStore.setTransactions(finalTxs);
+        }
+
+        // Silent focus trigger to sync
+        window.dispatchEvent(new Event("focus"));
+      } else {
+        // Rollback state if background update failed
+        store.setTransactions(previousTransactions);
+        store.setAssets(previousAssets);
+        toast.error(result.error || t("common.error"));
+      }
+    } catch (error) {
+      // Rollback on network error
+      store.setTransactions(previousTransactions);
+      store.setAssets(previousAssets);
+      toast.error(t("common.error"));
     }
   };
+
 
   return (
     <form

@@ -4,16 +4,16 @@ import { PenLine } from "lucide-react";
 import { TransactionForm } from "@/components/transaksi/TransactionForm";
 import { Modal } from "@/components/ui/Modal";
 
-import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
+import { useAppStore } from "@/store/useAppStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function FAB() {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAppStore();
   const pathname = usePathname();
-  const supabase = createClient();
   const router = useRouter();
 
   const isSettingsPage = pathname?.startsWith("/pengaturan");
@@ -22,10 +22,7 @@ export function FAB() {
 
   if (isSettingsPage && !isCustomizationPage) return null;
 
-  const handleOpen = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const handleOpen = () => {
     if (!user) {
       toast.error(t("common.error"));
       router.push("/login");

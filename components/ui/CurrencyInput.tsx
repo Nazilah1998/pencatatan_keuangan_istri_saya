@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Input, InputProps } from "./Input";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useAppStore } from "@/store/useAppStore";
-import { getCurrencySymbol } from "@/lib/utils/currency";
+import { getCurrencySymbol, getConvertedAmount, getOriginalAmount } from "@/lib/utils/currency";
 
 interface CurrencyInputProps extends Omit<InputProps, "onChange" | "value"> {
   value?: number;
@@ -24,12 +24,14 @@ export const CurrencyInput = React.memo(function CurrencyInput({
 
   useEffect(() => {
     if (value !== undefined) {
-      const formatted = new Intl.NumberFormat(locale).format(value);
+      const displayAmount = getConvertedAmount(value, settings.mata_uang || "IDR");
+      const roundedDisplayAmount = Math.round(displayAmount);
+      const formatted = new Intl.NumberFormat(locale).format(roundedDisplayAmount);
       if (formatted !== displayValue) {
         setDisplayValue(value === 0 ? "" : formatted);
       }
     }
-  }, [value, displayValue, locale]);
+  }, [value, displayValue, locale, settings.mata_uang]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, "");
@@ -40,8 +42,9 @@ export const CurrencyInput = React.memo(function CurrencyInput({
       rawValue === "" ? "" : new Intl.NumberFormat(locale).format(numericValue);
     setDisplayValue(formatted);
 
-    // Notify parent
-    onChange?.(numericValue);
+    // Notify parent in the base currency (IDR)
+    const baseValue = getOriginalAmount(numericValue, settings.mata_uang || "IDR");
+    onChange?.(baseValue);
   };
 
   return (

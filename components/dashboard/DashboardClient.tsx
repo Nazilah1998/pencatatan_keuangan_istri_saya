@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -7,21 +7,33 @@ import { useDashboardStats } from "@/lib/hooks/useDashboardStats";
 
 // Sub-components
 import { DashboardHeader } from "./sections/DashboardHeader";
+import { AiInsights } from "./sections/AiInsights";
 import { AssetQuickGrid } from "./sections/AssetQuickGrid";
 import { KPIGrid } from "./sections/KPIGrid";
 import { ChartsGrid } from "./sections/ChartsGrid";
+import { BudgetTracker } from "./sections/BudgetTracker";
 
 export function DashboardClient() {
   const {
     transactions,
     savings,
     assets,
+    debts,
+    budgets,
     isPrivateMode,
     togglePrivateMode,
     user,
     settings,
+    fetchExchangeRates,
   } = useAppStore();
   const { t, currentLang } = useTranslation();
+
+  useEffect(() => {
+    // Silently fetch and update live exchange rates on startup
+    fetchExchangeRates().catch((err) => {
+      console.error("Failed to silently fetch live exchange rates:", err);
+    });
+  }, [fetchExchangeRates]);
 
   const now = useMemo(() => new Date(), []);
   const stats = useDashboardStats(
@@ -30,6 +42,8 @@ export function DashboardClient() {
     now,
     t,
     settings.custom_wallets,
+    assets,
+    debts,
   );
 
   // Get display name
@@ -54,6 +68,12 @@ export function DashboardClient() {
       ? `${timeGreeting}, ${displayName}! 👋`
       : `${timeGreeting}! 👋`;
   }, [displayName, t, now]);
+
+  const currentMonthStr = useMemo(() => {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }, [now]);
 
   const healthStatus = useMemo(() => {
     if (stats.totalPemasukan === 0) {
@@ -118,6 +138,14 @@ export function DashboardClient() {
         intlLocale={intlLocale}
         t={t}
       />
+
+      <BudgetTracker
+        budgets={budgets}
+        transactions={transactions}
+        currentMonthStr={currentMonthStr}
+      />
+
+      <AiInsights stats={stats} t={t} isPrivateMode={isPrivateMode} />
 
       <ChartsGrid
         weeklyData={stats.weeklyData}

@@ -18,7 +18,13 @@ import { id, enUS, zhCN, es, ar, hi, fr, ja, ru, ptBR } from "date-fns/locale";
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { t, currentLang } = useTranslation();
-  const now = new Date();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const now = React.useMemo(() => new Date(), []);
 
   // Map our language IDs to date-fns locales
   const localeMap: Record<string, Locale> = {
@@ -76,7 +82,7 @@ export function MobileBottomNav() {
           letterSpacing: "0.05em",
         }}
       >
-        {format(now, "EEEE, d MMMM yyyy", { locale: activeLocale })}
+        {mounted ? format(now, "EEEE, d MMMM yyyy", { locale: activeLocale }) : "\u00A0"}
       </div>
 
       <div style={{ display: "flex", flex: 1, alignItems: "stretch" }}>
@@ -133,7 +139,7 @@ export function MobileBottomNav() {
         })}
       </div>
       <style jsx>{`
-        @media (min-width: 1024px) {
+        @media (min-width: 1025px) {
           .mobile-bottom-nav {
             display: none !important;
           }

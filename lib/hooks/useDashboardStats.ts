@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { isSameMonth, parseISO, format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Transaction, SavingsGoal } from "@/types";
+import { Transaction, SavingsGoal, Asset, Debt } from "@/types";
 import { CATEGORY_COLORS } from "@/lib/constants";
 
 export function useDashboardStats(
@@ -11,6 +11,8 @@ export function useDashboardStats(
   now: Date,
   t: (key: string) => string,
   wallets: { id: string; name: string; icon?: string }[] = [],
+  assets: Asset[] = [],
+  debts: Debt[] = [],
 ) {
   return useMemo(() => {
     let totalSaldo = 0;
@@ -108,6 +110,10 @@ export function useDashboardStats(
     const spendingRatio =
       totalPemasukan > 0 ? (totalPengeluaran / totalPemasukan) * 100 : 0;
 
+    const totalAset = assets.reduce((sum, a) => sum + (a.nilai || 0), 0);
+    const totalHutang = debts.reduce((sum, d) => sum + (d.sisa_hutang || 0), 0);
+    const netWorth = totalSaldo + totalAset - totalHutang;
+
     return {
       totalSaldo,
       totalPemasukan,
@@ -117,6 +123,9 @@ export function useDashboardStats(
       weeklyData,
       categoryData,
       spendingRatio,
+      totalAset,
+      totalHutang,
+      netWorth,
     };
-  }, [transactions, savings, now, t, wallets]);
+  }, [transactions, savings, now, t, wallets, assets, debts]);
 }

@@ -17,7 +17,7 @@ import { CURRENCIES } from "@/lib/utils/currency";
 export function MataUangClient() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { settings: storeSettings, setSettings: setStoreSettings } =
+  const { settings: storeSettings, setSettings: setStoreSettings, fetchExchangeRates } =
     useAppStore();
 
   const { handleSubmit, setValue, control } = useForm<SettingsSchema>({
@@ -40,7 +40,15 @@ export function MataUangClient() {
 
     setStoreSettings(updatedSettings);
 
-    await updateProfile(updatedSettings);
+    // Fetch exchange rates instantly for the new currency
+    fetchExchangeRates(true).catch((err) => {
+      console.error("Failed to force fetch fresh exchange rates:", err);
+    });
+
+    // Sync in the background (non-blocking!)
+    updateProfile(updatedSettings).catch((err) => {
+      console.error("Failed to sync currency settings:", err);
+    });
 
     toast.success(
       t("settings.currency.success") || "Mata uang berhasil diperbarui",

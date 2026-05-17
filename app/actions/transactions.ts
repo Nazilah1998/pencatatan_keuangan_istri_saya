@@ -1,60 +1,79 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { transactions } from "@/db/schema";
+import { getCurrentUserId, requireUserId, parseNumeric } from "@/db/helpers";
 import { Transaction, TransactionFormData } from "@/types";
 import { revalidatePath } from "next/cache";
 import { updateAssetBalance } from "./assets";
+import { eq, desc } from "drizzle-orm";
 
 /**
- * Server Actions for Transactions (Supabase Version)
+ * Server Actions for Transactions (Drizzle ORM Version)
  */
 
-export async function getTransactions() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .order("tanggal", { ascending: false });
+function rowToTransaction(
+  row: typeof transactions.$inferSelect,
+): Transaction {
+  return {
+    id: row.id,
+    tanggal: row.tanggal,
+    jenis: row.jenis as Transaction["jenis"],
+    jumlah: parseNumeric(row.jumlah),
+    kategori: row.kategori ?? "",
+    sub_kategori: row.subKategori,
+    dompet: row.dompet ?? "",
+    deskripsi: row.deskripsi ?? undefined,
+    created_at: row.createdAt?.toISOString() ?? "",
+  };
+}
 
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: data as Transaction[] };
+export async function getTransactions() {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: true, data: [] as Transaction[] };
+
+    const data = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.tanggal));
+
+    return { success: true, data: data.map(rowToTransaction) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function addTransaction(formData: TransactionFormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Silakan login" };
+  try {
+    const userId = await requireUserId();
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert([
-      {
-        user_id: user.id,
+    const [row] = await db
+      .insert(transactions)
+      .values({
+        userId,
         tanggal: formData.tanggal,
         jenis: formData.jenis,
-        jumlah: formData.jumlah,
+        jumlah: String(formData.jumlah),
         kategori: formData.kategori,
-        sub_kategori: formData.sub_kategori,
+        subKategori: formData.sub_kategori,
         dompet: formData.dompet,
         deskripsi: formData.deskripsi,
-      },
-    ])
-    .select()
-    .single();
+      })
+      .returning();
 
-  if (error) return { success: false, error: error.message };
+    const amountChange =
+      formData.jenis === "pemasukan" ? formData.jumlah : -formData.jumlah;
+    await updateAssetBalance("", formData.dompet, amountChange);
 
-  // Sync Asset Balance
-  const amountChange =
-    formData.jenis === "pemasukan" ? formData.jumlah : -formData.jumlah;
-  await updateAssetBalance("", formData.dompet, amountChange);
-
-  revalidatePath("/");
-  revalidatePath("/transaksi");
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Transaction };
+    revalidatePath("/");
+    revalidatePath("/transaksi");
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToTransaction(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function updateTransaction(
@@ -62,56 +81,53 @@ export async function updateTransaction(
   formData: TransactionFormData,
   oldData: Transaction,
 ) {
-  const supabase = await createClient();
+  try {
+    const [row] = await db
+      .update(transactions)
+      .set({
+        tanggal: formData.tanggal,
+        jenis: formData.jenis,
+        jumlah: String(formData.jumlah),
+        kategori: formData.kategori,
+        subKategori: formData.sub_kategori,
+        dompet: formData.dompet,
+        deskripsi: formData.deskripsi,
+      })
+      .where(eq(transactions.id, id))
+      .returning();
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .update({
-      tanggal: formData.tanggal,
-      jenis: formData.jenis,
-      jumlah: formData.jumlah,
-      kategori: formData.kategori,
-      sub_kategori: formData.sub_kategori,
-      dompet: formData.dompet,
-      deskripsi: formData.deskripsi,
-    })
+    const reverseOld =
+      oldData.jenis === "pemasukan" ? -oldData.jumlah : oldData.jumlah;
+    await updateAssetBalance("", oldData.dompet, reverseOld);
 
-    .eq("id", id)
-    .select()
-    .single();
+    const applyNew =
+      formData.jenis === "pemasukan" ? formData.jumlah : -formData.jumlah;
+    await updateAssetBalance("", formData.dompet, applyNew);
 
-  if (error) return { success: false, error: error.message };
-
-  // Sync Asset Balance (Reverse old, Apply new)
-  const reverseOld =
-    oldData.jenis === "pemasukan" ? -oldData.jumlah : oldData.jumlah;
-  await updateAssetBalance("", oldData.dompet, reverseOld);
-
-  const applyNew =
-    formData.jenis === "pemasukan" ? formData.jumlah : -formData.jumlah;
-  await updateAssetBalance("", formData.dompet, applyNew);
-
-  revalidatePath("/");
-  revalidatePath("/transaksi");
-  revalidatePath("/aset-hutang");
-  return { success: true, data: data as Transaction };
+    revalidatePath("/");
+    revalidatePath("/transaksi");
+    revalidatePath("/aset-hutang");
+    return { success: true, data: rowToTransaction(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function deleteTransaction(id: string, transaction: Transaction) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  try {
+    await db.delete(transactions).where(eq(transactions.id, id));
 
-  if (error) return { success: false, error: error.message };
+    const amountChange =
+      transaction.jenis === "pemasukan"
+        ? -transaction.jumlah
+        : transaction.jumlah;
+    await updateAssetBalance("", transaction.dompet, amountChange);
 
-  // Sync Asset Balance (Reverse deleted transaction)
-  const amountChange =
-    transaction.jenis === "pemasukan"
-      ? -transaction.jumlah
-      : transaction.jumlah;
-  await updateAssetBalance("", transaction.dompet, amountChange);
-
-  revalidatePath("/");
-  revalidatePath("/transaksi");
-  revalidatePath("/aset-hutang");
-  return { success: true };
+    revalidatePath("/");
+    revalidatePath("/transaksi");
+    revalidatePath("/aset-hutang");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }

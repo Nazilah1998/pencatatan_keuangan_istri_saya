@@ -15,6 +15,12 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data }: CategoryPieChartProps) {
   const { t, currentLang } = useTranslation();
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
   const intlLocale =
     currentLang === "id"
       ? "id-ID"
@@ -91,8 +97,8 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
       />
 
       <div style={{ position: "relative", minHeight: 200 }}>
-        {filteredData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
+        {mounted && filteredData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200} minWidth={0}>
             <PieChart>
               <Pie
                 data={filteredData}
@@ -113,6 +119,8 @@ export function CategoryPieChart({ data }: CategoryPieChartProps) {
               <Tooltip content={<CategoryTooltip intlLocale={intlLocale} />} />
             </PieChart>
           </ResponsiveContainer>
+        ) : filteredData.length > 0 ? (
+          <div style={{ height: 200 }} />
         ) : (
           <div
             style={{

@@ -15,6 +15,10 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
       try {
         if (!navigator.onLine) return;
 
+        // Skip syncing if no user is authenticated to prevent redundant auth checks
+        const { user } = useAppStore.getState();
+        if (!user) return;
+
         const [txRes, bRes, sRes, aRes, dRes] = await Promise.all([
           getTransactions(),
           getBudgets(),

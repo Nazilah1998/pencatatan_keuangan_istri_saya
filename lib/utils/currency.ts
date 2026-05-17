@@ -13,9 +13,54 @@ export const CURRENCIES = [
   { code: "KRW", name: "South Korean Won", symbol: "₩" },
 ];
 
+export const FALLBACK_RATES: Record<string, number> = {
+  IDR: 1,
+  USD: 0.000062,
+  EUR: 0.000057,
+  GBP: 0.000049,
+  JPY: 0.0097,
+  SGD: 0.000084,
+  AUD: 0.000094,
+  MYR: 0.00029,
+  CNY: 0.00045,
+  KRW: 0.084,
+};
+
 export function getCurrencySymbol(code: string): string {
   const currency = CURRENCIES.find((c) => c.code === code);
   return currency ? currency.symbol : code;
+}
+
+export function getConvertedAmount(amount: number, targetCurrency: string): number {
+  if (targetCurrency === "IDR") return amount;
+  
+  let rate = FALLBACK_RATES[targetCurrency] || 1;
+  try {
+    const store = useAppStore.getState();
+    if (store && store.exchangeRates && store.exchangeRates[targetCurrency]) {
+      rate = store.exchangeRates[targetCurrency];
+    }
+  } catch {
+    // Ignore error
+  }
+  
+  return amount * rate;
+}
+
+export function getOriginalAmount(amount: number, targetCurrency: string): number {
+  if (targetCurrency === "IDR") return amount;
+  
+  let rate = FALLBACK_RATES[targetCurrency] || 1;
+  try {
+    const store = useAppStore.getState();
+    if (store && store.exchangeRates && store.exchangeRates[targetCurrency]) {
+      rate = store.exchangeRates[targetCurrency];
+    }
+  } catch {
+    // Ignore error
+  }
+  
+  return Math.round(amount / rate);
 }
 
 export function formatCurrency(amount: number, lang = "id"): string {
@@ -33,12 +78,15 @@ export function formatCurrency(amount: number, lang = "id"): string {
     // Ignore error if used outside React/Zustand context
   }
 
+  const convertedAmount = getConvertedAmount(amount, currency);
+  const isNoDecimalCurrency = ["IDR", "JPY", "KRW"].includes(currency);
+
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+    minimumFractionDigits: isNoDecimalCurrency ? 0 : 2,
+    maximumFractionDigits: isNoDecimalCurrency ? 0 : 2,
+  }).format(convertedAmount);
 }
 
 export function parseCurrency(value: string): number {

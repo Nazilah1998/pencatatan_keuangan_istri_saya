@@ -75,7 +75,7 @@ export default async function RootLayout({
             <LanguageSyncProvider />
             <ProfileSyncProvider>{children}</ProfileSyncProvider>
             <Toaster
-              position="bottom-center"
+              position="top-center"
               toastOptions={{
                 duration: 4000,
                 style: {

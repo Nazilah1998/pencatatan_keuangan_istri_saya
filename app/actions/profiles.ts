@@ -1,82 +1,117 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
+import { getCurrentUserId, requireUserId } from "@/db/helpers";
 import { AppSettings, ActionResult } from "@/types";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
+import { eq } from "drizzle-orm";
+
+/**
+ * Server Actions for Profiles (Drizzle ORM Version)
+ */
 
 export async function getProfile(): Promise<
   ActionResult<Partial<AppSettings>>
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: true, data: DEFAULT_SETTINGS };
 
-  if (!user) return { success: true, data: DEFAULT_SETTINGS };
+    const [data] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, userId));
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+    if (!data) {
+      return { success: true, data: DEFAULT_SETTINGS };
+    }
 
-  if (error || !data) {
-    // If profile doesn't exist yet, return defaults
-    return { success: true, data: DEFAULT_SETTINGS };
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      bahasa: data.bahasa ?? DEFAULT_SETTINGS.bahasa,
+      mata_uang: data.matauang ?? DEFAULT_SETTINGS.mata_uang,
+      format_tanggal:
+        (data.formatTanggal as AppSettings["format_tanggal"]) ??
+        DEFAULT_SETTINGS.format_tanggal,
+      nama_pengguna: data.namaPengguna ?? DEFAULT_SETTINGS.nama_pengguna,
+      nama_panggilan: data.namaPanggilan ?? DEFAULT_SETTINGS.nama_panggilan,
+      nama_rumah_tangga:
+        data.namaRumahTangga ?? DEFAULT_SETTINGS.nama_rumah_tangga,
+      tema_warna: data.temaWarna ?? DEFAULT_SETTINGS.tema_warna,
+      logo_url: data.logoUrl ?? undefined,
+      custom_categories:
+        (data.customCategories as AppSettings["custom_categories"]) ??
+        DEFAULT_SETTINGS.custom_categories,
+      custom_wallets:
+        (data.customWallets as AppSettings["custom_wallets"]) ??
+        DEFAULT_SETTINGS.custom_wallets,
+      anggota:
+        (data.anggota as AppSettings["anggota"]) ?? DEFAULT_SETTINGS.anggota,
+    };
+
+    return { success: true, data: settings as Partial<AppSettings> };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
   }
-
-  // Ensure categories and wallets have fallbacks if null in DB
-  const settings = {
-    ...DEFAULT_SETTINGS,
-    ...data,
-    custom_categories:
-      data.custom_categories || DEFAULT_SETTINGS.custom_categories,
-    custom_wallets: data.custom_wallets || DEFAULT_SETTINGS.custom_wallets,
-  };
-
-  return { success: true, data: settings as Partial<AppSettings> };
 }
 
 export async function updateProfile(
   settings: Partial<AppSettings>,
 ): Promise<ActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const userId = await requireUserId();
 
-  if (!user) return { success: false, error: "Not logged in" };
+    // Simplify database storage: if custom categories or wallets are identical to defaults, store null instead of a huge redundant JSON
+    const customCategoriesVal = settings.custom_categories && 
+      JSON.stringify(settings.custom_categories) !== JSON.stringify(DEFAULT_SETTINGS.custom_categories)
+        ? settings.custom_categories
+        : null;
 
-  // Only send fields that actually exist in the DB schema to prevent "column not found" errors
-  const allowedKeys = [
-    "id",
-    "bahasa",
-    "mata_uang",
-    "format_tanggal",
-    "nama_pengguna",
-    "nama_panggilan",
-    "nama_rumah_tangga",
-    "tema_warna",
-    "logo_url",
-    "anggota",
-    "custom_categories",
-    "custom_wallets",
-    "updated_at",
-  ];
+    const customWalletsVal = settings.custom_wallets && 
+      JSON.stringify(settings.custom_wallets) !== JSON.stringify(DEFAULT_SETTINGS.custom_wallets)
+        ? settings.custom_wallets
+        : null;
 
-  const cleanSettings = Object.fromEntries(
-    Object.entries(settings).filter(([key]) => allowedKeys.includes(key)),
-  );
+    await db
+      .insert(profiles)
+      .values({
+        id: userId,
+        bahasa: settings.bahasa,
+        matauang: settings.mata_uang,
+        formatTanggal: settings.format_tanggal,
+        namaPengguna: settings.nama_pengguna,
+        namaPanggilan: settings.nama_panggilan,
+        namaRumahTangga: settings.nama_rumah_tangga,
+        temaWarna: settings.tema_warna,
+        logoUrl: settings.logo_url,
+        customCategories: customCategoriesVal,
+        customWallets: customWalletsVal,
+        anggota: settings.anggota,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: profiles.id,
+        set: {
+          bahasa: settings.bahasa,
+          matauang: settings.mata_uang,
+          formatTanggal: settings.format_tanggal,
+          namaPengguna: settings.nama_pengguna,
+          namaPanggilan: settings.nama_panggilan,
+          namaRumahTangga: settings.nama_rumah_tangga,
+          temaWarna: settings.tema_warna,
+          logoUrl: settings.logo_url,
+          customCategories: customCategoriesVal,
+          customWallets: customWalletsVal,
+          anggota: settings.anggota,
+          updatedAt: new Date(),
+        },
+      });
 
-  const { error } = await supabase.from("profiles").upsert({
-    id: user.id,
-    ...cleanSettings,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (error) return { success: false, error: error.message };
-
-  revalidatePath("/pengaturan");
-  return { success: true };
+    revalidatePath("/pengaturan");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }

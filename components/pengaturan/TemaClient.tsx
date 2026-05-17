@@ -91,8 +91,10 @@ export function TemaClient({ initialSettings }: TemaClientProps) {
     // Update local store first
     setStoreSettings(updatedSettings);
 
-    // Sync with cloud if logged in
-    await updateProfile(updatedSettings);
+    // Sync with cloud in the background (non-blocking!)
+    updateProfile(updatedSettings).catch((err) => {
+      console.error("Failed to sync theme settings:", err);
+    });
 
     toast.success(t("settings.theme.success"));
 

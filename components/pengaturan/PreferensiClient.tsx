@@ -95,18 +95,18 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
     // Update local store first
     setStoreSettings(updatedSettings);
 
-    // Sync with cloud if logged in
-    const result = await updateProfile(updatedSettings);
+    // Sync with cloud in the background (non-blocking!)
+    updateProfile(updatedSettings)
+      .then((result) => {
+        if (!result.success && user) {
+          toast.error(t("settings.preference.error"));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to sync profile settings:", err);
+      });
 
-    if (result.success) {
-      toast.success(t("settings.preference.success"));
-    } else if (!user) {
-      // If no user, it's Guest Mode, show success anyway for local change
-      toast.success(t("settings.preference.success"));
-    } else {
-      toast.error(t("settings.preference.error"));
-      return;
-    }
+    toast.success(t("settings.preference.success"));
 
     setTimeout(() => {
       router.back();

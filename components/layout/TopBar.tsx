@@ -45,18 +45,8 @@ export function TopBar() {
         {/* Mobile hamburger */}
         <button
           onClick={toggleSidebar}
-          className="md-hidden"
+          className="sidebar-toggle-btn"
           id="sidebar-toggle-btn"
-          style={{
-            display: "none",
-            border: "none",
-            background: "var(--color-surface-offset)",
-            color: "var(--color-primary)",
-            padding: "0.5rem",
-            borderRadius: "12px",
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.transform = "scale(1.05)")
           }
@@ -96,14 +86,6 @@ export function TopBar() {
           T
         </div>
       </div>
-
-      <style jsx global>{`
-        @media (max-width: 1023px) {
-          #sidebar-toggle-btn {
-            display: flex !important;
-          }
-        }
-      `}</style>
     </header>
   );
 }

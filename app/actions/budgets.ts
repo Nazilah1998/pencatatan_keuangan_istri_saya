@@ -1,81 +1,95 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { budgets } from "@/db/schema";
+import { requireUserId, getCurrentUserId, parseNumeric } from "@/db/helpers";
 import { BudgetEntry, BudgetFormData } from "@/types";
 import { revalidatePath } from "next/cache";
+import { eq, asc } from "drizzle-orm";
 
 /**
- * Server Actions for Budgets (Supabase Version)
+ * Server Actions for Budgets (Drizzle ORM Version)
  */
 
-export async function getBudgets() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .order("kategori", { ascending: true });
+function rowToBudget(row: typeof budgets.$inferSelect): BudgetEntry {
+  return {
+    id: row.id,
+    kategori: row.kategori,
+    batas_bulanan: parseNumeric(row.batasBulanan),
+    periode: row.periode ?? "",
+    catatan: row.catatan ?? undefined,
+    created_at: row.createdAt?.toISOString() ?? "",
+  };
+}
 
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: data as BudgetEntry[] };
+export async function getBudgets() {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: true, data: [] as BudgetEntry[] };
+
+    const data = await db
+      .select()
+      .from(budgets)
+      .where(eq(budgets.userId, userId))
+      .orderBy(asc(budgets.kategori));
+
+    return { success: true, data: data.map(rowToBudget) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function addBudget(formData: BudgetFormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Silakan login" };
+  try {
+    const userId = await requireUserId();
 
-  const { data, error } = await supabase
-    .from("budgets")
-    .insert([
-      {
-        user_id: user.id,
+    const [row] = await db
+      .insert(budgets)
+      .values({
+        userId,
         kategori: formData.kategori,
-        batas_bulanan: formData.batas_bulanan,
+        batasBulanan: String(formData.batas_bulanan),
         periode: formData.periode,
         catatan: formData.catatan,
-      },
-    ])
-    .select()
-    .single();
+      })
+      .returning();
 
-  if (error) return { success: false, error: error.message };
-
-  revalidatePath("/");
-  revalidatePath("/anggaran");
-  return { success: true, data: data as BudgetEntry };
+    revalidatePath("/");
+    revalidatePath("/anggaran");
+    return { success: true, data: rowToBudget(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function updateBudget(id: string, formData: BudgetFormData) {
-  const supabase = await createClient();
+  try {
+    const [row] = await db
+      .update(budgets)
+      .set({
+        kategori: formData.kategori,
+        batasBulanan: String(formData.batas_bulanan),
+        periode: formData.periode,
+        catatan: formData.catatan,
+      })
+      .where(eq(budgets.id, id))
+      .returning();
 
-  const { data, error } = await supabase
-    .from("budgets")
-    .update({
-      kategori: formData.kategori,
-      batas_bulanan: formData.batas_bulanan,
-      periode: formData.periode,
-      catatan: formData.catatan,
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) return { success: false, error: error.message };
-
-  revalidatePath("/");
-  revalidatePath("/anggaran");
-  return { success: true, data: data as BudgetEntry };
+    revalidatePath("/");
+    revalidatePath("/anggaran");
+    return { success: true, data: rowToBudget(row) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function deleteBudget(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("budgets").delete().eq("id", id);
-
-  if (error) return { success: false, error: error.message };
-
-  revalidatePath("/");
-  revalidatePath("/anggaran");
-  return { success: true };
+  try {
+    await db.delete(budgets).where(eq(budgets.id, id));
+    revalidatePath("/");
+    revalidatePath("/anggaran");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
 }
