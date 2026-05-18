@@ -33,6 +33,7 @@ interface DebugInfo {
     code?: string;
     severity?: string;
     detail?: string;
+    cause?: Record<string, unknown> | null;
     stack?: string;
   };
   helperUserId?: string | null;
@@ -41,6 +42,7 @@ interface DebugInfo {
     message: string;
     name: string;
     code?: string;
+    cause?: Record<string, unknown> | null;
     stack?: string;
   };
   globalError?: string;
@@ -108,7 +110,28 @@ export async function GET(request: Request) {
         code?: string;
         severity?: string;
         detail?: string;
+        cause?: {
+          message?: string;
+          name?: string;
+          code?: string;
+          address?: string;
+          port?: number;
+          stack?: string;
+        };
       };
+      
+      let causeDetails: Record<string, unknown> | null = null;
+      if (err.cause) {
+        causeDetails = {
+          message: err.cause.message,
+          name: err.cause.name,
+          code: err.cause.code,
+          address: err.cause.address,
+          port: err.cause.port,
+          stack: err.cause.stack,
+        };
+      }
+
       diagnostics.database = {
         connected: false,
         error: err.message,
@@ -116,6 +139,7 @@ export async function GET(request: Request) {
         code: err.code,
         severity: err.severity,
         detail: err.detail,
+        cause: causeDetails,
         stack: err.stack,
       };
     }
@@ -136,11 +160,29 @@ export async function GET(request: Request) {
     } catch (helperErr) {
       const err = helperErr as Error & {
         code?: string;
+        cause?: {
+          message?: string;
+          name?: string;
+          code?: string;
+          stack?: string;
+        };
       };
+      
+      let causeDetails: Record<string, unknown> | null = null;
+      if (err.cause) {
+        causeDetails = {
+          message: err.cause.message,
+          name: err.cause.name,
+          code: err.cause.code,
+          stack: err.cause.stack,
+        };
+      }
+
       diagnostics.helperError = {
         message: err.message,
         name: err.name,
         code: err.code,
+        cause: causeDetails,
         stack: err.stack,
       };
     }
