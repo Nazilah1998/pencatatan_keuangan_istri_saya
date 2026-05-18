@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const isLocalEnv = process.env.NODE_ENV === "development";
   const forwardedHost = request.headers.get("x-forwarded-host");
-  
+
   // Tentukan URL redirect yang aman (selalu gunakan HTTPS di production)
   let targetOrigin = origin;
   if (!isLocalEnv) {
@@ -24,7 +24,9 @@ export async function GET(request: Request) {
   }
 
   if (session) {
-    console.log("[AuthCallback] Active session already exists, redirecting directly.");
+    console.log(
+      "[AuthCallback] Active session already exists, redirecting directly.",
+    );
     return NextResponse.redirect(`${targetOrigin}${next}`);
   }
 
@@ -34,13 +36,13 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${targetOrigin}${next}`);
     } else {
       console.error("[AuthCallback] Exchange code error:", error);
-      
+
       // Jika terjadi error penukaran kode (misal karena code sudah hangus akibat double request),
       // kita cek sekali lagi apakah sesi sebenarnya berhasil terbentuk di request pertama.
       const {
         data: { session: finalSession },
       } = await supabase.auth.getSession();
-      
+
       if (finalSession) {
         console.log("[AuthCallback] Session resolved on fallback check.");
         return NextResponse.redirect(`${targetOrigin}${next}`);
@@ -51,4 +53,3 @@ export async function GET(request: Request) {
   // Jika gagal total, arahkan ke halaman error dengan HTTPS aman di production
   return NextResponse.redirect(`${targetOrigin}/auth/auth-code-error`);
 }
-
