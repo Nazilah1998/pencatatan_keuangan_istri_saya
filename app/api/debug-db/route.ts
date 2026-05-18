@@ -5,6 +5,36 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserId } from "@/db/helpers";
 import { count, eq } from "drizzle-orm";
 
+interface DebugInfo {
+  env?: {
+    NEXT_PUBLIC_SUPABASE_URL: string;
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
+    DATABASE_URL: string;
+    NODE_ENV: string | undefined;
+  };
+  cookies?: {
+    raw: string;
+    hasSbToken: boolean;
+  };
+  auth?: {
+    user: {
+      id: string;
+      email: string | undefined;
+      metadata_name: string | undefined;
+    } | null;
+    error: string | null;
+  };
+  database?: {
+    connected: boolean;
+    total_transactions_all_users?: number;
+    error?: string;
+  };
+  helperUserId?: string | null;
+  userTxCount?: number;
+  helperError?: string;
+  globalError?: string;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const secret = searchParams.get("secret");
@@ -14,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const diagnostics: any = {};
+  const diagnostics: DebugInfo = {};
 
   try {
     // 1. Check environment variables
@@ -52,10 +82,11 @@ export async function GET(request: Request) {
         connected: true,
         total_transactions_all_users: dbTest[0]?.value ?? 0,
       };
-    } catch (dbErr: any) {
+    } catch (dbErr) {
+      const err = dbErr as Error;
       diagnostics.database = {
         connected: false,
-        error: dbErr.message,
+        error: err.message,
       };
     }
 
@@ -72,14 +103,17 @@ export async function GET(request: Request) {
 
         diagnostics.userTxCount = userTxCount[0]?.value ?? 0;
       }
-    } catch (helperErr: any) {
-      diagnostics.helperError = helperErr.message;
+    } catch (helperErr) {
+      const err = helperErr as Error;
+      diagnostics.helperError = err.message;
     }
 
-  } catch (err: any) {
-    diagnostics.globalError = err.message;
+  } catch (err) {
+    const error = err as Error;
+    diagnostics.globalError = error.message;
   }
 
   return NextResponse.json(diagnostics);
 }
+
 
