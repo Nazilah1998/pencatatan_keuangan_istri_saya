@@ -25,7 +25,7 @@ function rowToBudget(row: typeof budgets.$inferSelect): BudgetEntry {
 export async function getBudgets() {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) return { success: true, data: [] as BudgetEntry[] };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
     const data = await db
       .select()

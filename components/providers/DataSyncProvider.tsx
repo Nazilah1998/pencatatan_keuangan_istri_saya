@@ -8,7 +8,7 @@ import { getAssets, getDebts } from "@/app/actions/assets";
 import toast from "react-hot-toast";
 
 export function DataSyncProvider({ children }: { children: React.ReactNode }) {
-  const { setAllData } = useAppStore();
+  const { setAllData, user, resetStore } = useAppStore();
 
   const syncData = useCallback(
     async (silent = true) => {
@@ -16,8 +16,8 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
         if (!navigator.onLine) return;
 
         // Skip syncing if no user is authenticated to prevent redundant auth checks
-        const { user } = useAppStore.getState();
-        if (!user) return;
+        const { user: currentUser } = useAppStore.getState();
+        if (!currentUser) return;
 
         const [txRes, bRes, sRes, aRes, dRes] = await Promise.all([
           getTransactions(),
@@ -51,10 +51,19 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     [setAllData],
   );
 
+  // Sync data automatically on user login/session restore,
+  // or clear cache completely on user logout to prevent data leak!
   useEffect(() => {
-    // Initial sync
-    syncData(true);
+    if (user?.id) {
+      console.log("🔄 [DataSync] User authenticated, starting initial sync...");
+      syncData(true);
+    } else {
+      console.log("🧹 [DataSync] No authenticated user, resetting local store cache...");
+      resetStore();
+    }
+  }, [user?.id, syncData, resetStore]);
 
+  useEffect(() => {
     // Stable references for proper cleanup (fixes memory leak)
     const handleFocus = () => syncData(true);
     const handleOnline = () => {

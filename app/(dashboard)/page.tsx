@@ -15,18 +15,27 @@ export default async function DashboardPage() {
     getDebts(),
   ]);
 
-  const freshData = {
-    transactions: txRes.data || [],
-    budgets: bRes.data || [],
-    savings: sRes.data || [],
-    assets: assetsRes.data || [],
-    debts: debtsRes.data || [],
-  };
+  const allSuccess =
+    txRes.success &&
+    bRes.success &&
+    sRes.success &&
+    assetsRes.success &&
+    debtsRes.success;
+
+  const freshData = allSuccess
+    ? {
+        transactions: txRes.data || [],
+        budgets: bRes.data || [],
+        savings: sRes.data || [],
+        assets: assetsRes.data || [],
+        debts: debtsRes.data || [],
+      }
+    : null;
 
   return (
     <>
       {/* Initialize store with fresh data on load if possible */}
-      <DataSyncStoreInit data={freshData} />
+      {freshData && <DataSyncStoreInit data={freshData} />}
       <DashboardClient />
     </>
   );

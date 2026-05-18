@@ -1,11 +1,11 @@
 "use server";
 
 import { db } from "@/db";
-import { savings, transactions } from "@/db/schema";
+import { savings, transactions, assets } from "@/db/schema";
 import { requireUserId, getCurrentUserId, parseNumeric } from "@/db/helpers";
 import { SavingsGoal, SavingsFormData } from "@/types";
 import { revalidatePath } from "next/cache";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 
 /**
  * Server Actions for Savings (Drizzle ORM Version)
@@ -29,7 +29,7 @@ function rowToSavingsGoal(row: typeof savings.$inferSelect): SavingsGoal {
 export async function getSavings() {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) return { success: true, data: [] as SavingsGoal[] };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
     const data = await db
       .select()
@@ -143,6 +143,25 @@ export async function addFundsToSavings(id: string, amount: number, walletName?:
           dompet: walletName,
           deskripsi: `Menabung untuk ${current.namaTujuan}`,
         });
+
+        // Deduct the savings amount from the associated wallet/asset balance
+        const [asset] = await tx
+          .select()
+          .from(assets)
+          .where(and(eq(assets.userId, userId), eq(assets.nama, walletName)));
+
+        if (asset) {
+          const newNilai = parseNumeric(asset.nilai) - amount;
+          await tx
+            .update(assets)
+            .set({
+              nilai: String(newNilai),
+              tanggalUpdate: today,
+            })
+            .where(eq(assets.id, asset.id));
+        } else {
+          console.error("Asset not found for savings sync:", walletName);
+        }
       }
 
       return { success: true };
@@ -151,6 +170,7 @@ export async function addFundsToSavings(id: string, amount: number, walletName?:
     revalidatePath("/");
     revalidatePath("/tabungan");
     revalidatePath("/transaksi");
+    revalidatePath("/aset-hutang");
     return result;
   } catch (e) {
     return { success: false, error: (e as Error).message };

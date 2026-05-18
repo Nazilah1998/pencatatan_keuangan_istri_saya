@@ -31,7 +31,7 @@ function rowToTransaction(
 export async function getTransactions() {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) return { success: true, data: [] as Transaction[] };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
     const data = await db
       .select()

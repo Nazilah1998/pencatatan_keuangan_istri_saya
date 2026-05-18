@@ -45,7 +45,7 @@ function rowToDebt(row: typeof debts.$inferSelect): Debt {
 export async function getAssets() {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) return { success: true, data: [] as Asset[] };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
     const data = await db
       .select()
@@ -118,7 +118,7 @@ export async function deleteAsset(assetId: string) {
 export async function getDebts() {
   try {
     const userId = await getCurrentUserId();
-    if (!userId) return { success: true, data: [] as Debt[] };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
     const data = await db
       .select()
