@@ -17,43 +17,46 @@ export const CurrencyInput = React.memo(function CurrencyInput({
 }: CurrencyInputProps) {
   const { currentLang } = useTranslation();
   const { settings } = useAppStore();
-  const [displayValue, setDisplayValue] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const [rawDigits, setRawDigits] = useState("");
 
   const locale = currentLang === "id" ? "id-ID" : "en-US";
   const currencyPrefix = getCurrencySymbol(settings.mata_uang || "IDR");
 
   useEffect(() => {
     if (value !== undefined) {
-      const displayAmount = getConvertedAmount(value, settings.mata_uang || "IDR");
-      const roundedDisplayAmount = Math.round(displayAmount);
-      const formatted = new Intl.NumberFormat(locale).format(roundedDisplayAmount);
-      if (formatted !== displayValue) {
-        setDisplayValue(value === 0 ? "" : formatted);
-      }
+      const displayAmount = Math.round(getConvertedAmount(value, settings.mata_uang || "IDR"));
+      setRawDigits(displayAmount === 0 ? "" : String(displayAmount));
     }
-  }, [value, displayValue, locale, settings.mata_uang]);
+  }, [value, settings.mata_uang]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/[^0-9]/g, "");
-    const numericValue = rawValue === "" ? 0 : parseInt(rawValue, 10);
-
-    // Update local display value with formatting
-    const formatted =
-      rawValue === "" ? "" : new Intl.NumberFormat(locale).format(numericValue);
-    setDisplayValue(formatted);
-
-    // Notify parent in the base currency (IDR)
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setRawDigits(raw);
+    const numericValue = raw === "" ? 0 : parseInt(raw, 10);
     const baseValue = getOriginalAmount(numericValue, settings.mata_uang || "IDR");
     onChange?.(baseValue);
   };
 
+  const handleFocus = () => setIsFocused(true);
+
+  const handleBlur = () => setIsFocused(false);
+
+  const displayValue = rawDigits === ""
+    ? ""
+    : isFocused
+      ? rawDigits
+      : new Intl.NumberFormat(locale).format(parseInt(rawDigits, 10));
+
   return (
     <Input
       {...props}
-      type="text"
+      type="tel"
       inputMode="numeric"
       value={displayValue}
       onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       prefix={currencyPrefix}
       placeholder="0"
     />

@@ -72,8 +72,12 @@ export async function GET(request: Request) {
     }
 
     diagnostics.env = {
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "MISSING",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "MISSING",
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL
+        ? "SET"
+        : "MISSING",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        ? "SET"
+        : "MISSING",
       DATABASE_URL_DETAILS: databaseUrlDetails,
       NODE_ENV: process.env.NODE_ENV,
     };
@@ -81,20 +85,28 @@ export async function GET(request: Request) {
     // 2. Read headers & cookies
     const cookieHeader = request.headers.get("cookie") || "";
     diagnostics.cookies = {
-      raw: cookieHeader.substring(0, 100) + (cookieHeader.length > 100 ? "..." : ""),
-      hasSbToken: cookieHeader.includes("sb-") || cookieHeader.includes("supabase"),
+      raw:
+        cookieHeader.substring(0, 100) +
+        (cookieHeader.length > 100 ? "..." : ""),
+      hasSbToken:
+        cookieHeader.includes("sb-") || cookieHeader.includes("supabase"),
     };
 
     // 3. Supabase Auth state inside Server Route
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     diagnostics.auth = {
-      user: user ? {
-        id: user.id,
-        email: user.email,
-        metadata_name: user.user_metadata?.full_name,
-      } : null,
+      user: user
+        ? {
+            id: user.id,
+            email: user.email,
+            metadata_name: user.user_metadata?.full_name,
+          }
+        : null,
       error: authError ? authError.message : null,
     };
 
@@ -119,7 +131,7 @@ export async function GET(request: Request) {
           stack?: string;
         };
       };
-      
+
       let causeDetails: Record<string, unknown> | null = null;
       if (err.cause) {
         causeDetails = {
@@ -167,7 +179,7 @@ export async function GET(request: Request) {
           stack?: string;
         };
       };
-      
+
       let causeDetails: Record<string, unknown> | null = null;
       if (err.cause) {
         causeDetails = {
@@ -186,7 +198,6 @@ export async function GET(request: Request) {
         stack: err.stack,
       };
     }
-
   } catch (err) {
     const error = err as Error;
     diagnostics.globalError = error.message;
@@ -194,5 +205,3 @@ export async function GET(request: Request) {
 
   return NextResponse.json(diagnostics);
 }
-
-

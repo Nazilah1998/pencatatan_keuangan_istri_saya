@@ -12,9 +12,9 @@ import { useRouter } from "next/navigation";
 
 import { updateProfile } from "@/app/actions/profiles";
 import {
-  translations,
   LANGUAGES as ALL_LANGUAGES,
 } from "@/lib/i18n/dictionaries";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 const LANGUAGES = ALL_LANGUAGES.map((l) => ({
   code: l.id,
@@ -24,43 +24,20 @@ const LANGUAGES = ALL_LANGUAGES.map((l) => ({
 
 export function BahasaClient() {
   const router = useRouter();
-  const { settings: storeSettings, setSettings: setStoreSettings } =
+  const { t } = useTranslation();
+  const { settings: storeSettings, setSettings: setStoreSettings, setLastManualSyncStr, user } =
     useAppStore();
 
   const { handleSubmit, setValue, control } = useForm<SettingsSchema>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       ...storeSettings,
-      bahasa: (storeSettings.bahasa as keyof typeof translations) || "id",
     } as SettingsSchema,
   });
   const currentLang = useWatch({
     control,
     name: "bahasa",
-  }) as keyof typeof translations;
-
-  // Local translation function for preview
-  const tp = (keyPath: string): string => {
-    const dict = translations[currentLang] || translations["id"];
-    const keys = keyPath.split(".");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let current: any = dict;
-    for (const key of keys) {
-      if (!current || current[key] === undefined) {
-        // Fallback to ID for preview too
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let fallback: any = translations["id"];
-        for (const fbKey of keys) {
-          if (fallback && fallback[fbKey] !== undefined)
-            fallback = fallback[fbKey];
-          else return keyPath;
-        }
-        return fallback as string;
-      }
-      current = current[key];
-    }
-    return current as string;
-  };
+  });
 
   const onSubmit = async (data: SettingsSchema) => {
     const updatedSettings = {
@@ -68,19 +45,21 @@ export function BahasaClient() {
       ...data,
     };
 
-    // Always update local store first for instant response (especially for Guests)
     setStoreSettings(updatedSettings);
 
-    // Attempt to sync with cloud in the background (non-blocking!)
-    updateProfile(updatedSettings).catch((err) => {
-      console.error("Failed to sync language settings:", err);
-    });
+    const syncStr = JSON.stringify(updatedSettings);
+    setLastManualSyncStr(syncStr);
 
-    toast.success(tp("settings.lang.success"));
+    if (user) {
+      updateProfile(updatedSettings).catch((err) => {
+        console.error("Failed to sync language settings:", err);
+      });
+    }
 
-    // Redirect to previous page automatically
+    toast.success(t("settings.lang.success"));
+
     setTimeout(() => {
-      router.back();
+      router.push("/pengaturan");
     }, 500);
   };
 
@@ -100,7 +79,7 @@ export function BahasaClient() {
           width: "fit-content",
         }}
       >
-        <ChevronLeft size={18} /> {tp("settings.back")}
+        <ChevronLeft size={18} /> {t("settings.back")}
       </Link>
 
       <div style={{ marginBottom: "2rem" }}>
@@ -134,11 +113,11 @@ export function BahasaClient() {
               margin: 0,
             }}
           >
-            {tp("settings.lang.title")}
+            {t("settings.lang.title")}
           </h2>
         </div>
         <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-          {tp("settings.lang.subtitle")}
+          {t("settings.lang.subtitle")}
         </p>
       </div>
 
@@ -198,7 +177,7 @@ export function BahasaClient() {
             ))}
           </div>
           <Button type="submit" fullWidth>
-            {tp("settings.lang.save")}
+            {t("settings.lang.save")}
           </Button>
         </form>
       </div>

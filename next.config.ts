@@ -46,6 +46,10 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {},
+  env: {
+    NEXT_PUBLIC_LOCAL_SERVER_URL:
+      process.env.NEXT_PUBLIC_LOCAL_SERVER_URL || "http://192.168.100.9:3000",
+  },
 };
 
 export default withPWA(nextConfig);

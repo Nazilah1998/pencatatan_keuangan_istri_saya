@@ -25,13 +25,48 @@ const PRESET_COLORS = [
   { name: "Slate", hex: "#475569" },
 ];
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
+  const num = parseInt(c, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function getBrightness(r: number, g: number, b: number): number {
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+function getAdjustAmount(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  const brightness = getBrightness(r, g, b);
+  // Darker colors need larger adjustment for visible hover effect
+  if (brightness < 60) return -50;
+  if (brightness < 128) return -35;
+  return -20;
+}
+
+function adjustColor(hex: string): string {
+  const amount = getAdjustAmount(hex);
+  let color = hex.replace("#", "");
+  if (color.length === 3)
+    color = color.split("").map((c) => c + c).join("");
+  const num = parseInt(color, 16);
+  let r = (num >> 16) + amount;
+  let g = ((num >> 8) & 0x00ff) + amount;
+  let b = (num & 0x0000ff) + amount;
+  r = Math.max(Math.min(255, r), 0);
+  g = Math.max(Math.min(255, g), 0);
+  b = Math.max(Math.min(255, b), 0);
+  return `#${(b | (g << 8) | (r << 16)).toString(16).padStart(6, "0")}`;
+}
+
 interface TemaClientProps {
   initialSettings: Partial<AppSettings>;
 }
 
 export function TemaClient({ initialSettings }: TemaClientProps) {
   const { t } = useTranslation();
-  const { settings: storeSettings, setSettings: setStoreSettings } =
+  const { settings: storeSettings, setSettings: setStoreSettings, setLastManualSyncStr, user } =
     useAppStore();
   const router = useRouter();
 
@@ -52,27 +87,9 @@ export function TemaClient({ initialSettings }: TemaClientProps) {
     if (currentThemeColor) {
       const root = document.documentElement;
       root.style.setProperty("--color-primary", currentThemeColor);
-
-      const adjustColor = (hex: string, amount: number) => {
-        let color = hex.replace("#", "");
-        if (color.length === 3)
-          color = color
-            .split("")
-            .map((c) => c + c)
-            .join("");
-        const num = parseInt(color, 16);
-        let r = (num >> 16) + amount;
-        let g = ((num >> 8) & 0x00ff) + amount;
-        let b = (num & 0x0000ff) + amount;
-        r = Math.max(Math.min(255, r), 0);
-        g = Math.max(Math.min(255, g), 0);
-        b = Math.max(Math.min(255, b), 0);
-        return `#${(b | (g << 8) | (r << 16)).toString(16).padStart(6, "0")}`;
-      };
-
       root.style.setProperty(
         "--color-primary-hover",
-        adjustColor(currentThemeColor, -20),
+        adjustColor(currentThemeColor),
       );
       root.style.setProperty(
         "--color-primary-highlight",
@@ -85,21 +102,24 @@ export function TemaClient({ initialSettings }: TemaClientProps) {
     const updatedSettings = {
       ...storeSettings,
       ...data,
-      bahasa: storeSettings.bahasa, // Tetapkan bahasa dari store agar tidak tertimpa data lama
+      bahasa: storeSettings.bahasa,
     };
 
-    // Update local store first
     setStoreSettings(updatedSettings);
 
-    // Sync with cloud in the background (non-blocking!)
-    updateProfile(updatedSettings).catch((err) => {
-      console.error("Failed to sync theme settings:", err);
-    });
+    const syncStr = JSON.stringify(updatedSettings);
+    setLastManualSyncStr(syncStr);
+
+    if (user) {
+      updateProfile(updatedSettings).catch((err) => {
+        console.error("Failed to sync theme settings:", err);
+      });
+    }
 
     toast.success(t("settings.theme.success"));
 
     setTimeout(() => {
-      router.back();
+      router.push("/pengaturan");
     }, 500);
   };
 

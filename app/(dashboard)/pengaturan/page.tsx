@@ -19,7 +19,7 @@ import {
 
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useAppStore } from "@/store/useAppStore";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 interface SettingItem {
   id: string;
@@ -40,6 +40,8 @@ export default function PengaturanPage() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetWord, setResetWord] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleExportData = () => {
     try {
@@ -122,18 +124,37 @@ export default function PengaturanPage() {
     reader.readAsText(file);
   };
 
-  const handleResetData = () => {
-    try {
-      const state = useAppStore.getState();
-      state.resetStore();
-      setIsResetModalOpen(false);
-      toast.success(
-        t("settings.reset_success") || "Seluruh data keuangan berhasil dihapus secara bersih!"
-      );
-    } catch (err) {
-      console.error("Gagal mereset data:", err);
-      toast.error("Gagal mengosongkan data keuangan.");
+  const handleResetData = async () => {
+    const confirmWord = t("settings.reset_modal_confirm_word");
+    if (resetWord !== confirmWord) return;
+
+    setIsResetting(true);
+
+    // Capture user BEFORE resetStore to know whether to delete cloud data
+    const state = useAppStore.getState();
+    const userId = state.user?.id;
+
+    // Try cloud delete first (best-effort, don't block local reset on failure)
+    if (userId) {
+      try {
+        const { resetAllUserData } = await import("@/app/actions/profiles");
+        const result = await resetAllUserData();
+        if (!result.success) {
+          console.error("Gagal menghapus data di cloud:", result.error);
+        }
+      } catch (err) {
+        console.error("Gagal menghapus data cloud:", err);
+      }
     }
+
+    // Always reset local store even if cloud delete fails
+    state.resetStore();
+
+    setIsResetModalOpen(false);
+    setResetWord("");
+    setIsResetting(false);
+
+    toast.success(t("settings.reset_success"));
   };
 
   const handleRestoreClick = () => {
@@ -482,7 +503,13 @@ export default function PengaturanPage() {
             }}
           >
             <button
-              onClick={() => setIsResetModalOpen(false)}
+              onClick={() => {
+                if (!isResetting) {
+                  setIsResetModalOpen(false);
+                  setResetWord("");
+                }
+              }}
+              disabled={isResetting}
               style={{
                 position: "absolute",
                 top: "1.25rem",
@@ -490,7 +517,8 @@ export default function PengaturanPage() {
                 background: "none",
                 border: "none",
                 color: "var(--color-text-muted)",
-                cursor: "pointer",
+                cursor: isResetting ? "not-allowed" : "pointer",
+                opacity: isResetting ? 0.4 : 1,
               }}
             >
               <X size={18} />
@@ -520,7 +548,7 @@ export default function PengaturanPage() {
                 margin: "0 0 0.5rem 0",
               }}
             >
-              Hapus Semua Data Keuangan?
+              {t("settings.reset_modal_title")}
             </h3>
             <p
               style={{
@@ -530,12 +558,55 @@ export default function PengaturanPage() {
                 margin: "0 0 1.5rem 0",
               }}
             >
-              Tindakan ini akan menghapus permanen semua catatan transaksi, kategori kustom, dompet, aset, hutang, dan tabungan Anda. Tindakan ini **tidak dapat dibatalkan**.
+              {t("settings.reset_modal_desc")}
             </p>
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "var(--color-text-muted)",
+                  marginBottom: "0.375rem",
+                }}
+              >
+                {(t("settings.reset_modal_confirm_label") || "Ketik {word} untuk konfirmasi").replace(
+                  "{word}",
+                  t("settings.reset_modal_confirm_word")
+                )}
+              </label>
+              <input
+                type="text"
+                value={resetWord}
+                onChange={(e) => setResetWord(e.target.value)}
+                disabled={isResetting}
+                placeholder={t("settings.reset_modal_confirm_word")}
+                style={{
+                  width: "100%",
+                  padding: "0.625rem 0.75rem",
+                  borderRadius: "10px",
+                  border: `1px solid ${
+                    resetWord && resetWord !== t("settings.reset_modal_confirm_word")
+                      ? "#dc2626"
+                      : "var(--color-border-subtle)"
+                  }`,
+                  background: "var(--color-surface-offset)",
+                  color: "var(--color-text)",
+                  fontSize: "0.875rem",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
 
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button
-                onClick={() => setIsResetModalOpen(false)}
+                onClick={() => {
+                  setIsResetModalOpen(false);
+                  setResetWord("");
+                }}
+                disabled={isResetting}
                 style={{
                   padding: "0.625rem 1.25rem",
                   borderRadius: "10px",
@@ -544,36 +615,73 @@ export default function PengaturanPage() {
                   fontSize: "0.875rem",
                   fontWeight: 600,
                   color: "var(--color-text)",
-                  cursor: "pointer",
+                  cursor: isResetting ? "not-allowed" : "pointer",
+                  opacity: isResetting ? 0.5 : 1,
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-border-subtle)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-surface-offset)"}
+                onMouseEnter={(e) => {
+                  if (!isResetting) e.currentTarget.style.background = "var(--color-border-subtle)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-offset)";
+                }}
               >
-                Batal
+                {t("settings.reset_modal_cancel")}
               </button>
               <button
                 onClick={handleResetData}
+                disabled={isResetting || resetWord !== t("settings.reset_modal_confirm_word")}
                 style={{
                   padding: "0.625rem 1.25rem",
                   borderRadius: "10px",
-                  background: "#dc2626",
+                  background: isResetting || resetWord !== t("settings.reset_modal_confirm_word") ? "#94a3b8" : "#dc2626",
                   border: "none",
                   fontSize: "0.875rem",
                   fontWeight: 600,
                   color: "#ffffff",
-                  cursor: "pointer",
+                  cursor: isResetting || resetWord !== t("settings.reset_modal_confirm_word") ? "not-allowed" : "pointer",
                   transition: "background 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "#b91c1c"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "#dc2626"}
+                onMouseEnter={(e) => {
+                  if (!isResetting && resetWord === t("settings.reset_modal_confirm_word")) {
+                    e.currentTarget.style.background = "#b91c1c";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background =
+                    isResetting || resetWord !== t("settings.reset_modal_confirm_word") ? "#94a3b8" : "#dc2626";
+                }}
               >
-                Hapus Permanen
+                {isResetting && (
+                  <span
+                    style={{
+                      width: "14px",
+                      height: "14px",
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      animation: "spin 0.6s linear infinite",
+                      display: "inline-block",
+                    }}
+                  />
+                )}
+                {isResetting ? t("settings.reset_loading") : t("settings.reset_modal_confirm")}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }

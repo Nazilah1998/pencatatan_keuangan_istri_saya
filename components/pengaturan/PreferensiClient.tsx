@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
@@ -20,15 +20,19 @@ interface PreferensiClientProps {
   initialSettings: Partial<AppSettings>;
 }
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
   const { t } = useTranslation();
   const {
     user,
     settings: storeSettings,
     setSettings: setStoreSettings,
+    setLastManualSyncStr,
   } = useAppStore();
   const router = useRouter();
   const supabase = createClient();
+  const [isUploading, setIsUploading] = useState(false);
 
   const {
     register,
@@ -46,9 +50,31 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
     name: "logo_url",
   });
 
+  const getFilePathFromUrl = (url: string): string | null => {
+    const prefix = "/storage/v1/object/public/user-assets/";
+    const idx = url.indexOf(prefix);
+    if (idx === -1) return null;
+    return url.substring(idx + prefix.length);
+  };
+
+  const deleteOldLogo = async (oldUrl: string) => {
+    const oldPath = getFilePathFromUrl(oldUrl);
+    if (!oldPath || !oldPath.startsWith("logos/")) return;
+    try {
+      await supabase.storage.from("user-assets").remove([oldPath]);
+    } catch {
+      // Ignore cleanup failures
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Format file tidak didukung. Gunakan JPEG, PNG, WebP, atau GIF.");
+      return;
+    }
 
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
@@ -62,10 +88,18 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
     }
 
     const loadingToast = toast.loading(t("settings.preference.uploading"));
+    setIsUploading(true);
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${userData.user.id}-${Math.random()}.${fileExt}`;
       const filePath = `logos/${fileName}`;
+
+      // Delete old logo if exists
+      const currentLogo = logoUrl;
+      if (currentLogo) {
+        await deleteOldLogo(currentLogo);
+      }
+
       const { error: uploadError } = await supabase.storage
         .from("user-assets")
         .upload(filePath, file);
@@ -80,36 +114,47 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
     } catch (err: unknown) {
       console.error("Upload error:", err);
       toast.error(t("settings.preference.upload_error"), { id: loadingToast });
+    } finally {
+      setIsUploading(false);
     }
-
   };
 
+  const handleRemoveLogo = async () => {
+    const currentLogo = logoUrl;
+    if (currentLogo) {
+      await deleteOldLogo(currentLogo);
+    }
+    setValue("logo_url", "", { shouldDirty: true });
+  };
 
   const onSubmit = async (data: SettingsSchema) => {
     const updatedSettings = {
       ...storeSettings,
       ...data,
-      bahasa: storeSettings.bahasa, // Tetapkan bahasa dari store
+      bahasa: storeSettings.bahasa,
     };
 
-    // Update local store first
     setStoreSettings(updatedSettings);
 
-    // Sync with cloud in the background (non-blocking!)
-    updateProfile(updatedSettings)
-      .then((result) => {
-        if (!result.success && user) {
-          toast.error(t("settings.preference.error"));
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to sync profile settings:", err);
-      });
+    const syncStr = JSON.stringify(updatedSettings);
+    setLastManualSyncStr(syncStr);
+
+    if (user) {
+      updateProfile(updatedSettings)
+        .then((result) => {
+          if (!result.success) {
+            toast.error(t("settings.preference.error"));
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to sync profile settings:", err);
+        });
+    }
 
     toast.success(t("settings.preference.success"));
 
     setTimeout(() => {
-      router.back();
+      router.push("/pengaturan");
     }, 500);
   };
 
@@ -241,7 +286,8 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => setValue("logo_url", "")}
+                    onClick={handleRemoveLogo}
+                    disabled={isUploading}
                     style={{ color: "var(--color-danger)" }}
                   >
                     <Trash2 size={16} />
@@ -275,7 +321,7 @@ export function PreferensiClient({ initialSettings }: PreferensiClientProps) {
               />
             </div>
           </div>
-          <Button type="submit" fullWidth>
+          <Button type="submit" fullWidth disabled={isUploading}>
             {t("settings.preference.save")}
           </Button>
         </form>

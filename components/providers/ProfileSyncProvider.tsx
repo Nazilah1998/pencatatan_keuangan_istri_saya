@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { getProfile, updateProfile } from "@/app/actions/profiles";
 import { createClient } from "@/lib/supabase/client";
+import toast from "react-hot-toast";
+import { DEFAULT_SETTINGS } from "@/lib/defaults";
 
 export function ProfileSyncProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { settings, setSettings, user, setUser } = useAppStore();
+  const { settings, setSettings, user, setUser, _lastManualSyncStr, setLastManualSyncStr } = useAppStore();
   const isInitialMount = useRef(true);
+  const initialSyncDone = useRef(false);
   const supabase = createClient();
 
   // 1. Sync User Session and Fetch Profile
@@ -23,7 +26,6 @@ export function ProfileSyncProvider({
 
       if (session?.user) {
         const { user: sUser } = session;
-        // Map Supabase user to our Profile type
         setUser({
           id: sUser.id,
           email: sUser.email || "",
@@ -31,13 +33,20 @@ export function ProfileSyncProvider({
           avatar_url: sUser.user_metadata?.avatar_url,
         });
 
-        const res = await getProfile();
-        if (res.success && res.data) {
-          // Only merge non-null cloud values
-          const safeCloudSettings = Object.fromEntries(
-            Object.entries(res.data).filter(([, v]) => v != null),
-          );
-          setSettings(safeCloudSettings);
+        if (!initialSyncDone.current) {
+          initialSyncDone.current = true;
+          const res = await getProfile();
+          if (res.success && res.data) {
+            const safeCloudSettings = Object.fromEntries(
+              Object.entries(res.data).filter(([, v]) => v != null),
+            );
+            // Only overwrite local with cloud if local settings are still defaults (never customized)
+            const currentSettings = useAppStore.getState().settings;
+            const isDefault = JSON.stringify(currentSettings) === JSON.stringify(DEFAULT_SETTINGS);
+            if (isDefault) {
+              setSettings(safeCloudSettings);
+            }
+          }
         }
       } else {
         setUser(null);
@@ -65,42 +74,38 @@ export function ProfileSyncProvider({
     return () => subscription.unsubscribe();
   }, [supabase.auth, setSettings, setUser]);
 
-  const prevSettingsRef = useRef<string>("");
-
   // 2. Auto-save settings to DB when they change (Debounced)
+  // Skips if settings haven't changed from last manual sync
   useEffect(() => {
-    const settingsStr = JSON.stringify(settings);
-
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      prevSettingsRef.current = settingsStr;
       return;
     }
 
     if (!user) return;
 
-    if (settingsStr === prevSettingsRef.current) {
+    const settingsStr = JSON.stringify(settings);
+
+    // Skip auto-sync if this exact state was already manually synced
+    if (_lastManualSyncStr && settingsStr === _lastManualSyncStr) {
       return;
     }
-
-    // Update ref immediately to prevent duplicate triggers
-    prevSettingsRef.current = settingsStr;
 
     const timer = setTimeout(async () => {
       try {
         const res = await updateProfile(settings);
         if (!res.success) {
           console.error("❌ [CloudSync] Update failed:", res.error);
-        } else {
-          console.log("✅ [CloudSync] Settings saved to Supabase");
+          toast.error("Gagal menyimpan pengaturan ke cloud");
         }
       } catch (err) {
         console.error("❌ [CloudSync] Unexpected error:", err);
+        toast.error("Gagal menyimpan pengaturan ke cloud");
       }
-    }, 2000); // Debounce 2s
+    }, 2000);
 
     return () => clearTimeout(timer);
-  }, [settings, user]);
+  }, [settings, user, _lastManualSyncStr]);
 
   return <>{children}</>;
 }

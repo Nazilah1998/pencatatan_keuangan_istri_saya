@@ -1,16 +1,14 @@
 "use server";
 
 import { db } from "@/db";
-import { profiles } from "@/db/schema";
+import { profiles, transactions, assets, debts, budgets, savings } from "@/db/schema";
 import { getCurrentUserId, requireUserId } from "@/db/helpers";
 import { AppSettings, ActionResult } from "@/types";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
-import { eq } from "drizzle-orm";
-
-/**
- * Server Actions for Profiles (Drizzle ORM Version)
- */
+import { eq, and } from "drizzle-orm";
+import { settingsSchema } from "@/lib/validations";
+import { createClient } from "@/lib/supabase/server";
 
 export async function getProfile(): Promise<
   ActionResult<Partial<AppSettings>>
@@ -63,53 +61,88 @@ export async function updateProfile(
   try {
     const userId = await requireUserId();
 
-    // Simplify database storage: if custom categories or wallets are identical to defaults, store null instead of a huge redundant JSON
-    const customCategoriesVal = settings.custom_categories && 
-      JSON.stringify(settings.custom_categories) !== JSON.stringify(DEFAULT_SETTINGS.custom_categories)
-        ? settings.custom_categories
-        : null;
+    const parsed = settingsSchema.partial().safeParse(settings);
+    if (!parsed.success) {
+      return { success: false, error: "Data tidak valid: " + parsed.error.message };
+    }
 
-    const customWalletsVal = settings.custom_wallets && 
-      JSON.stringify(settings.custom_wallets) !== JSON.stringify(DEFAULT_SETTINGS.custom_wallets)
-        ? settings.custom_wallets
-        : null;
+    const validData = parsed.data;
 
     await db
       .insert(profiles)
       .values({
         id: userId,
-        bahasa: settings.bahasa,
-        matauang: settings.mata_uang,
-        formatTanggal: settings.format_tanggal,
-        namaPengguna: settings.nama_pengguna,
-        namaPanggilan: settings.nama_panggilan,
-        namaRumahTangga: settings.nama_rumah_tangga,
-        temaWarna: settings.tema_warna,
-        logoUrl: settings.logo_url,
-        customCategories: customCategoriesVal,
-        customWallets: customWalletsVal,
-        anggota: settings.anggota,
+        bahasa: validData.bahasa,
+        matauang: validData.mata_uang,
+        formatTanggal: validData.format_tanggal,
+        namaPengguna: validData.nama_pengguna,
+        namaPanggilan: validData.nama_panggilan,
+        namaRumahTangga: validData.nama_rumah_tangga,
+        temaWarna: validData.tema_warna,
+        logoUrl: validData.logo_url,
+        customCategories: validData.custom_categories ?? null,
+        customWallets: validData.custom_wallets ?? null,
+        anggota: validData.anggota ?? null,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: profiles.id,
         set: {
-          bahasa: settings.bahasa,
-          matauang: settings.mata_uang,
-          formatTanggal: settings.format_tanggal,
-          namaPengguna: settings.nama_pengguna,
-          namaPanggilan: settings.nama_panggilan,
-          namaRumahTangga: settings.nama_rumah_tangga,
-          temaWarna: settings.tema_warna,
-          logoUrl: settings.logo_url,
-          customCategories: customCategoriesVal,
-          customWallets: customWalletsVal,
-          anggota: settings.anggota,
+          bahasa: validData.bahasa,
+          matauang: validData.mata_uang,
+          formatTanggal: validData.format_tanggal,
+          namaPengguna: validData.nama_pengguna,
+          namaPanggilan: validData.nama_panggilan,
+          namaRumahTangga: validData.nama_rumah_tangga,
+          temaWarna: validData.tema_warna,
+          logoUrl: validData.logo_url,
+          customCategories: validData.custom_categories ?? null,
+          customWallets: validData.custom_wallets ?? null,
+          anggota: validData.anggota ?? null,
           updatedAt: new Date(),
         },
       });
 
     revalidatePath("/pengaturan");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
+}
+
+export async function resetAllUserData(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const supabase = await createClient();
+
+    // Fetch logo_url before deleting profile so we can remove the file from storage
+    const [profile] = await db
+      .select({ logoUrl: profiles.logoUrl })
+      .from(profiles)
+      .where(eq(profiles.id, userId));
+
+    await db.delete(transactions).where(eq(transactions.userId, userId));
+    await db.delete(assets).where(eq(assets.userId, userId));
+    await db.delete(debts).where(eq(debts.userId, userId));
+    await db.delete(budgets).where(eq(budgets.userId, userId));
+    await db.delete(savings).where(eq(savings.userId, userId));
+
+    // Delete logo from Supabase Storage to avoid orphaned files
+    if (profile?.logoUrl) {
+      const prefix = "/storage/v1/object/public/user-assets/";
+      const idx = profile.logoUrl.indexOf(prefix);
+      if (idx !== -1) {
+        const filePath = profile.logoUrl.substring(idx + prefix.length);
+        if (filePath.startsWith("logos/")) {
+          await supabase.storage.from("user-assets").remove([filePath]);
+        }
+      }
+    }
+
+    await db.delete(profiles).where(eq(profiles.id, userId));
+
+    revalidatePath("/pengaturan");
+    revalidatePath("/");
     return { success: true };
   } catch (e) {
     return { success: false, error: (e as Error).message };

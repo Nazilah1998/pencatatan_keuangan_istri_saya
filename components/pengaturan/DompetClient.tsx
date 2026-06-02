@@ -10,11 +10,7 @@ import { AppSettings } from "@/types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { ICON_CATEGORIES, IconCategory } from "@/lib/constants/icons";
 
-interface DompetClientProps {
-  initialSettings: Partial<AppSettings>;
-}
-
-export function DompetClient({}: DompetClientProps) {
+export function DompetClient() {
   const { t } = useTranslation();
   const router = useRouter();
   const { settings: storeSettings, setSettings: setStoreSettings } =
@@ -37,15 +33,20 @@ export function DompetClient({}: DompetClientProps) {
   };
 
   const handleAddWallet = (name: string, icon: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error("Nama dompet tidak boleh kosong");
+      return;
+    }
     if (
-      custom_wallets.some((w) => w.name.toLowerCase() === name.toLowerCase())
+      custom_wallets.some((w) => w.name.toLowerCase() === trimmed.toLowerCase())
     ) {
       toast.error(t("settings.wallet.error_exists"));
       return;
     }
     const newWallet = {
       id: crypto.randomUUID(),
-      name: name.trim(),
+      name: trimmed,
       icon: icon,
     };
     const updated = {
@@ -55,7 +56,7 @@ export function DompetClient({}: DompetClientProps) {
     syncSettings(updated);
     setNewWalletName("");
     setIsManual(false);
-    toast.success(`${name} ${t("settings.wallet.success_added")}`);
+    toast.success(`${trimmed} ${t("settings.wallet.success_added")}`);
   };
 
   const handleDeleteWallet = (e: React.MouseEvent, id: string) => {
@@ -77,7 +78,7 @@ export function DompetClient({}: DompetClientProps) {
   return (
     <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: "2rem" }}>
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push("/pengaturan")}
         style={{
           display: "flex",
           alignItems: "center",

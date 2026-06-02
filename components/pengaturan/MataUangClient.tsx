@@ -13,11 +13,16 @@ import { useRouter } from "next/navigation";
 import { updateProfile } from "@/app/actions/profiles";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { CURRENCIES } from "@/lib/utils/currency";
+import { AppSettings } from "@/types";
 
-export function MataUangClient() {
+interface MataUangClientProps {
+  initialSettings?: Partial<AppSettings>;
+}
+
+export function MataUangClient({}: MataUangClientProps) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { settings: storeSettings, setSettings: setStoreSettings, fetchExchangeRates } =
+  const { settings: storeSettings, setSettings: setStoreSettings, fetchExchangeRates, setLastManualSyncStr, user } =
     useAppStore();
 
   const { handleSubmit, setValue, control } = useForm<SettingsSchema>({
@@ -40,22 +45,28 @@ export function MataUangClient() {
 
     setStoreSettings(updatedSettings);
 
-    // Fetch exchange rates instantly for the new currency
-    fetchExchangeRates(true).catch((err) => {
-      console.error("Failed to force fetch fresh exchange rates:", err);
-    });
+    const syncStr = JSON.stringify(updatedSettings);
+    setLastManualSyncStr(syncStr);
 
-    // Sync in the background (non-blocking!)
-    updateProfile(updatedSettings).catch((err) => {
-      console.error("Failed to sync currency settings:", err);
-    });
+    if (user) {
+      updateProfile(updatedSettings).catch((err) => {
+        console.error("Failed to sync currency settings:", err);
+      });
+    }
+
+    // Fetch exchange rates for the new currency
+    try {
+      await fetchExchangeRates(true);
+    } catch {
+      toast.error("Gagal memperbarui nilai tukar, data mungkin tidak akurat");
+    }
 
     toast.success(
       t("settings.currency.success") || "Mata uang berhasil diperbarui",
     );
 
     setTimeout(() => {
-      router.back();
+      router.push("/pengaturan");
     }, 500);
   };
 

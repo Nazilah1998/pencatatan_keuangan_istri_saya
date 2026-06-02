@@ -54,6 +54,8 @@ interface AppState {
     debts: Debt[];
   }) => void;
   syncSettingsWithCloud: () => Promise<void>;
+  _lastManualSyncStr: string;
+  setLastManualSyncStr: (str: string) => void;
 }
 
 import {
@@ -79,6 +81,7 @@ export const useAppStore = create<AppState>()(
       lastSynced: null,
       exchangeRates: null,
       lastRatesFetch: null,
+      _lastManualSyncStr: "",
 
       setUser: (user) => set({ user }),
 
@@ -182,6 +185,8 @@ export const useAppStore = create<AppState>()(
         const { updateProfile } = await import("@/app/actions/profiles");
         await updateProfile(settings);
       },
+
+      setLastManualSyncStr: (str) => set({ _lastManualSyncStr: str }),
     }),
     {
       name: "rumah-catat-store",
@@ -197,6 +202,11 @@ export const useAppStore = create<AppState>()(
         lastSynced: state.lastSynced,
         exchangeRates: state.exchangeRates,
         lastRatesFetch: state.lastRatesFetch,
+      }),
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as object),
+        _lastManualSyncStr: "",
       }),
     },
   ),

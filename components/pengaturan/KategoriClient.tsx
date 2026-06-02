@@ -10,11 +10,7 @@ import { AppSettings } from "@/types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { ICON_CATEGORIES, IconCategory } from "@/lib/constants/icons";
 
-interface KategoriClientProps {
-  initialSettings: Partial<AppSettings>;
-}
-
-export function KategoriClient({}: KategoriClientProps) {
+export function KategoriClient() {
   const { t } = useTranslation();
   const router = useRouter();
   const { settings: storeSettings, setSettings: setStoreSettings } =
@@ -40,22 +36,26 @@ export function KategoriClient({}: KategoriClientProps) {
   const [newSubIcon, setNewSubIcon] = useState("🔹");
   const [showSubIconPicker, setShowSubIconPicker] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [activeIconTab, setActiveIconTab] = useState(ICON_CATEGORIES[0].id);
+  const [activeMainIconTab, setActiveMainIconTab] = useState(ICON_CATEGORIES[0].id);
+  const [activeSubIconTab, setActiveSubIconTab] = useState(ICON_CATEGORIES[0].id);
   const [showMainIconPicker, setShowMainIconPicker] = useState(false);
 
   const subInputRef = React.useRef<HTMLInputElement>(null);
 
   const syncSettings = (newSettings: Partial<AppSettings>) => {
-    // Update local UI state immediately (Synchronous)
-    // The global ProfileSyncProvider will automatically detect this and sync it to the cloud in the background
     setStoreSettings(newSettings);
   };
 
   const handleAddCategory = (name: string, icon: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error("Nama kategori tidak boleh kosong");
+      return;
+    }
     if (
       custom_categories.some(
         (c) =>
-          c.name.toLowerCase() === name.toLowerCase() && c.type === activeTab,
+          c.name.toLowerCase() === trimmed.toLowerCase() && c.type === activeTab,
       )
     ) {
       toast.error(t("settings.category.error_exists"));
@@ -63,7 +63,7 @@ export function KategoriClient({}: KategoriClientProps) {
     }
     const newCat = {
       id: crypto.randomUUID(),
-      name: name.trim(),
+      name: trimmed,
       icon: icon,
       type: activeTab,
       color: activeTab === "pengeluaran" ? "#ef4444" : "#10b981",
@@ -76,7 +76,7 @@ export function KategoriClient({}: KategoriClientProps) {
     syncSettings(updated);
     setNewCategoryName("");
     setIsManual(false);
-    toast.success(`${name} ${t("settings.category.success_added")}`);
+    toast.success(`${trimmed} ${t("settings.category.success_added")}`);
   };
 
   const handleDeleteCategory = (e: React.MouseEvent, id: string) => {
@@ -92,7 +92,22 @@ export function KategoriClient({}: KategoriClientProps) {
   };
 
   const handleSaveSub = (catId: string) => {
-    if (!newSubName.trim()) return;
+    const trimmed = newSubName.trim();
+    if (!trimmed) return;
+
+    const parentCat = custom_categories.find((c) => c.id === catId);
+    if (!parentCat) return;
+
+    if (!editingSubId) {
+      const isDuplicate = parentCat.sub_categories.some(
+        (s) => s.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (isDuplicate) {
+        toast.error("Sub-kategori dengan nama ini sudah ada");
+        return;
+      }
+    }
+
     let updatedCats;
     if (editingSubId) {
       updatedCats = custom_categories.map((c) =>
@@ -101,7 +116,7 @@ export function KategoriClient({}: KategoriClientProps) {
               ...c,
               sub_categories: c.sub_categories.map((s) =>
                 s.id === editingSubId
-                  ? { ...s, name: newSubName.trim(), icon: newSubIcon }
+                  ? { ...s, name: trimmed, icon: newSubIcon }
                   : s,
               ),
             }
@@ -116,7 +131,7 @@ export function KategoriClient({}: KategoriClientProps) {
                 ...c.sub_categories,
                 {
                   id: crypto.randomUUID(),
-                  name: newSubName.trim(),
+                  name: trimmed,
                   icon: newSubIcon,
                 },
               ],
@@ -170,7 +185,7 @@ export function KategoriClient({}: KategoriClientProps) {
   return (
     <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: "3rem" }}>
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push("/pengaturan")}
         style={{
           display: "flex",
           alignItems: "center",
@@ -394,17 +409,17 @@ export function KategoriClient({}: KategoriClientProps) {
                         <button
                           key={cat.id}
                           type="button"
-                          onClick={() => setActiveIconTab(cat.id)}
+                          onClick={() => setActiveMainIconTab(cat.id)}
                           style={{
                             padding: "0.375rem 0.75rem",
                             borderRadius: "8px",
                             border: "none",
                             background:
-                              activeIconTab === cat.id
+                              activeMainIconTab === cat.id
                                 ? "var(--color-primary-highlight)"
                                 : "transparent",
                             color:
-                              activeIconTab === cat.id
+                              activeMainIconTab === cat.id
                                 ? "var(--color-primary)"
                                 : "var(--color-text-muted)",
                             fontSize: "0.75rem",
@@ -427,7 +442,7 @@ export function KategoriClient({}: KategoriClientProps) {
                       }}
                     >
                       {ICON_CATEGORIES.find(
-                        (c: IconCategory) => c.id === activeIconTab,
+                        (c: IconCategory) => c.id === activeMainIconTab,
                       )?.icons.map((emoji: string) => (
                         <button
                           key={emoji}
@@ -626,17 +641,17 @@ export function KategoriClient({}: KategoriClientProps) {
                             <button
                               key={cat.id}
                               type="button"
-                              onClick={() => setActiveIconTab(cat.id)}
+                              onClick={() => setActiveSubIconTab(cat.id)}
                               style={{
                                 padding: "0.375rem 0.75rem",
                                 borderRadius: "8px",
                                 border: "none",
                                 background:
-                                  activeIconTab === cat.id
+                                  activeSubIconTab === cat.id
                                     ? "var(--color-primary-highlight)"
                                     : "transparent",
                                 color:
-                                  activeIconTab === cat.id
+                                  activeSubIconTab === cat.id
                                     ? "var(--color-primary)"
                                     : "var(--color-text-muted)",
                                 fontSize: "0.75rem",
@@ -661,7 +676,7 @@ export function KategoriClient({}: KategoriClientProps) {
                           }}
                         >
                           {ICON_CATEGORIES.find(
-                            (c: IconCategory) => c.id === activeIconTab,
+                            (c: IconCategory) => c.id === activeSubIconTab,
                           )?.icons.map((emoji: string) => (
                             <button
                               key={emoji}
