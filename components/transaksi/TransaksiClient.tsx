@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getTransactions } from "@/app/actions/transactions";
 import { TransactionTable } from "@/components/transaksi/TransactionTable";
@@ -61,19 +60,18 @@ export function TransaksiClient({
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Link href="/transaksi/tambah" style={{ textDecoration: "none" }}>
-            <Button
-              size="sm"
-              style={{
-                borderRadius: "12px",
-                gap: "0.375rem",
-                padding: "0.5rem 1rem",
-              }}
-            >
-              <Plus size={18} strokeWidth={3} />{" "}
-              <span style={{ fontWeight: 700 }}>{t("common.add")}</span>
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={() => document.getElementById("fab-add-transaction")?.click()}
+            style={{
+              borderRadius: "12px",
+              gap: "0.375rem",
+              padding: "0.5rem 1rem",
+            }}
+          >
+            <Plus size={18} strokeWidth={3} />{" "}
+            <span style={{ fontWeight: 700 }}>{t("common.add")}</span>
+          </Button>
         </div>
       </div>
 

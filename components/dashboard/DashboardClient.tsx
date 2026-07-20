@@ -145,7 +145,14 @@ export function DashboardClient() {
         currentMonthStr={currentMonthStr}
       />
 
-      <AiInsights stats={stats} t={t} isPrivateMode={isPrivateMode} />
+      <AiInsights 
+        stats={stats} 
+        t={t} 
+        isPrivateMode={isPrivateMode} 
+        transactions={transactions}
+        budgets={budgets}
+        mataUang={settings.mata_uang || "Rp"}
+      />
 
       <ChartsGrid
         weeklyData={stats.weeklyData}

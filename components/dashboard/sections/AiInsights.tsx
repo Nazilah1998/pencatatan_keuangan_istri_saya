@@ -1,7 +1,10 @@
 "use client";
 import React, { useState, useMemo } from "react";
-import { Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Sparkles, RefreshCw, CheckCircle2, Bot, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
+import { generateFinancialInsights } from "@/app/actions/ai";
+import { Transaction, BudgetEntry } from "@/types";
+import toast from "react-hot-toast";
 
 interface AiInsightsProps {
   stats: {
@@ -17,6 +20,9 @@ interface AiInsightsProps {
   };
   t: (key: string) => string;
   isPrivateMode?: boolean;
+  transactions?: Transaction[];
+  budgets?: BudgetEntry[];
+  mataUang?: string;
 }
 
 // A collection of saving tips that the AI can randomly pick from when the user refreshes
@@ -68,9 +74,10 @@ const GENERAL_SAVING_TIPS = [
   }
 ];
 
-export function AiInsights({ stats, isPrivateMode = false }: AiInsightsProps) {
+export function AiInsights({ stats, isPrivateMode = false, transactions, budgets, mataUang }: AiInsightsProps) {
   const [activeTab, setActiveTab] = useState<"summary" | "category" | "tips">("summary");
   const [isScanning, setIsScanning] = useState(false);
+  const [aiData, setAiData] = useState<{summary: string; alert: string | null; tips: string[]} | null>(null);
   const [randomTipIndex, setRandomTipIndex] = useState(() =>
     Math.floor(Math.random() * GENERAL_SAVING_TIPS.length)
   );
@@ -84,6 +91,27 @@ export function AiInsights({ stats, isPrivateMode = false }: AiInsightsProps) {
       }
     } catch {
       // Ignored
+    }
+  };
+
+  // Fetch real AI insights
+  const fetchRealAiInsights = async () => {
+    if (!transactions || !budgets || !mataUang) return;
+    triggerHaptic();
+    setIsScanning(true);
+    try {
+      const res = await generateFinancialInsights(transactions, budgets, mataUang);
+      if (res.success && res.data) {
+        setAiData(res.data as {summary: string; alert: string | null; tips: string[]});
+        toast.success("Analisis AI berhasil dimuat!");
+      } else {
+        toast.error(res.error || "Gagal memuat AI.");
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error("Terjadi kesalahan sistem AI.");
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -283,7 +311,31 @@ export function AiInsights({ stats, isPrivateMode = false }: AiInsightsProps) {
           </div>
         </div>
 
-        {activeTab === "tips" && (
+        {activeTab === "summary" && !aiData && (
+          <button
+            onClick={fetchRealAiInsights}
+            disabled={isScanning}
+            style={{
+              background: "linear-gradient(135deg, var(--color-primary) 0%, #a855f7 100%)",
+              border: "none",
+              borderRadius: "10px",
+              padding: "0.375rem 0.625rem",
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              color: "white",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              transition: "all 0.2s ease"
+            }}
+          >
+            <Bot size={14} className={isScanning ? "animate-pulse" : ""} />
+            {isScanning ? "Menganalisis..." : "Tanya AI"}
+          </button>
+        )}
+        
+        {activeTab === "tips" && !aiData && (
           <button
             onClick={handleRefreshTip}
             style={{
@@ -390,43 +442,91 @@ export function AiInsights({ stats, isPrivateMode = false }: AiInsightsProps) {
                 {healthAdvice.badge}
               </span>
             </div>
-            <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
-              {healthAdvice.title}
-            </h4>
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
-              {healthAdvice.description}
-            </p>
-            <div
-              style={{
-                background: "var(--color-surface)",
-                border: "1px dashed var(--color-border)",
-                borderRadius: "10px",
-                padding: "0.625rem",
-                marginTop: "0.25rem",
-                display: "flex",
-                gap: "0.5rem",
-                alignItems: "flex-start"
-              }}
-            >
-              <div style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "1px" }}>
-                <CheckCircle2 size={14} />
+            {aiData ? (
+              <div
+                style={{
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-primary)",
+                  borderRadius: "10px",
+                  padding: "0.875rem",
+                  marginTop: "0.25rem",
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "flex-start",
+                  boxShadow: "0 4px 12px rgba(99, 102, 241, 0.05)"
+                }}
+              >
+                <div style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "2px" }}>
+                  <Sparkles size={16} />
+                </div>
+                <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text)", margin: 0, lineHeight: 1.5 }}>
+                  {aiData.summary}
+                </p>
               </div>
-              <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 500, lineHeight: 1.4 }}>
-                <strong>Saran Aksi:</strong> {healthAdvice.actionTip}
-              </span>
-            </div>
+            ) : (
+              <>
+                <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
+                  {healthAdvice.title}
+                </h4>
+                <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
+                  {healthAdvice.description}
+                </p>
+                <div
+                  style={{
+                    background: "var(--color-surface)",
+                    border: "1px dashed var(--color-border)",
+                    borderRadius: "10px",
+                    padding: "0.625rem",
+                    marginTop: "0.25rem",
+                    display: "flex",
+                    gap: "0.5rem",
+                    alignItems: "flex-start"
+                  }}
+                >
+                  <div style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "1px" }}>
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 500, lineHeight: 1.4 }}>
+                    <strong>Saran Aksi:</strong> {healthAdvice.actionTip}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* TAB 2: Category Insights */}
         {activeTab === "category" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
-              {topCategoryAdvice.title}
-            </h4>
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
-              {topCategoryAdvice.description}
-            </p>
+            {aiData && aiData.alert ? (
+              <div
+                style={{
+                  background: "var(--color-warning-bg)",
+                  border: "1px solid var(--color-warning)",
+                  borderRadius: "10px",
+                  padding: "0.875rem",
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "flex-start"
+                }}
+              >
+                <div style={{ color: "var(--color-warning)", flexShrink: 0, marginTop: "2px" }}>
+                  <AlertCircle size={16} />
+                </div>
+                <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text)", margin: 0, lineHeight: 1.5 }}>
+                  {aiData.alert}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
+                  {topCategoryAdvice.title}
+                </h4>
+                <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
+                  {topCategoryAdvice.description}
+                </p>
+              </>
+            )}
             
             {stats.categoryData && stats.categoryData.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.25rem" }}>
@@ -464,85 +564,115 @@ export function AiInsights({ stats, isPrivateMode = false }: AiInsightsProps) {
         {/* TAB 3: AI Hacks Carousel & Checklist */}
         {activeTab === "tips" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
-              💡 {activeTip.title}
-            </h4>
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
-              {activeTip.description}
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.375rem",
-                marginTop: "0.25rem",
-                paddingTop: "0.5rem",
-                borderTop: "1px dashed var(--color-border)"
-              }}
-            >
-              <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase", marginBottom: "0.125rem" }}>
-                Target Aksi Praktis (Checklist)
-              </span>
-              {activeTip.steps.map((step, idx) => {
-                const checked = !!completedSteps[step];
-                return (
+            {aiData && aiData.tips.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {aiData.tips.map((tip, idx) => (
                   <div
                     key={idx}
-                    onClick={() => toggleStep(step)}
                     style={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border-subtle)",
+                      borderRadius: "10px",
+                      padding: "0.875rem",
                       display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.5rem",
-                      padding: "0.35rem 0.5rem",
-                      background: checked ? "rgba(16, 185, 129, 0.04)" : "var(--color-surface)",
-                      border: `1px solid ${checked ? "rgba(16, 185, 129, 0.15)" : "var(--color-border-subtle)"}`,
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease"
+                      gap: "0.75rem",
+                      alignItems: "flex-start"
                     }}
                   >
-                    <div
-                      style={{
-                        width: 14,
-                        height: 14,
-                        borderRadius: "4px",
-                        border: `1px solid ${checked ? "var(--color-income)" : "var(--color-text-faint)"}`,
-                        background: checked ? "var(--color-income)" : "transparent",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                        marginTop: "2px",
-                        transition: "all 0.15s ease"
-                      }}
-                    >
-                      {checked && (
-                        <div
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: "#fff"
-                          }}
-                        />
-                      )}
+                    <div style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "2px" }}>
+                      <CheckCircle2 size={16} />
                     </div>
-                    <span
+                    <p style={{ fontSize: "0.8125rem", fontWeight: 500, color: "var(--color-text)", margin: 0, lineHeight: 1.5 }}>
+                      {tip}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
+                  💡 {activeTip.title}
+                </h4>
+                <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.45 }}>
+                  {activeTip.description}
+                </p>
+              </>
+            )}
+
+            {!aiData && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.375rem",
+                  marginTop: "0.25rem",
+                  paddingTop: "0.5rem",
+                  borderTop: "1px dashed var(--color-border)"
+                }}
+              >
+                <span style={{ fontSize: "0.7rem", color: "var(--color-text-faint)", fontWeight: 700, textTransform: "uppercase", marginBottom: "0.125rem" }}>
+                  Target Aksi Praktis (Checklist)
+                </span>
+                {activeTip.steps.map((step, idx) => {
+                  const checked = !!completedSteps[step];
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => toggleStep(step)}
                       style={{
-                        fontSize: "0.75rem",
-                        color: checked ? "var(--color-text-muted)" : "var(--color-text)",
-                        textDecoration: checked ? "line-through" : "none",
-                        lineHeight: 1.35,
-                        fontWeight: checked ? 500 : 600
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "0.5rem",
+                        padding: "0.35rem 0.5rem",
+                        background: checked ? "rgba(16, 185, 129, 0.04)" : "var(--color-surface)",
+                        border: `1px solid ${checked ? "rgba(16, 185, 129, 0.15)" : "var(--color-border-subtle)"}`,
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease"
                       }}
                     >
-                      {step}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                      <div
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: "4px",
+                          border: `1px solid ${checked ? "var(--color-income)" : "var(--color-text-faint)"}`,
+                          background: checked ? "var(--color-income)" : "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          marginTop: "2px",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        {checked && (
+                          <div
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: "#fff"
+                            }}
+                          />
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          color: checked ? "var(--color-text-muted)" : "var(--color-text)",
+                          textDecoration: checked ? "line-through" : "none",
+                          lineHeight: 1.35,
+                          fontWeight: checked ? 500 : 600
+                        }}
+                      >
+                        {step}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

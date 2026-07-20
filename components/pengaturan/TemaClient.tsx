@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { settingsSchema, SettingsSchema } from "@/lib/validations";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, Palette } from "lucide-react";
+import { ChevronLeft, Palette, Moon, Sun } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -80,6 +80,11 @@ export function TemaClient({ initialSettings }: TemaClientProps) {
   const currentThemeColor = useWatch({
     control,
     name: "tema_warna",
+  });
+
+  const currentModeGelap = useWatch({
+    control,
+    name: "mode_gelap",
   });
 
   // Real-time preview effect
@@ -248,6 +253,48 @@ export function TemaClient({ initialSettings }: TemaClientProps) {
               </div>
             </div>
           </div>
+
+          <div style={{ marginTop: "1rem" }}>
+            <label className="form-label" style={{ marginBottom: "1rem" }}>
+              Mode Tampilan
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
+              {[
+                { id: "light", label: "Terang", icon: <Sun size={20} /> },
+                { id: "dark", label: "Gelap", icon: <Moon size={20} /> },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setValue("mode_gelap", mode.id as "light" | "dark", { shouldDirty: true })}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    padding: "1rem",
+                    borderRadius: "12px",
+                    border: currentModeGelap === mode.id 
+                      ? "2px solid var(--color-primary)" 
+                      : "1px solid var(--color-border-subtle)",
+                    background: currentModeGelap === mode.id 
+                      ? "var(--color-primary-highlight)" 
+                      : "var(--color-surface)",
+                    color: currentModeGelap === mode.id 
+                      ? "var(--color-primary)" 
+                      : "var(--color-text-muted)",
+                    transition: "all 0.2s",
+                    cursor: "pointer",
+                  }}
+                >
+                  {mode.icon}
+                  <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>{mode.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Button type="submit" fullWidth>
             {t("settings.theme.save")}
           </Button>

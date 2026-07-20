@@ -7,6 +7,7 @@ import {
   timestamp,
   jsonb,
   check,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -32,6 +33,7 @@ export const profiles = pgTable("profiles", {
   customWallets: jsonb("custom_wallets"),
   logoUrl: text("logo_url"),
   anggota: jsonb("anggota").default(sql`'[]'::jsonb`),
+  householdId: uuid("household_id"), // Digunakan untuk menyatukan data antar akun (Shared Family Mode)
 });
 
 // ============================================================================
@@ -41,7 +43,7 @@ export const transactions = pgTable(
   "transactions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id"),
+    userId: uuid("user_id").notNull(),
     tanggal: date("tanggal").notNull(),
     jenis: text("jenis"),
     jumlah: numeric("jumlah").notNull(),
@@ -54,6 +56,8 @@ export const transactions = pgTable(
     ),
   },
   (table) => [
+    index("idx_transactions_user_id").on(table.userId),
+    index("idx_transactions_tanggal").on(table.tanggal),
     check(
       "transactions_jenis_check",
       sql`${table.jenis} = ANY (ARRAY['pemasukan'::text, 'pengeluaran'::text])`,
@@ -64,71 +68,96 @@ export const transactions = pgTable(
 // ============================================================================
 // ASSETS TABLE
 // ============================================================================
-export const assets = pgTable("assets", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  nama: text("nama").notNull(),
-  jenis: text("jenis").notNull(),
-  nilai: numeric("nilai").default("0"),
-  tanggalUpdate: date("tanggal_update").default(sql`CURRENT_DATE`),
-  catatan: text("catatan"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(
-    sql`timezone('utc'::text, now())`,
-  ),
-});
+export const assets = pgTable(
+  "assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    nama: text("nama").notNull(),
+    jenis: text("jenis").notNull(),
+    nilai: numeric("nilai").default("0"),
+    tanggalUpdate: date("tanggal_update").default(sql`CURRENT_DATE`),
+    catatan: text("catatan"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(
+      sql`timezone('utc'::text, now())`,
+    ),
+  },
+  (table) => [
+    index("idx_assets_user_id").on(table.userId),
+  ],
+);
 
 // ============================================================================
 // DEBTS TABLE
 // ============================================================================
-export const debts = pgTable("debts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  namaHutang: text("nama_hutang").notNull(),
-  jenis: text("jenis").notNull(),
-  totalAwal: numeric("total_awal").default("0"),
-  sisaHutang: numeric("sisa_hutang").default("0"),
-  cicilanBulanan: numeric("cicilan_bulanan").default("0"),
-  tanggalJatuhTempo: date("tanggal_jatuh_tempo"),
-  catatan: text("catatan"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(
-    sql`timezone('utc'::text, now())`,
-  ),
-});
+export const debts = pgTable(
+  "debts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    namaHutang: text("nama_hutang").notNull(),
+    jenis: text("jenis").notNull(),
+    totalAwal: numeric("total_awal").default("0"),
+    sisaHutang: numeric("sisa_hutang").default("0"),
+    cicilanBulanan: numeric("cicilan_bulanan").default("0"),
+    tanggalJatuhTempo: date("tanggal_jatuh_tempo"),
+    catatan: text("catatan"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(
+      sql`timezone('utc'::text, now())`,
+    ),
+  },
+  (table) => [
+    index("idx_debts_user_id").on(table.userId),
+  ],
+);
 
 // ============================================================================
 // BUDGETS TABLE
 // ============================================================================
-export const budgets = pgTable("budgets", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id"),
-  kategori: text("kategori").notNull(),
-  batasBulanan: numeric("batas_bulanan").notNull(),
-  periode: text("periode"),
-  catatan: text("catatan"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(
-    sql`now()`,
-  ),
-});
+export const budgets = pgTable(
+  "budgets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    kategori: text("kategori").notNull(),
+    batasBulanan: numeric("batas_bulanan").notNull(),
+    periode: text("periode"),
+    catatan: text("catatan"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(
+      sql`now()`,
+    ),
+  },
+  (table) => [
+    index("idx_budgets_user_id").on(table.userId),
+    index("idx_budgets_periode").on(table.periode),
+  ],
+);
 
 // ============================================================================
 // SAVINGS TABLE
 // ============================================================================
-export const savings = pgTable("savings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id"),
-  namaTujuan: text("nama_tujuan").notNull(),
-  targetJumlah: numeric("target_jumlah").notNull(),
-  jumlahTerkumpul: numeric("jumlah_terkumpul").default("0"),
-  targetTanggal: date("target_tanggal"),
-  ikon: text("ikon"),
-  warna: text("warna"),
-  deskripsi: text("deskripsi"),
-  prioritas: text("prioritas"),
-  status: text("status"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(
-    sql`now()`,
-  ),
-});
+export const savings = pgTable(
+  "savings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    namaTujuan: text("nama_tujuan").notNull(),
+    targetJumlah: numeric("target_jumlah").notNull(),
+    jumlahTerkumpul: numeric("jumlah_terkumpul").default("0"),
+    targetTanggal: date("target_tanggal"),
+    ikon: text("ikon"),
+    warna: text("warna"),
+    deskripsi: text("deskripsi"),
+    prioritas: text("prioritas"),
+    status: text("status"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(
+      sql`now()`,
+    ),
+  },
+  (table) => [
+    index("idx_savings_user_id").on(table.userId),
+  ],
+);
 
 // ============================================================================
 // RELATIONS

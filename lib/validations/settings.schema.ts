@@ -29,6 +29,7 @@ export const settingsSchema = z.object({
   nama_panggilan: z.string().optional(),
   nama_rumah_tangga: z.string().min(2, "Nama rumah tangga minimal 2 karakter"),
   tema_warna: z.string().optional(),
+  mode_gelap: z.enum(["light", "dark"]).optional(),
   logo_url: z.string().optional(),
   custom_categories: z.array(customCategorySchema).optional(),
   custom_wallets: z.array(customWalletSchema).optional(),

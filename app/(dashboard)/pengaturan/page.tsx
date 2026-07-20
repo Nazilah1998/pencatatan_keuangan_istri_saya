@@ -1,22 +1,26 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
-  User2,
-  Palette,
-  Languages,
-  CreditCard,
-  Tags,
+  UserCog,
+  Paintbrush,
+  Globe,
+  WalletCards,
+  FolderTree,
   Smartphone,
   ChevronRight,
-  Banknote,
+  Coins,
   Download,
   Upload,
   Trash2,
   Heart,
   X,
+  Lock,
+  Users,
 } from "lucide-react";
 
+import { RestoreModal } from "@/components/pengaturan/RestoreModal";
+import { PinSetupModal } from "@/components/auth/PinSetupModal";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useAppStore } from "@/store/useAppStore";
 import toast from "react-hot-toast";
@@ -38,10 +42,11 @@ interface SettingGroup {
 
 export default function PengaturanPage() {
   const { t } = useTranslation();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetWord, setResetWord] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   const handleExportData = () => {
     try {
@@ -80,49 +85,6 @@ export default function PengaturanPage() {
     }
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (
-          !data ||
-          (!data.transactions && !data.budgets && !data.savings && !data.assets && !data.debts)
-        ) {
-          throw new Error("Format file cadangan tidak valid.");
-        }
-
-        const state = useAppStore.getState();
-        state.setAllData({
-          transactions: data.transactions || [],
-          budgets: data.budgets || [],
-          savings: data.savings || [],
-          assets: data.assets || [],
-          debts: data.debts || [],
-        });
-
-        if (data.settings) {
-          state.setSettings(data.settings);
-        }
-
-        toast.success(
-          t("settings.backup_import_success") || "Data berhasil dipulihkan secara instan!"
-        );
-
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      } catch (err) {
-        console.error("Gagal memulihkan data:", err);
-        toast.error(
-          t("settings.backup_import_failed") ||
-            "Gagal mengimpor file cadangan. Format tidak dikenal atau rusak."
-        );
-      }
-    };
-    reader.readAsText(file);
-  };
 
   const handleResetData = async () => {
     const confirmWord = t("settings.reset_modal_confirm_word");
@@ -158,9 +120,7 @@ export default function PengaturanPage() {
   };
 
   const handleRestoreClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    setIsRestoreModalOpen(true);
   };
 
   const handleItemClick = (id: string) => {
@@ -170,6 +130,8 @@ export default function PengaturanPage() {
       handleRestoreClick();
     } else if (id === "reset") {
       setIsResetModalOpen(true);
+    } else if (id === "pin") {
+      setIsPinModalOpen(true);
     }
   };
 
@@ -182,7 +144,7 @@ export default function PengaturanPage() {
           id: "preferensi",
           title: t("settings.pref_title"),
           description: t("settings.pref_desc"),
-          icon: <User2 size={20} />,
+          icon: <UserCog size={20} />,
           href: "/pengaturan/preferensi",
           color: "#6366f1",
         },
@@ -190,7 +152,7 @@ export default function PengaturanPage() {
           id: "dompet",
           title: t("settings.wallet_title"),
           description: t("settings.wallet_desc"),
-          icon: <CreditCard size={20} />,
+          icon: <WalletCards size={20} />,
           href: "/pengaturan/dompet",
           color: "#f59e0b",
         },
@@ -198,9 +160,17 @@ export default function PengaturanPage() {
           id: "kategori",
           title: t("settings.cat_title"),
           description: t("settings.cat_desc"),
-          icon: <Tags size={20} />,
+          icon: <FolderTree size={20} />,
           href: "/pengaturan/kategori",
           color: "#8b5cf6",
+        },
+        {
+          id: "keluarga",
+          title: "Dompet Keluarga",
+          description: "Gabungkan transaksi dengan pasangan Anda",
+          icon: <Users size={20} />,
+          href: "/pengaturan/keluarga",
+          color: "#ec4899",
         },
       ],
     },
@@ -212,7 +182,7 @@ export default function PengaturanPage() {
           id: "tema",
           title: t("settings.theme_title"),
           description: t("settings.theme_desc"),
-          icon: <Palette size={20} />,
+          icon: <Paintbrush size={20} />,
           href: "/pengaturan/tema",
           color: "#ec4899",
         },
@@ -220,7 +190,7 @@ export default function PengaturanPage() {
           id: "bahasa",
           title: t("settings.lang_title"),
           description: t("settings.lang_desc"),
-          icon: <Languages size={20} />,
+          icon: <Globe size={20} />,
           href: "/pengaturan/bahasa",
           color: "#10b981",
         },
@@ -228,7 +198,7 @@ export default function PengaturanPage() {
           id: "mata-uang",
           title: t("settings.currency_title") || "Mata Uang",
           description: t("settings.currency_desc") || "Sesuaikan mata uang",
-          icon: <Banknote size={20} />,
+          icon: <Coins size={20} />,
           href: "/pengaturan/mata-uang",
           color: "#059669",
         },
@@ -277,19 +247,19 @@ export default function PengaturanPage() {
           href: "/pengaturan/install",
           color: "#0891b2",
         },
+        {
+          id: "pin",
+          title: "Keamanan PIN",
+          description: "Kunci layar aplikasi dengan PIN 4 angka",
+          icon: <Lock size={20} />,
+          color: "#8b5cf6",
+        },
       ],
     },
   ];
 
   return (
     <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: "3rem" }}>
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept=".json"
-        onChange={handleImportFile}
-        style={{ display: "none" }}
-      />
 
       <div style={{ marginBottom: "2rem" }}>
         <h2
@@ -423,18 +393,21 @@ export default function PengaturanPage() {
                   );
                 }
 
+                const isDisabled = isResetting && item.id === "reset";
+
                 return (
                   <button
                     key={item.id}
                     onClick={() => handleItemClick(item.id)}
+                    disabled={isDisabled}
                     style={{
                       background: "none",
                       border: "none",
                       padding: 0,
-                      cursor: "pointer",
                       width: "100%",
                       fontFamily: "inherit",
-                      color: "inherit",
+                      opacity: isDisabled ? 0.5 : 1,
+                      cursor: isDisabled ? "not-allowed" : "pointer",
                     }}
                   >
                     {cardContent}
@@ -674,6 +647,16 @@ export default function PengaturanPage() {
           </div>
         </div>
       )}
+
+      <RestoreModal 
+        isOpen={isRestoreModalOpen} 
+        onClose={() => setIsRestoreModalOpen(false)} 
+      />
+
+      <PinSetupModal 
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+      />
 
       <style jsx>{`
         @keyframes spin {

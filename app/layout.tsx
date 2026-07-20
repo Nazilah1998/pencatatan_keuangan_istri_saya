@@ -48,6 +48,7 @@ export const viewport: Viewport = {
 };
 
 import { DataSyncProvider } from "@/components/providers/DataSyncProvider";
+import { PinLock } from "@/components/auth/PinLock";
 
 export default async function RootLayout({
   children,
@@ -73,7 +74,9 @@ export default async function RootLayout({
           <DataSyncProvider>
             <ThemeProvider />
             <LanguageSyncProvider />
-            <ProfileSyncProvider>{children}</ProfileSyncProvider>
+            <ProfileSyncProvider>
+              <PinLock>{children}</PinLock>
+            </ProfileSyncProvider>
             <Toaster
               position="top-center"
               toastOptions={{

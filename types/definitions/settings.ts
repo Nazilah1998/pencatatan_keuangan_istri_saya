@@ -31,6 +31,7 @@ export interface AppSettings {
   anggota?: string[];
   tema_warna?: string;
   logo_url?: string;
+  mode_gelap?: "system" | "light" | "dark";
   custom_categories: CustomCategory[];
   custom_wallets: CustomWallet[];
 }

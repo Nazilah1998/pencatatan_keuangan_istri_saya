@@ -15,6 +15,20 @@
       "when": 1779037746661,
       "tag": "0001_productive_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784561447835,
+      "tag": "0002_steady_korvac",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784565094115,
+      "tag": "0003_slow_vertigo",
+      "breakpoints": true
     }
   ]
 }

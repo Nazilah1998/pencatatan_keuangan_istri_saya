@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -38,9 +38,7 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Jika belum login, kita biarkan saja (Guest Mode)
-  // User tetap bisa melihat dashboard, tapi fitur tambah data sudah diproteksi di level komponen
-  /*
+  // Redirect ke /login jika user belum login dan mencoba mengakses rute diluar /login atau /auth
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
@@ -50,7 +48,6 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-  */
 
   // Jika sudah login dan mencoba ke halaman login
   if (user && request.nextUrl.pathname.startsWith("/login")) {

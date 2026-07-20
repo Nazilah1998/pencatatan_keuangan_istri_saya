@@ -28,8 +28,8 @@ function adjustColor(hex: string, amount: number) {
 }
 
 export function ThemeProvider() {
-  const tema_warna =
-    useAppStore((state) => state.settings.tema_warna) || "#ff85a2";
+  const tema_warna = useAppStore((state) => state.settings.tema_warna) || "#ff85a2";
+  const mode_gelap = useAppStore((state) => state.settings.mode_gelap) || "light";
 
   useEffect(() => {
     const root = document.documentElement;
@@ -53,6 +53,17 @@ export function ThemeProvider() {
       metaThemeColor.setAttribute("content", tema_warna);
     }
   }, [tema_warna]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (mode_gelap === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    // No more system listener
+  }, [mode_gelap]);
 
   return null;
 }

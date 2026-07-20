@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { PenLine } from "lucide-react";
+import { Plus } from "lucide-react";
 import { TransactionForm } from "@/components/transaksi/TransactionForm";
 import { Modal } from "@/components/ui/Modal";
 
@@ -49,7 +49,7 @@ export function FAB() {
       >
         <div
           style={{
-            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
             transition:
               "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
             display: "flex",
@@ -57,7 +57,7 @@ export function FAB() {
             justifyContent: "center",
           }}
         >
-          <PenLine size={24} strokeWidth={2.5} />
+          <Plus size={26} strokeWidth={2.5} />
         </div>
       </button>
 

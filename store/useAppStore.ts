@@ -15,6 +15,8 @@ interface AppState {
   settings: AppSettings;
   isSidebarOpen: boolean;
   isFABOpen: boolean;
+  pinCode: string | null;
+  isLocked: boolean;
 
   // Cached Data for Offline View
   transactions: Transaction[];
@@ -37,6 +39,8 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   setFABOpen: (open: boolean) => void;
   toggleFAB: () => void;
+  setPinCode: (pin: string | null) => void;
+  setIsLocked: (locked: boolean) => void;
   resetStore: () => void;
   fetchExchangeRates: (force?: boolean) => Promise<void>;
 
@@ -71,6 +75,8 @@ export const useAppStore = create<AppState>()(
       settings: DEFAULT_SETTINGS,
       isSidebarOpen: false,
       isFABOpen: false,
+      pinCode: null,
+      isLocked: false,
 
       // Initial Data
       transactions: [],
@@ -105,6 +111,10 @@ export const useAppStore = create<AppState>()(
       toggleFAB: () => set((state) => ({ isFABOpen: !state.isFABOpen })),
 
       setFABOpen: (open) => set({ isFABOpen: open }),
+
+      setPinCode: (pin) => set({ pinCode: pin, isLocked: pin !== null }),
+      
+      setIsLocked: (locked) => set({ isLocked: locked }),
 
       resetStore: () =>
         set({
@@ -202,12 +212,17 @@ export const useAppStore = create<AppState>()(
         lastSynced: state.lastSynced,
         exchangeRates: state.exchangeRates,
         lastRatesFetch: state.lastRatesFetch,
+        pinCode: state.pinCode,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as object),
-        _lastManualSyncStr: "",
-      }),
+      merge: (persisted, current) => {
+        const p = persisted as AppState;
+        return {
+          ...current,
+          ...p,
+          _lastManualSyncStr: "",
+          isLocked: !!p.pinCode, // Always lock on reload if PIN exists
+        };
+      },
     },
   ),
 );

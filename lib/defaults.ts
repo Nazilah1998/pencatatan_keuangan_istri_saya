@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   nama_rumah_tangga: "Rumah Tangga Saya",
   anggota: [],
   tema_warna: "#ff85a2",
+  mode_gelap: "light",
   custom_categories: INITIAL_CUSTOM_CATEGORIES,
   custom_wallets: INITIAL_CUSTOM_WALLETS,
 };
