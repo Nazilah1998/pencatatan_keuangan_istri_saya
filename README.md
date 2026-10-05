@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# sintya-finance
 
-## Getting Started
+Aplikasi keuangan pribadi & keluarga — **Astro + React Islands** di frontend, **Go Fiber + PocketBase** di backend, satu binary, satu VPS 1 GB.
 
-First, run the development server:
+## Arsitektur
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Browser ──▶ Caddy :443 (TLS otomatis)
+              ├── /*      → static dist/   (Astro, tanpa Node runtime di produksi)
+              ├── /api/v1/* → api:8081     (Go Fiber — reports, export, AI, PIN)
+              └── /api/*, /_/* → api:8080  (PocketBase — REST, Realtime, Admin)
+
+            ╔═══ SATU PROSES GO, DUA LISTENER ═══╗
+            ║  PocketBase di-embed sebagai pustaka ║
+            ║  pb_data/data.db  (SQLite pure-Go)  ║
+            ╚═════════════════════════════════════╝
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+PocketBase **tidak** berjalan sebagai container terpisah — ia di-embed di dalam binary Go
+(`pocketbase.NewWithConfig`), sehingga dua HTTP listener berada dalam satu proses.
+Ini yang memungkinkan `RunInTransaction` untuk menjaga konsistensi saldo wallet.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Struktur
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+sintya-finance/
+├── frontend/     Astro 7 + React 19 Islands  → @sintya/frontend
+├── backend/      Go Fiber v3 + PocketBase v0.40
+├── ops/          docker-compose, Caddyfile, backup.sh, .env.example
+└── docs/         ARCHITECTURE · SCHEMA · MIGRATION · TESTING · DEPLOYMENT
+```
 
-## Learn More
+## Develop
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 1. Siapkan environment backend
+cp ops/.env.example ops/.env    # lalu isi PB_ADMIN_EMAIL & PB_ADMIN_PASSWORD
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 2. Install dependency frontend
+pnpm install
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 3. Terminal A — backend (PocketBase :8080 + Fiber :8081)
+cd backend && go run ./cmd/server
 
-## Deploy on Vercel
+# 4. Terminal B — frontend (:3000)
+pnpm dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| URL | Isi |
+|---|---|
+| http://localhost:3000 | Aplikasi |
+| http://localhost:8081/api/v1/health | Health check backend Go |
+| http://localhost:8080/_/ | Admin UI PocketBase |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Admin UI PocketBase **tidak** diekspos di produksi. Batasi aksesnya ke IP lokal saja (lihat `docs/DEPLOYMENT.md`).
+
+## Build
+
+```bash
+pnpm build              # frontend/dist  (JANGAN di VPS — butuh ~700MB RAM)
+pnpm build:api          # backend/bin/server
+```
+
+Build frontend harus dilakukan di mesin lokal atau CI, **bukan** di VPS 1 GB.
+
+## Test
+
+```bash
+pnpm test               # Go unit + integration test
+pnpm check              # astro check (diagnostik .astro + TSX)
+pnpm lint               # ESLint frontend
+```
+
+## Deploy
+
+```bash
+cp ops/.env.example ops/.env && nano ops/.env   # isi semua
+docker compose -f ops/docker-compose.yml up -d
+```
+
+Detail swap memory, hardening, backup cron, dan SSL ada di **`docs/DEPLOYMENT.md`**.
+
+## Dokumentasi
+
+| File | Isi |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Keputusan desain, batas layer, model tenancy |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | Definisi 9 koleksi PocketBase + API rules + indeks |
+| [`docs/MIGRATION.md`](docs/MIGRATION.md) | Peta Next.js/Drizzle → Astro/Go/PocketBase |
+| [`docs/TESTING.md`](docs/TESTING.md) | Checklist QA manual + otomatis |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Setup VPS 1 GB dari nol |

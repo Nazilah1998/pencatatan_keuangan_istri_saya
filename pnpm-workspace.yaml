@@ -1,0 +1,11 @@
+packages:
+  - frontend
+
+# esbuild hanya membutuhkan postinstall untuk mendownload binary platform-nya.
+allowBuilds:
+  esbuild: true
+
+# Rilis baru diperbolehkan seketika agar dependensi utama tidak tertahan
+# oleh age gate pnpm.
+minimumReleaseAgeExclude:
+  - lucide-react@1.52.0

@@ -1,0 +1,226 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/plus-jakarta-sans';
+
+/*
+ * Seluruh warna, radius, dan bayangan didefinisikan satu kali di sini.
+ * Komponen hanya boleh memakai nama token (mis. var(--color-surface)) dan
+ * NEVER menulis literal hex, supaya mode gelap konsisten di seluruh aplikasi.
+ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+
+  --color-base-950: oklch(0.16 0.024 264);
+  --color-base-900: oklch(0.2 0.028 264);
+  --color-base-800: oklch(0.26 0.03 264);
+  --color-base-700: oklch(0.34 0.03 264);
+  --color-base-600: oklch(0.46 0.026 264);
+  --color-base-500: oklch(0.58 0.022 264);
+  --color-base-400: oklch(0.7 0.018 264);
+  --color-base-300: oklch(0.82 0.014 264);
+  --color-base-200: oklch(0.9 0.01 264);
+  --color-base-100: oklch(0.96 0.008 264);
+  --color-base-50: oklch(0.99 0.004 264);
+
+  --color-brand-500: oklch(0.68 0.16 172);
+  --color-brand-400: oklch(0.76 0.14 172);
+  --color-brand-600: oklch(0.58 0.15 172);
+
+  --color-accent-500: oklch(0.72 0.15 62);
+  --color-accent-400: oklch(0.8 0.13 62);
+
+  --color-danger-500: oklch(0.62 0.19 22);
+  --color-danger-400: oklch(0.71 0.17 22);
+
+  --radius-card: 1.25rem;
+  --radius-tile: 0.875rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+
+    --surface-base: var(--color-base-950);
+    --surface-raised: var(--color-base-900);
+    --surface-overlay: var(--color-base-800);
+    --surface-sunken: oklch(0.13 0.02 264);
+
+    --line-subtle: oklch(0.28 0.028 264 / 0.9);
+    --line-strong: oklch(0.4 0.03 264);
+
+    --text-primary: var(--color-base-50);
+    --text-secondary: var(--color-base-300);
+    --text-muted: var(--color-base-500);
+    --text-inverted: var(--color-base-950);
+
+    --accent: var(--color-brand-500);
+    --accent-soft: oklch(0.68 0.16 172 / 0.16);
+    --warning: var(--color-accent-500);
+    --warning-soft: oklch(0.72 0.15 62 / 0.16);
+    --negative: var(--color-danger-500);
+    --negative-soft: oklch(0.62 0.19 22 / 0.16);
+
+    --shadow-tile: 0 1px 2px oklch(0 0 0 / 0.24);
+    --shadow-card: 0 12px 32px -12px oklch(0 0 0 / 0.5);
+    --shadow-pop: 0 24px 60px -18px oklch(0 0 0 / 0.65);
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+
+    --surface-base: var(--color-base-50);
+    --surface-raised: oklch(1 0 0);
+    --surface-overlay: oklch(0.985 0.004 264);
+    --surface-sunken: var(--color-base-100);
+
+    --line-subtle: oklch(0.9 0.01 264);
+    --line-strong: oklch(0.78 0.016 264);
+
+    --text-primary: var(--color-base-900);
+    --text-secondary: var(--color-base-700);
+    --text-muted: var(--color-base-600);
+    --text-inverted: var(--color-base-50);
+
+    --accent: var(--color-brand-600);
+    --accent-soft: oklch(0.58 0.15 172 / 0.12);
+    --warning: oklch(0.66 0.15 52);
+    --warning-soft: oklch(0.66 0.15 52 / 0.14);
+    --negative: oklch(0.55 0.2 22);
+    --negative-soft: oklch(0.55 0.2 22 / 0.12);
+
+    --shadow-tile: 0 1px 2px oklch(0.3 0.02 264 / 0.08);
+    --shadow-card: 0 10px 28px -14px oklch(0.3 0.02 264 / 0.24);
+    --shadow-pop: 0 24px 56px -20px oklch(0.3 0.02 264 / 0.32);
+  }
+
+  * {
+    border-color: var(--line-subtle);
+  }
+
+  html {
+    background-color: var(--surface-base);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Angka rupiah memakai tabular figures supaya kolom mudah dibandingkan. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--line-strong);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .tile {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line-subtle);
+    border-radius: var(--radius-tile);
+    box-shadow: var(--shadow-tile);
+  }
+
+  .card {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .pop {
+    background-color: var(--surface-overlay);
+    border: 1px solid var(--line-subtle);
+    border-radius: var(--radius-tile);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--surface-raised) 0%,
+      var(--surface-overlay) 50%,
+      var(--surface-raised) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

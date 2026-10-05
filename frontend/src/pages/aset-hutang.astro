@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { AssetsScreen } from '../components/assets/AssetsScreen'
+---
+
+<AppLayout title="Aset &amp; Hutang" description="Pantau kekayaan bersih dan kewajiban keluarga.">
+  <AssetsScreen client:visible />
+</AppLayout>

@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { ReportsScreen } from '../components/reports/ReportsScreen'
+---
+
+<AppLayout title="Laporan" description="Analisis arus kas dan pengeluaran keluarga.">
+  <ReportsScreen client:visible />
+</AppLayout>

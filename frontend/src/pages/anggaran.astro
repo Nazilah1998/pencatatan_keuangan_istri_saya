@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { BudgetScreen } from '../components/budget/BudgetScreen'
+---
+
+<AppLayout title="Anggaran" description="Pantau dan batasi pengeluaran per kategori.">
+  <BudgetScreen client:visible />
+</AppLayout>

@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { SettingsScreen } from '../components/settings/SettingsScreen'
+---
+
+<AppLayout
+  title="Pengaturan"
+  description="Kelola rumah tangga, tampilan, bahasa, dan data aplikasi."
+>
+  <SettingsScreen client:visible />
+</AppLayout>

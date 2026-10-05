@@ -1,0 +1,14 @@
+---
+import AuthLayout from '../layouts/AuthLayout.astro'
+
+import { AuthForm } from '../components/auth/AuthForm'
+import { RedirectIfAuthed } from '../components/auth/RedirectIfAuthed'
+---
+
+<AuthLayout
+  title="Masuk · Sintya Finance"
+  description="Masuk untuk melanjutkan catatan keuangan rumah tangga Anda."
+>
+  <RedirectIfAuthed client:load />
+  <AuthForm client:load mode="login" />
+</AuthLayout>

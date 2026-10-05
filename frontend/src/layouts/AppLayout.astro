@@ -1,0 +1,50 @@
+---
+/**
+ * Layout untuk halaman yang butuh sesi.
+ *
+ * Seluruh struktur grid ditulis di sini sehingga konten halaman tetap HTML
+ * statis. Astro meng-hidrate setiap island sebagai root terpisah, jadi state
+ * global dibagikan lewat nanostores (lihat `lib/state/app.ts`), bukan context.
+ *
+ * Direktif hidrasi dipilih yang paling murah untuk tiap island: sidebar dan
+ * bottom nav butuh session + pathname (`client:load`), tombol tema cukup
+ * `client:idle`.
+ */
+import BaseLayout from './BaseLayout.astro'
+
+import { BottomNav } from '../components/layout/BottomNav'
+import { SessionGate } from '../components/layout/SessionGate'
+import { SideNav } from '../components/layout/SideNav'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
+
+type Props = {
+  title: string
+  description?: string
+}
+
+const { title, description } = Astro.props
+---
+
+<BaseLayout title={title} description={description}>
+  <SessionGate client:load />
+
+  <div class="mx-auto flex w-full max-w-6xl gap-6 px-4 sm:px-6">
+    <SideNav client:load />
+
+    <div class="min-w-0 flex-1 pb-24 lg:pb-10">
+      <header
+        class="safe-top sticky top-0 z-10 mb-5 flex items-center justify-between gap-3 border-b border-[var(--line-subtle)] bg-[var(--surface-base)]/90 py-3 backdrop-blur"
+      >
+        <h1 class="font-display text-lg font-semibold sm:text-xl">{title}</h1>
+        <div class="flex items-center gap-2">
+          <slot name="action" />
+          <ThemeToggle client:idle />
+        </div>
+      </header>
+
+      <slot />
+    </div>
+  </div>
+
+  <BottomNav client:load />
+</BaseLayout>

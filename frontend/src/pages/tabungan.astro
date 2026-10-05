@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { SavingsScreen } from '../components/savings/SavingsScreen'
+---
+
+<AppLayout title="Tabungan" description="Kelola dana cadangan dan target impian.">
+  <SavingsScreen client:visible />
+</AppLayout>

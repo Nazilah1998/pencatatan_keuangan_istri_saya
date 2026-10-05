@@ -1,0 +1,9 @@
+---
+import AppLayout from '../layouts/AppLayout.astro'
+
+import { TransactionsScreen } from '../components/transactions/TransactionsScreen'
+---
+
+<AppLayout title="Transaksi" description="Riwayat arus kas masuk dan keluar keluarga.">
+  <TransactionsScreen client:visible />
+</AppLayout>

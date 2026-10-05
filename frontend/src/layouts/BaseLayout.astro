@@ -1,0 +1,63 @@
+---
+/**
+ * Layout dasar untuk seluruh halaman statis.
+ *
+ * Tidak ada fetch ke server pada build time. Data pengguna dimuat oleh island
+ * React di dalam `<slot />` setelah halaman sampai di browser.
+ */
+import '../styles/global.css'
+
+import { PUBLIC_APP_NAME } from '../lib/config/public'
+
+type Props = {
+  title: string
+  description?: string
+  themeColor?: string
+  lang?: string
+}
+
+const {
+  title,
+  description = 'Catatan keuangan rumah tangga: transaksi, anggaran, tabungan, aset, dan hutang.',
+  themeColor = '#0b1020',
+  lang = 'id',
+} = Astro.props
+---
+
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content={themeColor} />
+    <meta name="description" content={description} />
+    <meta name="application-name" content={PUBLIC_APP_NAME} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={PUBLIC_APP_NAME} />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="mask-icon" href="/icons/icon-192.png" color="#0b1020" />
+
+    <title>{title}</title>
+  </head>
+
+  <body>
+    <slot />
+
+    <script>
+      // Registrasi service worker setelah halaman selesai dimuat agar tidak
+      // hinderingi First Contentful Paint di koneksi lambat.
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // PWA bersifat opsional; aplikasi tetap berfungsi tanpanya.
+          })
+        })
+      }
+    </script>
+  </body>
+</html>
