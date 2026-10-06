@@ -18,7 +18,7 @@ RUN pnpm --filter @sintya/frontend build
 FROM caddy:alpine
 
 RUN apk add --no-cache ca-certificates tzdata curl bash \
-    && curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.alpine.sh' | bash \
+    && curl -1sLf 'https://artifacts-cli.infisical.com/setup.apk.sh' | bash \
     && apk add --no-cache infisical
 
 COPY Caddyfile /etc/caddy/Caddyfile
