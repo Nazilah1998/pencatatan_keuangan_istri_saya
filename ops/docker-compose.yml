@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: sintya-finance:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - INFISICAL_API_URL=${INFISICAL_API_URL:-https://app.infisical.com/api}
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENV=${INFISICAL_ENV:-prod}
+      - INFISICAL_SECRET_PATH=${INFISICAL_SECRET_PATH:-/Sintya-Finance}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

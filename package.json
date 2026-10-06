@@ -13,6 +13,7 @@
     "dev:frontend": "pnpm --filter @sintya/frontend dev",
     "dev:backend": "node scripts/dev-api.mjs",
     "sync:schema": "node scripts/sync-schema.mjs",
+    "setup:remote-pb": "node scripts/setup-remote-pb.mjs",
     "build": "pnpm --filter @sintya/frontend build",
     "build:api": "cd backend && go build -trimpath -ldflags=\"-s -w\" -o bin/server ./cmd/server",
     "lint": "pnpm --filter @sintya/frontend lint",
