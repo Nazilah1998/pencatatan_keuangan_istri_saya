@@ -87,10 +87,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     try {
       if (PUBLIC_TURNSTILE_SITE_KEY && turnstileToken) {
-        await api.post(ApiPaths.turnstileVerify, {
-          token: turnstileToken,
-          action: isRegister ? 'signup' : 'login',
-        })
+        try {
+          await api.post(ApiPaths.turnstileVerify, {
+            token: turnstileToken,
+            action: isRegister ? 'signup' : 'login',
+          })
+        } catch (turnstileErr) {
+          if (!(turnstileErr instanceof ApiError && turnstileErr.status === 404)) {
+            throw turnstileErr
+          }
+        }
       }
 
       const auth = isRegister
@@ -271,6 +277,9 @@ function describeError(err: unknown, m: TranslateMessage): string {
 
   if (status === 400 || /invalid credentials|failed to authenticate/i.test(detail)) {
     return m('auth.invalidCredentials')
+  }
+  if (status === 429) {
+    return 'Terlalu banyak percobaan masuk. Silakan tunggu beberapa saat.'
   }
   if (status === 0 || /fetch failed|networkerror|load failed/i.test(detail)) {
     return m('auth.networkError')
