@@ -194,6 +194,20 @@ func CORS(allowed []string) fiber.Handler {
 	}
 }
 
+func clientIP(c fiber.Ctx) string {
+	if cf := c.Get("CF-Connecting-IP"); cf != "" {
+		return cf
+	}
+	if xff := c.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	if xri := c.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+	return c.IP()
+}
+
 // RateLimit membatasi jumlah request per menit per IP dengan fixed window.
 func RateLimit(perMinute int) fiber.Handler {
 	if perMinute <= 0 {
@@ -209,7 +223,11 @@ func RateLimit(perMinute int) fiber.Handler {
 	hits := make(map[string]window)
 
 	return func(c fiber.Ctx) error {
-		key := c.IP()
+		if c.Method() == fiber.MethodOptions {
+			return c.Next()
+		}
+
+		key := clientIP(c)
 		now := time.Now()
 
 		mu.Lock()

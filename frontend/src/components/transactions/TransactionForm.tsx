@@ -31,6 +31,7 @@ import { todayISO } from '../../lib/utils/date'
 import { useApp } from '../providers/useApp'
 import { ModernDatePicker } from '../ui/ModernDatePicker'
 import { ModernSelect } from '../ui/ModernSelect'
+import { confirmDelete } from '../../lib/state/confirm'
 
 type Props = {
   editing?: Transaction | null
@@ -227,7 +228,8 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
   async function remove() {
     if (!editing) return
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Transaksi?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     setSaving(true)
 

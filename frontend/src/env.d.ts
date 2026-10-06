@@ -11,6 +11,7 @@ declare global {
     readonly PUBLIC_API_BASE: string
     readonly PUBLIC_APP_NAME: string
     readonly PUBLIC_DEFAULT_LANG: string
+    readonly PUBLIC_TURNSTILE_SITE_KEY?: string
   }
 
   interface ImportMeta {

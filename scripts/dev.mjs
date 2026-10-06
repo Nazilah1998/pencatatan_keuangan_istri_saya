@@ -16,6 +16,14 @@ try {
   for (const [key, value] of Object.entries(secrets)) {
     process.env[key] = value
   }
+
+  const fs = await import('node:fs/promises')
+  const publicSecrets = Object.fromEntries(
+    Object.entries(secrets).filter(([k]) => k.startsWith('PUBLIC_'))
+  )
+  const envConfigContent = `// Injected dynamically by scripts/dev.mjs from Infisical Cloud\nwindow.__PUBLIC_ENV__ = ${JSON.stringify(publicSecrets, null, 2)};\n`
+  await fs.writeFile(resolve(root, 'frontend/public/env-config.js'), envConfigContent)
+  console.log(`📡 Injected ${Object.keys(publicSecrets).length} public variables to frontend/public/env-config.js`)
 } catch (err) {
   console.warn(`⚠️ Gagal memuat dari Infisical Cloud (${err.message}). Menggunakan process.env lokal jika tersedia.`)
 }

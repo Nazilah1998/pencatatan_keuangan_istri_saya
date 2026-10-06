@@ -28,6 +28,7 @@ import { Card, Skeleton } from '../ui/Card'
 import { Modal } from '../ui/Modal'
 import { ModernDatePicker } from '../ui/ModernDatePicker'
 import { ModernSelect } from '../ui/ModernSelect'
+import { confirmDelete } from '../../lib/state/confirm'
 
 type GoalForm = {
   name: string
@@ -177,7 +178,8 @@ export function SavingsScreen() {
   }
 
   async function removeGoal(goal: SavingsGoal) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Target Tabungan?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     setSaving(true)
 

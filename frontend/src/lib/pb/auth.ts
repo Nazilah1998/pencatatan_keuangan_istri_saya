@@ -14,7 +14,7 @@ export type RegisterInput = {
   email: string
   password: string
   name: string
-  householdName: string
+  householdName?: string
 }
 
 /**
@@ -129,11 +129,11 @@ export async function register(input: RegisterInput): Promise<RecordAuthResponse
     password: input.password,
     passwordConfirm: input.password,
     name: input.name.trim(),
-    household_name: input.householdName.trim(),
   })
 
   const auth = await pb.collection('users').authWithPassword(input.email.trim(), input.password)
-  return ensureHousehold(pb, auth, input.householdName)
+  const householdName = input.householdName?.trim() || (input.name.trim() ? `Keluarga ${input.name.trim()}` : 'Rumah Tangga')
+  return ensureHousehold(pb, auth, householdName)
 }
 
 export async function login(email: string, password: string): Promise<RecordAuthResponse> {

@@ -102,6 +102,7 @@ export const ApiPaths = {
   pinStatus: '/auth/pin',
   pinSet: '/auth/pin',
   pinVerify: '/auth/pin/verify',
+  turnstileVerify: '/auth/turnstile/verify',
   insights: '/ai/insights',
   restore: '/restore',
   exportAll: '/export',

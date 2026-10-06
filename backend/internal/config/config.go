@@ -28,6 +28,9 @@ type Config struct {
 	RateLimitPerMin int
 	SiteDomain      string
 
+	TurnstileSecret    string
+	TurnstileHostnames []string
+
 	Dev bool
 }
 
@@ -85,6 +88,9 @@ func Load() *Config {
 
 		RateLimitPerMin: envInt("RATE_LIMIT_PER_MIN", 120),
 		SiteDomain:      os.Getenv("SITE_DOMAIN"),
+
+		TurnstileSecret:    os.Getenv("TURNSTILE_SECRET"),
+		TurnstileHostnames: splitCSV(os.Getenv("TURNSTILE_HOSTNAMES")),
 
 		Dev: env("APP_ENV", "development") == "development",
 	}

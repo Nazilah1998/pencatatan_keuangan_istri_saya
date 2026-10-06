@@ -5,12 +5,14 @@
  * di backend yang membuat household, menyemai kategori, dan membuat dompet
  * bawaan. Komponen ini tidak boleh memuat logika bisnis apa pun.
  */
-import { useState, type ChangeEvent, type SyntheticEvent } from 'react'
+import { useState, useRef, useCallback, type ChangeEvent, type SyntheticEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
 import { api, ApiPaths, ApiError } from '../../lib/api/client'
 import { AuthStore } from '../../lib/pb/authStore'
 import { login, loginWithGoogle, register } from '../../lib/pb/auth'
+import { PUBLIC_TURNSTILE_SITE_KEY } from '../../lib/config/public'
+import { TurnstileWidget, type TurnstileWidgetHandle } from './TurnstileWidget'
 import { useApp } from '../providers/useApp'
 import type { TranslateMessage } from '../../lib/utils/messages'
 import { AuthCard } from '../ui/AuthCard'
@@ -49,25 +51,53 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
-  const [household, setHousehold] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
 
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const isRegister = mode === 'register'
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token)
+    setError('')
+  }, [])
+
+  const handleTurnstileError = useCallback(() => {
+    setTurnstileToken('')
+    setError('Verifikasi keamanan Turnstile gagal dimuat. Coba refresh halaman.')
+  }, [])
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken('')
+    turnstileRef.current?.reset()
+  }, [])
 
   async function onSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+
+    if (PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError('Silakan selesaikan verifikasi keamanan Turnstile terlebih dahulu.')
+      return
+    }
+
     setBusy(true)
 
     try {
+      if (PUBLIC_TURNSTILE_SITE_KEY && turnstileToken) {
+        await api.post(ApiPaths.turnstileVerify, {
+          token: turnstileToken,
+          action: isRegister ? 'signup' : 'login',
+        })
+      }
+
       const auth = isRegister
         ? await register({
             email,
             password,
             name,
-            householdName: household,
           })
         : await login(email, password)
 
@@ -85,6 +115,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     } catch (err) {
       setError(describeError(err, m))
       setBusy(false)
+      setTurnstileToken('')
+      turnstileRef.current?.reset()
     }
   }
 
@@ -130,22 +162,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {isRegister && (
-          <>
-            <Input
-              label={t('auth.name')}
-              value={name}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)}
-              autoComplete="name"
-              required
-            />
-            <Input
-              label={t('auth.household')}
-              value={household}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setHousehold(e.currentTarget.value)}
-              placeholder="Keluarga Sintya"
-              required
-            />
-          </>
+          <Input
+            label={t('auth.name')}
+            value={name}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)}
+            autoComplete="name"
+            placeholder="Nama Anda"
+            required
+          />
         )}
 
         <Input
@@ -186,6 +210,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
           }
         />
 
+        {PUBLIC_TURNSTILE_SITE_KEY && (
+          <TurnstileWidget
+            ref={turnstileRef}
+            action={isRegister ? 'signup' : 'login'}
+            onVerify={handleTurnstileVerify}
+            onError={handleTurnstileError}
+            onExpire={handleTurnstileExpire}
+          />
+        )}
+
         {error && (
           <div
             role="alert"
@@ -200,7 +234,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           size="lg"
           block
           loading={busy}
-          disabled={googleBusy}
+          disabled={googleBusy || Boolean(PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken)}
           className="h-12 rounded-xl font-semibold shadow-md hover:shadow-[0_4px_20px_var(--accent-soft)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 cursor-pointer"
         >
           {isRegister ? t('auth.register') : t('auth.sign_in')}

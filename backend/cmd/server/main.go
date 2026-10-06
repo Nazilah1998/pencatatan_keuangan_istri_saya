@@ -125,8 +125,8 @@ func buildAPI(cfg *config.Config, pbApp core.App) *fiber.App {
 	})
 
 	app.Use(middleware.RequestLogger())
-	app.Use(middleware.RateLimit(cfg.RateLimitPerMin))
 	app.Use(middleware.CORS(cfg.CORSOrigin))
+	app.Use(middleware.RateLimit(cfg.RateLimitPerMin))
 
 	app.Get(apiPrefix+"/health", func(c fiber.Ctx) error {
 		return apierr.OK(c, fiber.Map{
@@ -136,6 +136,9 @@ func buildAPI(cfg *config.Config, pbApp core.App) *fiber.App {
 			"time":    time.Now().UTC().Format(time.RFC3339),
 		})
 	})
+
+	turnstile := handlers.NewTurnstile(cfg)
+	app.Post(apiPrefix+"/auth/turnstile/verify", turnstile.Verify)
 
 	guard := middleware.AuthGuard(pbApp)
 

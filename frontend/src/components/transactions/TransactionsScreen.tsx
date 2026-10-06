@@ -33,6 +33,7 @@ import { Button } from '../ui/Button'
 import { Card, Skeleton } from '../ui/Card'
 import { Modal } from '../ui/Modal'
 import { TransactionForm } from './TransactionForm'
+import { confirmDelete } from '../../lib/state/confirm'
 
 type Filter = TxType | 'all'
 
@@ -424,7 +425,8 @@ export function TransactionsScreen() {
   }, [filtered])
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Transaksi?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     try {
       await TxRepo.remove(id)

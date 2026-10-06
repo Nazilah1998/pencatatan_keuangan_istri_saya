@@ -32,13 +32,15 @@ PB_URL="${PUBLIC_PB_URL:-https://db-sintya.nazilah.id}"
 API_BASE="${PUBLIC_API_BASE:-https://db-sintya.nazilah.id/api/v1}"
 APP_NAME="${PUBLIC_APP_NAME:-Sintya Finance}"
 DEFAULT_LANG="${PUBLIC_DEFAULT_LANG:-id}"
+TURNSTILE_SITE_KEY="${PUBLIC_TURNSTILE_SITE_KEY}"
 
 cat <<EOF > /usr/share/caddy/env-config.js
 window.__PUBLIC_ENV__ = {
   PUBLIC_PB_URL: "${PB_URL}",
   PUBLIC_API_BASE: "${API_BASE}",
   PUBLIC_APP_NAME: "${APP_NAME}",
-  PUBLIC_DEFAULT_LANG: "${DEFAULT_LANG}"
+  PUBLIC_DEFAULT_LANG: "${DEFAULT_LANG}",
+  PUBLIC_TURNSTILE_SITE_KEY: "${TURNSTILE_SITE_KEY}"
 };
 EOF
 

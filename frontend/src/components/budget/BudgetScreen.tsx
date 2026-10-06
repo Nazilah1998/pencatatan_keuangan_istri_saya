@@ -29,6 +29,7 @@ import { useApp } from '../providers/useApp'
 import { Button } from '../ui/Button'
 import { Card, Skeleton } from '../ui/Card'
 import { Modal } from '../ui/Modal'
+import { confirmDelete } from '../../lib/state/confirm'
 import { ModernSelect } from '../ui/ModernSelect'
 
 type FormState = { category: string; amount: string; notes: string }
@@ -190,7 +191,8 @@ export function BudgetScreen() {
   }
 
   async function remove(budget: Budget) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Pos Anggaran?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     setSaving(true)
 

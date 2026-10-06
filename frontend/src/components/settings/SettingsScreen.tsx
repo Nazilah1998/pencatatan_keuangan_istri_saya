@@ -39,6 +39,7 @@ import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Input } from '../ui/Field'
 import { ModernSelect } from '../ui/ModernSelect'
+import { confirmAction, confirmDelete } from '../../lib/state/confirm'
 
 type CategoryKind = 'income' | 'expense'
 type SettingSubMenu =
@@ -149,7 +150,8 @@ export function SettingsScreen() {
   }
 
   async function removeCategory(category: Category) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Kategori?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     await run(async () => {
       await CategoryRepo.remove(category.id)
@@ -213,7 +215,14 @@ export function SettingsScreen() {
       return
     }
 
-    if (!window.confirm('Hapus proteksi PIN keamanan dari aplikasi?')) return
+    const ok = await confirmAction({
+      title: 'Hapus PIN Keamanan?',
+      message: 'Proteksi PIN keamanan akan dinonaktifkan dari aplikasi ini.',
+      confirmText: 'Hapus PIN',
+      cancelText: 'Batal',
+      variant: 'warning',
+    })
+    if (!ok) return
 
     setPinBusy(true)
     setError('')
@@ -348,8 +357,15 @@ export function SettingsScreen() {
             <div className="pt-3">
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(m('auth.signOut'))) signOut()
+                onClick={async () => {
+                  const ok = await confirmAction({
+                    title: 'Keluar dari Akun?',
+                    message: 'Anda akan mengakhiri sesi masuk pada perangkat ini.',
+                    confirmText: 'Keluar',
+                    cancelText: 'Batal',
+                    variant: 'warning',
+                  })
+                  if (ok) signOut()
                 }}
                 className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-[var(--negative)]/25 bg-[var(--negative-soft)] py-3.5 px-4 text-xs font-bold text-[var(--negative)] shadow-2xs transition-all hover:bg-[var(--negative)]/15 active:scale-[0.99]"
               >

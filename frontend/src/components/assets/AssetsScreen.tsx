@@ -37,6 +37,7 @@ import { Input } from '../ui/Field'
 import { Modal } from '../ui/Modal'
 import { ModernDatePicker } from '../ui/ModernDatePicker'
 import { ModernSelect } from '../ui/ModernSelect'
+import { confirmDelete } from '../../lib/state/confirm'
 
 type Tab = 'assets' | 'debts'
 
@@ -387,7 +388,8 @@ export function AssetsScreen() {
   }
 
   async function removeWallet(wallet: WalletItem) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Akun / Dompet?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     setSaving(true)
 
@@ -402,7 +404,8 @@ export function AssetsScreen() {
   }
 
   async function removeDebt(debt: Debt) {
-    if (!window.confirm(t('common.delete_confirm_desc'))) return
+    const ok = await confirmDelete('Hapus Catatan Hutang / Piutang?', t('common.delete_confirm_desc'))
+    if (!ok) return
 
     setSaving(true)
 
