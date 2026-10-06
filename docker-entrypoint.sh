@@ -43,6 +43,6 @@ window.__PUBLIC_ENV__ = {
 EOF
 
 echo "Configured runtime /usr/share/caddy/env-config.js"
-echo "Starting Caddy on port ${PORT:-8080}..."
+echo "Starting Caddy on port ${PORT:-3000}..."
 
 exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile

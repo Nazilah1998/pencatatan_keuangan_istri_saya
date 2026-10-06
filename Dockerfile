@@ -27,6 +27,6 @@ COPY --from=builder /app/frontend/dist /usr/share/caddy
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 3000
 
 ENTRYPOINT ["docker-entrypoint.sh"]
