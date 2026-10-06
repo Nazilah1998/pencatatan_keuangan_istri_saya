@@ -27,17 +27,17 @@ const THEME_KEY = 'sintya.theme'
 
 export const $session = atom<Session>(null)
 export const $ready = atom(false)
-export const $theme = atom<Theme>('dark')
+export const $theme = atom<Theme>('light')
 export const $lang = atom<LangCode>(PUBLIC_DEFAULT_LANG as LangCode)
 export const $dict = atom<Dictionary | null>(null)
 
 function readStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
+  if (typeof window === 'undefined') return 'light'
 
   const stored = window.localStorage.getItem(THEME_KEY)
   if (stored === 'dark' || stored === 'light') return stored
 
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return 'light'
 }
 
 function applyTheme(theme: Theme) {

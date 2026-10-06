@@ -22,6 +22,10 @@ let instance: PocketBase | null = null
 export function initPB(): PocketBase {
   if (instance) return instance
 
+  if (!PUBLIC_PB_URL) {
+    throw new Error('PUBLIC_PB_URL belum disetel di .env')
+  }
+
   instance = new PocketBase(PUBLIC_PB_URL)
   instance.autoCancellation(false)
 

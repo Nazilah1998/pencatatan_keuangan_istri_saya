@@ -33,6 +33,7 @@ export default defineConfig({
   },
   integrations: [react()],
   vite: {
+    envDir: '..',
     plugins: [tailwindcss()],
   },
 })

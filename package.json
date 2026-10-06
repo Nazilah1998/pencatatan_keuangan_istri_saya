@@ -7,8 +7,12 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @sintya/frontend dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "pnpm --filter @sintya/frontend dev",
     "dev:api": "node scripts/dev-api.mjs",
+    "dev:frontend": "pnpm --filter @sintya/frontend dev",
+    "dev:backend": "node scripts/dev-api.mjs",
+    "sync:schema": "node scripts/sync-schema.mjs",
     "build": "pnpm --filter @sintya/frontend build",
     "build:api": "cd backend && go build -trimpath -ldflags=\"-s -w\" -o bin/server ./cmd/server",
     "lint": "pnpm --filter @sintya/frontend lint",
@@ -16,5 +20,8 @@
     "test": "cd backend && go test ./...",
     "check": "pnpm --filter @sintya/frontend check",
     "cap:sync": "pnpm --filter @sintya/frontend cap:sync"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

@@ -42,18 +42,26 @@ type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & {
   label?: ReactNode
   hint?: ReactNode
   error?: ReactNode
+  rightSlot?: ReactNode
 }
 
-export function Input({ label, hint, error, className, ...rest }: InputProps) {
+export function Input({ label, hint, error, rightSlot, className, ...rest }: InputProps) {
   const id = useId()
   return (
     <FieldShell label={label} hint={hint} error={error} id={id}>
-      <input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        className={cn(FIELD, 'tnum', className)}
-        {...rest}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          aria-invalid={error ? true : undefined}
+          className={cn(FIELD, 'tnum', rightSlot ? 'pr-11' : '', className)}
+          {...rest}
+        />
+        {rightSlot && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+            {rightSlot}
+          </div>
+        )}
+      </div>
     </FieldShell>
   )
 }

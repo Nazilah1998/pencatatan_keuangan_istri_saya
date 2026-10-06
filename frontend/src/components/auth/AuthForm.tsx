@@ -6,6 +6,7 @@
  * bawaan. Komponen ini tidak boleh memuat logika bisnis apa pun.
  */
 import { useState, type ChangeEvent, type SyntheticEvent } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { api, ApiPaths, ApiError } from '../../lib/api/client'
 import { AuthStore } from '../../lib/pb/authStore'
@@ -23,6 +24,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
   const [household, setHousehold] = useState('')
   const [error, setError] = useState('')
@@ -112,12 +114,28 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         <Input
           label={t('auth.password')}
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.currentTarget.value)}
           autoComplete={isRegister ? 'new-password' : 'current-password'}
           minLength={8}
           required
+          rightSlot={
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+              title={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+              className="grid size-8 place-items-center rounded-md text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] focus:outline-none"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4.5" aria-hidden />
+              ) : (
+                <Eye className="size-4.5" aria-hidden />
+              )}
+            </button>
+          }
         />
 
         {error && (

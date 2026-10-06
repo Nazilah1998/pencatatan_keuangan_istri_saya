@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,8 +10,7 @@ import (
 )
 
 // Config berisi seluruh konfigurasi runtime backend. Semua nilai dibaca dari
-// environment variable (lihat ops/.env.example) supaya tidak ada secret yang
-// tertanam di binary.
+// environment variable supaya tidak ada secret yang tertanam di binary.
 type Config struct {
 	Env           string
 	DataDir       string
@@ -31,10 +31,42 @@ type Config struct {
 	Dev bool
 }
 
-// Load membaca konfigurasi dari environment. Nilai yang tidak ada dibiarkan
-// kosong; validasi ketat dilakukan oleh Validate agar bisa dipanggil terpisah
-// (mis. pada saat start proses, bukan pada package init).
+func loadEnvFile() {
+	candidates := []string{".env", "../.env", "../../.env"}
+	for _, p := range candidates {
+		f, err := os.Open(p)
+		if err != nil {
+			continue
+		}
+		defer f.Close()
+
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			k := strings.TrimSpace(parts[0])
+			v := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+			if os.Getenv(k) == "" {
+				_ = os.Setenv(k, v)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			_ = err
+		}
+		break
+	}
+}
+
+// Load membaca konfigurasi dari environment.
 func Load() *Config {
+	loadEnvFile()
+
 	return &Config{
 		Env:     env("APP_ENV", "development"),
 		DataDir: env("PB_DATA_DIR", "./pb_data"),
@@ -49,11 +81,10 @@ func Load() *Config {
 		PBPort:  env("PB_PORT", "8080"),
 		APIPort: env("API_PORT", "8081"),
 
-		CORSOrigin: splitCSV(env("CORS_ORIGINS",
-			"http://localhost:3000,http://localhost:4321,http://192.168.100.9:3000,capacitor://localhost,capacitor://ios")),
+		CORSOrigin: splitCSV(os.Getenv("CORS_ORIGINS")),
 
 		RateLimitPerMin: envInt("RATE_LIMIT_PER_MIN", 120),
-		SiteDomain:      env("SITE_DOMAIN", ""),
+		SiteDomain:      os.Getenv("SITE_DOMAIN"),
 
 		Dev: env("APP_ENV", "development") == "development",
 	}

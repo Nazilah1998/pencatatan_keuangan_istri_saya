@@ -19,13 +19,13 @@ type Props = {
 const {
   title,
   description = 'Catatan keuangan rumah tangga: transaksi, anggaran, tabungan, aset, dan hutang.',
-  themeColor = '#0b1020',
+  themeColor = '#ffffff',
   lang = 'id',
 } = Astro.props
 ---
 
 <!doctype html>
-<html lang={lang} data-theme="dark">
+<html lang={lang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -43,6 +43,16 @@ const {
     <link rel="mask-icon" href="/icons/icon-192.png" color="#0b1020" />
 
     <title>{title}</title>
+
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem('sintya.theme')
+          const theme = stored === 'dark' || stored === 'light' ? stored : 'light'
+          document.documentElement.dataset.theme = theme
+        } catch (_) {}
+      })()
+    </script>
   </head>
 
   <body>
