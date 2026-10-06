@@ -36,7 +36,11 @@ export function usePathname(): string {
     const sync = () => setPath(window.location.pathname.replace(/\/+$/, '') || '/')
     sync()
     window.addEventListener('popstate', sync)
-    return () => window.removeEventListener('popstate', sync)
+    document.addEventListener('astro:page-load', sync)
+    return () => {
+      window.removeEventListener('popstate', sync)
+      document.removeEventListener('astro:page-load', sync)
+    }
   }, [])
 
   return path

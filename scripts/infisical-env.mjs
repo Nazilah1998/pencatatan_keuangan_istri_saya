@@ -3,32 +3,43 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
+import { fileURLToPath } from 'node:url'
+
 function getInfisicalConfig() {
   const env = process.env
-  let clientId = env.INFISICAL_CLIENT_ID || env.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-  let clientSecret = env.INFISICAL_CLIENT_SECRET || env.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-  let projectId = env.INFISICAL_PROJECT_ID
+  let clientId = env.SINTYA_INFISICAL_CLIENT_ID
+  let clientSecret = env.SINTYA_INFISICAL_CLIENT_SECRET
+  let projectId = env.SINTYA_INFISICAL_PROJECT_ID
   let apiUrl = env.INFISICAL_API_URL || env.INFISICAL_HOST_URL || 'https://app.infisical.com/api'
-  let secretPath = env.INFISICAL_SECRET_PATH || '/Sintya-Finance'
+  let secretPath = '/Sintya-Finance'
   let environment = env.INFISICAL_ENV || 'dev'
 
-  if (!clientId || !clientSecret || !projectId) {
-    const mcpConfigPath = path.join(os.homedir(), '.gemini', 'config', 'mcp_config.json')
-    if (fs.existsSync(mcpConfigPath)) {
-      try {
-        const mcp = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'))
-        const personal = mcp.mcpServers?.['infisical-personal']?.env
-        if (personal) {
-          clientId = clientId || personal.INFISICAL_CLIENT_ID || personal.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-          clientSecret = clientSecret || personal.INFISICAL_CLIENT_SECRET || personal.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-          projectId = projectId || personal.INFISICAL_PROJECT_ID
-          apiUrl = apiUrl || personal.INFISICAL_API_URL || 'https://app.infisical.com/api'
-        }
-      } catch (err) {
-        console.error('Peringatan: Gagal membaca mcp_config.json:', err.message)
+  if (env.INFISICAL_SECRET_PATH && env.INFISICAL_SECRET_PATH.toLowerCase().includes('sintya')) {
+    secretPath = env.INFISICAL_SECRET_PATH
+  }
+
+  // Prioritaskan kredensial infisical-personal khusus Sintya Finance dari mcp_config.json
+  const mcpConfigPath = path.join(os.homedir(), '.gemini', 'config', 'mcp_config.json')
+  if (fs.existsSync(mcpConfigPath)) {
+    try {
+      const content = fs.readFileSync(mcpConfigPath, 'utf8').replace(/^\uFEFF/, '')
+      const mcp = JSON.parse(content)
+      const personal = mcp.mcpServers?.['infisical-personal']?.env
+      if (personal) {
+        clientId = clientId || personal.INFISICAL_CLIENT_ID || personal.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
+        clientSecret = clientSecret || personal.INFISICAL_CLIENT_SECRET || personal.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
+        projectId = projectId || personal.INFISICAL_PROJECT_ID
+        apiUrl = personal.INFISICAL_API_URL || personal.INFISICAL_HOST_URL || apiUrl
       }
+    } catch (err) {
+      console.error('Peringatan: Gagal membaca mcp_config.json:', err.message)
     }
   }
+
+  // Fallback ke env umum jika belum terdefinisi
+  clientId = clientId || env.INFISICAL_CLIENT_ID || env.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
+  clientSecret = clientSecret || env.INFISICAL_CLIENT_SECRET || env.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
+  projectId = projectId || env.INFISICAL_PROJECT_ID
 
   return {
     clientId,
@@ -125,6 +136,15 @@ export async function loadInfisicalSecrets() {
         envObj[s.secretKey] = s.secretValue ?? ''
       }
     }
+  }
+
+  try {
+    const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const envFilePath = path.join(rootDir, '.env')
+    const lines = Object.entries(envObj).map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
+    fs.writeFileSync(envFilePath, lines.join('\n') + '\n', 'utf8')
+  } catch {
+    // Abaikan jika penulisan .env lokal gagal
   }
 
   return envObj

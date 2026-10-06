@@ -1,11 +1,18 @@
-/**
- * Formulir transaksi: tambah, ubah, dan hapus.
- *
- * Validasi jumlah dan referensi dompet/kategori tetap di sini; saldo wallet
- * tidak pernah dihitung dari sisi klien karena hook backend yang memiliki
- * satu sumber kebenaran.
- */
 import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertCircle,
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowRight,
+  ArrowUpRight,
+  Calendar,
+  Check,
+  FileText,
+  Loader2,
+  Tag,
+  Trash2,
+  Wallet as WalletIcon,
+} from 'lucide-react'
 
 import {
   CategoryRepo,
@@ -22,13 +29,11 @@ import {
 import { formatMoney, parseAmount } from '../../lib/utils/currency'
 import { todayISO } from '../../lib/utils/date'
 import { useApp } from '../providers/useApp'
-import { Button } from '../ui/Button'
-import { Input, Select } from '../ui/Field'
-
-const TYPES: TxType[] = ['income', 'expense', 'transfer']
+import { ModernDatePicker } from '../ui/ModernDatePicker'
+import { ModernSelect } from '../ui/ModernSelect'
 
 type Props = {
-  editing: Transaction | null
+  editing?: Transaction | null
   defaultType: TxType
   onDone: () => void
 }
@@ -66,26 +71,46 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
   const [categories, setCategories] = useState<Category[]>([])
   const [subs, setSubs] = useState<SubCategory[]>([])
   const [goals, setGoals] = useState<{ id: string; name: string }[]>([])
+  const [dataLoaded, setDataLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     let alive = true
 
-    void (async () => {
-      const [w, c, s, g] = await Promise.all([
-        WalletRepo.list(false),
-        CategoryRepo.list(),
-        SubCategoryRepo.list(),
-        SavingsRepo.list(),
-      ])
-      if (!alive) return
+    async function loadData() {
+      try {
+        const [wList, cList, sList, gList, txList] = await Promise.all([
+          WalletRepo.list(false).catch(() => []),
+          CategoryRepo.list().catch(() => []),
+          SubCategoryRepo.list().catch(() => []),
+          SavingsRepo.list().catch(() => []),
+          TxRepo.recent(1000).catch(() => []),
+        ])
 
-      setWallets(w)
-      setCategories(c)
-      setSubs(s)
-      setGoals(g.map((item) => ({ id: item.id, name: item.name })))
-    })()
+        if (!alive) return
+
+        const walletsWithRealBalance = wList.map((w) => {
+          const inTx = txList.filter((t) => t.wallet === w.id && t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
+          const outTx = txList.filter((t) => t.wallet === w.id && t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
+          const trfOut = txList.filter((t) => t.wallet === w.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
+          const trfIn = txList.filter((t) => t.toWallet === w.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
+          const netTx = inTx - outTx - trfOut + trfIn
+          const realBal = (w.balance && w.balance !== 0) ? w.balance : ((w.initialBalance || 0) + netTx)
+          return { ...w, balance: realBal }
+        })
+
+        setWallets(walletsWithRealBalance)
+        setCategories(cList)
+        setSubs(sList)
+        setGoals(gList.map((item) => ({ id: item.id, name: item.name })))
+        setDataLoaded(true)
+      } catch {
+        if (alive) setDataLoaded(true)
+      }
+    }
+
+    void loadData()
 
     return () => {
       alive = false
@@ -94,7 +119,16 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
   useEffect(() => {
     if (!editing) {
-      setForm({ ...EMPTY, type: defaultType, date: todayISO() })
+      setForm((prev) => ({
+        ...EMPTY,
+        type: defaultType,
+        date: todayISO(),
+        wallet: prev.wallet || wallets[0]?.id || '',
+        category:
+          prev.category ||
+          categories.filter((c) => !c.isArchived && c.type === defaultType)[0]?.id ||
+          '',
+      }))
       return
     }
 
@@ -109,18 +143,23 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
       savingsGoal: editing.savingsGoal,
       note: editing.note,
     })
-  }, [editing, defaultType])
+  }, [editing, defaultType, wallets, categories])
 
-  // Subkategori hanya direset ketika pengguna sendiri yang mengganti kategori
-  // utama; memuat transaksi lama lewat `editing` harus mempertahankan
-  // subkategori yang tersimpan.
   function changeCategory(value: string) {
     setForm((prev) => ({ ...prev, category: value, subCategory: '' }))
   }
 
-  // Mengganti tipe transaksi membuat kategori lama tidak berlaku lagi.
   function changeType(value: FormState['type']) {
-    setForm((prev) => ({ ...prev, type: value, category: '', subCategory: '' }))
+    setForm((prev) => {
+      const matchingCats = categories.filter((c) => !c.isArchived && c.type === value)
+      return {
+        ...prev,
+        type: value,
+        category: matchingCats[0]?.id ?? '',
+        subCategory: '',
+        toWallet: value === 'transfer' ? (wallets.find((w) => w.id !== prev.wallet)?.id ?? '') : '',
+      }
+    })
   }
 
   const visibleCategories = useMemo(
@@ -148,7 +187,7 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
       return ''
     }
 
-    if (!form.category) {
+    if (!form.category && visibleCategories.length > 0) {
       return form.type === 'income' ? m('tx.incomeRequired') : m('tx.expenseRequired')
     }
 
@@ -201,138 +240,320 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
     }
   }
 
+  const currentAmountNum = parseAmount(form.amount)
+  const today = todayISO()
+  const yesterday = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [])
+
   return (
-    <div className="space-y-4">
-      <div role="group" aria-label={t('transactions.form.type')} className="grid grid-cols-3 gap-2">
-        {TYPES.map((type) => (
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1 space-y-4 pb-8">
+        <div
+          role="group"
+          aria-label={t('transactions.form.type')}
+          className="grid grid-cols-3 gap-1.5 rounded-2xl bg-[var(--surface-sunken)] p-1.5"
+        >
           <button
-            key={type}
             type="button"
-            aria-pressed={form.type === type}
-            onClick={() => changeType(type)}
+            aria-pressed={form.type === 'expense'}
+            onClick={() => changeType('expense')}
             className={[
-              'h-10 rounded-[0.625rem] border text-sm font-medium transition-colors',
-              form.type === type
-                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                : 'border-[var(--line-subtle)] text-[var(--text-muted)] hover:border-[var(--line-strong)]',
+              'flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-95',
+              form.type === 'expense'
+                ? 'border border-[var(--negative)]/25 bg-[var(--surface-raised)] font-bold text-[var(--negative)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
             ].join(' ')}
           >
-            {t(`common.${type}`)}
+            <ArrowUpRight className="size-4 shrink-0 stroke-[2.5]" />
+            <span>{t('common.expense')}</span>
           </button>
-        ))}
+
+          <button
+            type="button"
+            aria-pressed={form.type === 'income'}
+            onClick={() => changeType('income')}
+            className={[
+              'flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-95',
+              form.type === 'income'
+                ? 'border border-[var(--accent)]/25 bg-[var(--surface-raised)] font-bold text-[var(--accent)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+            ].join(' ')}
+          >
+            <ArrowDownLeft className="size-4 shrink-0 stroke-[2.5]" />
+            <span>{t('common.income')}</span>
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={form.type === 'transfer'}
+            onClick={() => changeType('transfer')}
+            className={[
+              'flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-95',
+              form.type === 'transfer'
+                ? 'border border-[var(--line-strong)] bg-[var(--surface-raised)] font-bold text-[var(--text-primary)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+            ].join(' ')}
+          >
+            <ArrowLeftRight className="size-4 shrink-0 stroke-[2.5]" />
+            <span>{t('common.transfer')}</span>
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/60 p-4 transition-all focus-within:border-[var(--accent)] focus-within:bg-[var(--surface-sunken)]">
+          <div className="flex items-center justify-between">
+            <label htmlFor="tx-amount-input" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              {t('transactions.form.amount')}
+            </label>
+            {currentAmountNum > 0 && (
+              <button
+                type="button"
+                onClick={() => set('amount', '')}
+                className="text-[0.6875rem] font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--negative)]"
+              >
+                Hapus
+              </button>
+            )}
+          </div>
+
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-display text-xl font-extrabold text-[var(--text-muted)]">
+              {currency === 'IDR' ? 'Rp' : '$'}
+            </span>
+            <input
+              id="tx-amount-input"
+              type="text"
+              inputMode="numeric"
+              value={form.amount}
+              onChange={(e) => {
+                const cleaned = e.target.value.replace(/[^0-9]/g, '')
+                set('amount', cleaned)
+              }}
+              placeholder="0"
+              className="w-full bg-transparent font-display text-3xl font-black tracking-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]/30"
+            />
+          </div>
+
+          {currentAmountNum > 0 && (
+            <p className="mt-1.5 font-sans text-xs font-medium text-[var(--text-secondary)]">
+              {formatMoney(currentAmountNum, currency)}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <Calendar className="size-3.5" />
+                <span>{t('transactions.form.date')}</span>
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => set('date', today)}
+                  className={[
+                    'rounded-md px-1.5 py-0.5 text-[0.6875rem] font-semibold transition-colors',
+                    form.date === today
+                      ? 'bg-[var(--accent-soft)] font-bold text-[var(--accent)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                  ].join(' ')}
+                >
+                  Hari ini
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set('date', yesterday)}
+                  className={[
+                    'rounded-md px-1.5 py-0.5 text-[0.6875rem] font-semibold transition-colors',
+                    form.date === yesterday
+                      ? 'bg-[var(--accent-soft)] font-bold text-[var(--accent)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                  ].join(' ')}
+                >
+                  Kemarin
+                </button>
+              </div>
+            </div>
+
+            <ModernDatePicker
+              value={form.date}
+              onChange={(d) => set('date', d)}
+            />
+          </div>
+
+          {form.type === 'transfer' ? (
+            <div className="space-y-2 sm:col-span-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <ArrowLeftRight className="size-3.5" />
+                <span>Alur Transfer</span>
+              </label>
+
+              <div className="flex flex-col gap-2 rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/50 p-3 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  <ModernSelect
+                    label="Dari Dompet"
+                    value={form.wallet}
+                    onChange={(w) => set('wallet', w)}
+                    options={wallets.map((w) => ({
+                      value: w.id,
+                      label: w.name,
+                      icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                      badge: formatMoney(w.balance, currency),
+                    }))}
+                    placeholder="Pilih Dompet Asal"
+                  />
+                </div>
+
+                <div className="grid place-items-center pt-1 sm:px-1 sm:pt-6">
+                  <ArrowRight className="size-4 rotate-90 text-[var(--accent)] sm:rotate-0" />
+                </div>
+
+                <div className="flex-1">
+                  <ModernSelect
+                    label="Ke Dompet"
+                    value={form.toWallet}
+                    onChange={(w) => set('toWallet', w)}
+                    options={wallets
+                      .filter((w) => w.id !== form.wallet)
+                      .map((w) => ({
+                        value: w.id,
+                        label: w.name,
+                        icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                        badge: formatMoney(w.balance, currency),
+                      }))}
+                    placeholder="Pilih Dompet Tujuan"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <ModernSelect
+                label={
+                  <span className="flex items-center gap-1.5 normal-case font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    <WalletIcon className="size-3.5" />
+                    <span>{t('transactions.form.select_wallet')}</span>
+                  </span>
+                }
+                value={form.wallet}
+                onChange={(w) => set('wallet', w)}
+                options={wallets.map((w) => ({
+                  value: w.id,
+                  label: w.name,
+                  icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                  badge: formatMoney(w.balance, currency),
+                }))}
+                placeholder="Pilih Dompet"
+              />
+            </div>
+          )}
+        </div>
+
+        {form.type !== 'transfer' && (
+          <div className="space-y-3">
+            <ModernSelect
+              label={
+                <span className="flex items-center gap-1.5 normal-case font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <Tag className="size-3.5" />
+                  <span>{t('transactions.form.select_category')}</span>
+                </span>
+              }
+              value={form.category}
+              onChange={changeCategory}
+              options={visibleCategories.map((c) => ({
+                value: c.id,
+                label: c.name,
+                icon: <Tag className="size-4 text-[var(--text-muted)]" />,
+              }))}
+              placeholder="Pilih Kategori"
+            />
+
+            {visibleSubs.length > 0 && (
+              <ModernSelect
+                label={t('transactions.form.select_subcategory')}
+                value={form.subCategory}
+                onChange={(s) => set('subCategory', s)}
+                options={visibleSubs.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                }))}
+                placeholder="Pilih Subkategori (Opsional)"
+              />
+            )}
+
+            {form.type === 'expense' && goals.length > 0 && (
+              <ModernSelect
+                label="🎯 Alokasikan ke Target Tabungan (Opsional)"
+                value={form.savingsGoal}
+                onChange={(g) => set('savingsGoal', g)}
+                options={[
+                  { value: '', label: 'Bukan Tabungan' },
+                  ...goals.map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  })),
+                ]}
+                placeholder="Bukan Tabungan"
+              />
+            )}
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <label htmlFor="tx-note-input" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <FileText className="size-3.5" />
+            <span>{t('transactions.form.description_label')}</span>
+          </label>
+          <input
+            id="tx-note-input"
+            type="text"
+            value={form.note}
+            onChange={(e) => set('note', e.target.value)}
+            placeholder={t('transactions.form.description_placeholder')}
+            maxLength={200}
+            className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all focus:border-[var(--accent)] focus:outline-none"
+          />
+        </div>
       </div>
 
-      <Input
-        label={t('transactions.form.amount')}
-        value={form.amount}
-        onChange={(e) => set('amount', e.target.value)}
-        inputMode="decimal"
-        placeholder="0"
-        hint={formatMoney(parseAmount(form.amount), currency)}
-      />
-
-      <Input
-        label={t('transactions.form.date')}
-        type="date"
-        value={form.date}
-        onChange={(e) => set('date', e.target.value)}
-      />
-
-      <Select
-        label={t('transactions.form.select_wallet')}
-        value={form.wallet}
-        onChange={(e) => set('wallet', e.target.value)}
-      >
-        <option value="">—</option>
-        {wallets.map((w) => (
-          <option key={w.id} value={w.id}>
-            {w.name}
-          </option>
-        ))}
-      </Select>
-
-      {form.type === 'transfer' ? (
-        <Select
-          label={t('transactions.wallet')}
-          value={form.toWallet}
-          onChange={(e) => set('toWallet', e.target.value)}
-        >
-          <option value="">—</option>
-          {wallets
-            .filter((w) => w.id !== form.wallet)
-            .map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-        </Select>
-      ) : (
-        <>
-          <Select
-            label={t('transactions.form.select_category')}
-            value={form.category}
-            onChange={(e) => changeCategory(e.target.value)}
-          >
-            <option value="">—</option>
-            {visibleCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-
-          {visibleSubs.length > 0 && (
-            <Select
-              label={t('transactions.form.select_subcategory')}
-              value={form.subCategory}
-              onChange={(e) => set('subCategory', e.target.value)}
-            >
-              <option value="">—</option>
-              {visibleSubs.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          )}
-
-          {form.type === 'expense' && goals.length > 0 && (
-            <Select
-              label={t('savings.title')}
-              value={form.savingsGoal}
-              onChange={(e) => set('savingsGoal', e.target.value)}
-              hint={t('savings.add_funds')}
-            >
-              <option value="">—</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </>
-      )}
-
-      <Input
-        label={t('transactions.form.description_label')}
-        value={form.note}
-        onChange={(e) => set('note', e.target.value)}
-        placeholder={t('transactions.form.description_placeholder')}
-        maxLength={200}
-      />
-
-      {error && <p className="text-sm text-[var(--negative)]">{error}</p>}
-
-      <div className="flex gap-2">
-        <Button block loading={saving} onClick={() => void submit()}>
-          {editing ? t('common.save') : t('transactions.form.save')}
-        </Button>
-        {editing && (
-          <Button variant="danger" loading={saving} onClick={() => void remove()}>
-            {t('common.delete')}
-          </Button>
+      <div className="sticky bottom-0 z-30 -mx-4 -mb-4 border-t border-[var(--line-subtle)] bg-[var(--surface-overlay)]/95 px-4 py-3 backdrop-blur-md safe-bottom">
+        {error && (
+          <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-[var(--negative-soft)] p-2.5 text-xs font-medium text-[var(--negative)]">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={saving || !dataLoaded}
+            onClick={() => void submit()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3.5 font-display text-sm font-bold text-[var(--text-inverted)] shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="size-4.5 animate-spin" />
+            ) : (
+              <Check className="size-4.5 stroke-[2.5]" />
+            )}
+            <span>{editing ? t('common.save') : t('transactions.form.save')}</span>
+          </button>
+
+          {editing && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void remove()}
+              aria-label="Hapus transaksi"
+              className="grid size-12 place-items-center rounded-xl border border-[var(--negative)]/30 text-[var(--negative)] transition-all hover:bg-[var(--negative-soft)] active:scale-95 disabled:opacity-50"
+            >
+              <Trash2 className="size-5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

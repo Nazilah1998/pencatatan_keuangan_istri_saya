@@ -2,6 +2,10 @@
 /// <reference types="astro/client" />
 
 declare global {
+  interface Window {
+    __PUBLIC_ENV__?: Record<string, string | undefined>
+  }
+
   interface ImportMetaEnv {
     readonly PUBLIC_PB_URL: string
     readonly PUBLIC_API_BASE: string

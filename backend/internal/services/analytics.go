@@ -13,6 +13,7 @@ type NetWorth struct {
 	Liabilities  float64 `json:"liabilities"`
 	Net          float64 `json:"net"`
 	CashTotal    float64 `json:"cash_total"`
+	SavingsTotal float64 `json:"savings_total"`
 	WalletCount  int     `json:"wallet_count"`
 	DebtCount    int     `json:"debt_count"`
 	DebtProgress float64 `json:"debt_progress"`
@@ -46,11 +47,30 @@ func GetNetWorth(ctx context.Context, store Store, householdID string) (*NetWort
 
 	for _, w := range wallets {
 		balance := w.GetFloat("balance")
+		if balance == 0 {
+			balance = w.GetFloat("initial_balance")
+		}
 		switch {
 		case balance >= 0:
 			out.Assets += balance
 		default:
 			out.Liabilities += -balance
+		}
+	}
+
+	savings, err := store.FindRecordsByFilter(
+		collections.ColSavings,
+		`household_id = {:h} && status != "completed"`,
+		"name", 0, 0,
+		map[string]any{"h": householdID},
+	)
+	if err == nil {
+		for _, s := range savings {
+			amt := s.GetFloat("current_amount")
+			out.SavingsTotal += amt
+			if s.GetBool("include_in_networth") {
+				out.Assets += amt
+			}
 		}
 	}
 

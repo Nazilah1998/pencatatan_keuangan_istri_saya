@@ -378,3 +378,29 @@ func walletIDs(ids ...string) []string {
 
 	return out
 }
+
+func onWalletSaved(e *core.RecordEvent) error {
+	if e.Record == nil {
+		return nil
+	}
+	householdID := e.Record.GetString("household_id")
+	if householdID == "" {
+		return nil
+	}
+	return e.App.RunInTransaction(func(txApp core.App) error {
+		return recomputeWalletBalances(txApp, householdID, walletIDs(e.Record.Id))
+	})
+}
+
+func onDebtSaved(e *core.RecordEvent) error {
+	if e.Record == nil {
+		return nil
+	}
+	householdID := e.Record.GetString("household_id")
+	if householdID == "" {
+		return nil
+	}
+	return e.App.RunInTransaction(func(txApp core.App) error {
+		return recomputeDebtBalance(txApp, householdID, e.Record.Id)
+	})
+}

@@ -56,7 +56,14 @@ function emit() {
 
 /** Field pada `users` yang dipakai UI; `pin_hash` tidak pernah disimpan. */
 function toSession(pb: PocketBase, model: RecordModel): Session {
-  const value = (key: string) => (model.get(key) as string) ?? ''
+  const m = model as unknown as Record<string, unknown>
+  const value = (key: string): string => {
+    if (typeof (model as unknown as { get?: (k: string) => unknown })?.get === 'function') {
+      return ((model as unknown as { get: (k: string) => unknown }).get(key) as string) ?? ''
+    }
+    const val = m[key]
+    return typeof val === 'string' ? val : ''
+  }
 
   return {
     id: model.id,
@@ -65,7 +72,7 @@ function toSession(pb: PocketBase, model: RecordModel): Session {
     language: value('language') || 'id',
     householdId: value('household_id'),
     baseCurrency: value('base_currency') || 'IDR',
-    hasPin: !!value('pin_hash'),
+    hasPin: !!m['pin_hash'],
     avatar: value('avatar'),
     token: pb.authStore.token,
   }

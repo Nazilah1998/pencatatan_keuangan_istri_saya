@@ -177,7 +177,7 @@ func validatePin(pin, confirmed string) error {
 	if len(pin) > 64 {
 		return errors.New("PIN maksimal 64 karakter")
 	}
-	if !strings.EqualFold(pin, confirmed) {
+	if confirmed != "" && !strings.EqualFold(pin, confirmed) {
 		return errors.New("Konfirmasi PIN tidak sama")
 	}
 	return nil

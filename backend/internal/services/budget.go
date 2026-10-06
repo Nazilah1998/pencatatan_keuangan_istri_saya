@@ -10,6 +10,7 @@ import (
 
 // BudgetStatus compares realisasi pengeluaran terhadap pagu yang ditetapkan.
 type BudgetStatus struct {
+	ID         string  `json:"id"`
 	Month      string  `json:"month"`
 	CategoryID string  `json:"category_id"`
 	Category   string  `json:"category"`
@@ -19,15 +20,20 @@ type BudgetStatus struct {
 	Spent      float64 `json:"spent"`
 	Remaining  float64 `json:"remaining"`
 	Percent    float64 `json:"percent"`
+	Percentage float64 `json:"percentage"`
 	Over       bool    `json:"over"`
+	Status     string  `json:"status"`
 }
 
 // BudgetOverview adalah gabungan seluruh status budget sebuah bulan.
 type BudgetOverview struct {
-	Month      string         `json:"month"`
-	TotalLimit float64        `json:"total_limit"`
-	TotalSpent float64        `json:"total_spent"`
-	Items      []BudgetStatus `json:"items"`
+	Month           string         `json:"month"`
+	TotalLimit      float64        `json:"total_limit"`
+	TotalLimitCamel float64        `json:"totalLimit"`
+	TotalSpent      float64        `json:"total_spent"`
+	TotalSpentCamel float64        `json:"totalSpent"`
+	Remaining       float64        `json:"remaining"`
+	Items           []BudgetStatus `json:"items"`
 }
 
 // GetBudget menghitung realisasi tiap kategori terhadap pagu bulan berjalan.
@@ -83,15 +89,26 @@ func GetBudget(ctx context.Context, store Store, householdID, month string) (*Bu
 		spent := spentByCategory[cat]
 		limit := b.GetFloat("amount")
 
+		pct := percent(spent, limit)
+		status := "safe"
+		if pct > 100 {
+			status = "over"
+		} else if pct >= 80 {
+			status = "warning"
+		}
+
 		item := BudgetStatus{
+			ID:         cat,
 			Month:      month,
 			CategoryID: cat,
 			Category:   names[cat],
 			Limit:      limit,
 			Spent:      spent,
 			Remaining:  limit - spent,
-			Percent:    percent(spent, limit),
+			Percent:    pct,
+			Percentage: pct,
 			Over:       spent > limit && limit > 0,
+			Status:     status,
 		}
 		if meta, ok := categoryMeta(store, householdID, cat); ok {
 			item.Icon = meta.icon
@@ -116,12 +133,16 @@ func GetBudget(ctx context.Context, store Store, householdID, month string) (*Bu
 	for _, cat := range overCats {
 		spent := spentByCategory[cat]
 		item := BudgetStatus{
+			ID:         cat,
 			Month:      month,
 			CategoryID: cat,
 			Category:   names[cat],
 			Spent:      spent,
 			Remaining:  -spent,
 			Percent:    100,
+			Percentage: 100,
+			Over:       true,
+			Status:     "over",
 		}
 		if meta, ok := categoryMeta(store, householdID, cat); ok {
 			item.Icon = meta.icon
@@ -138,6 +159,10 @@ func GetBudget(ctx context.Context, store Store, householdID, month string) (*Bu
 		}
 		return a.Percent > b.Percent
 	})
+
+	out.TotalLimitCamel = out.TotalLimit
+	out.TotalSpentCamel = out.TotalSpent
+	out.Remaining = out.TotalLimit - out.TotalSpent
 
 	return out, nil
 }
@@ -171,11 +196,17 @@ func categoryMeta(store Store, householdID, categoryID string) (catMeta, bool) {
 	if categoryID == "" {
 		return catMeta{}, false
 	}
+	filter := `id = {:c}`
+	params := map[string]any{"c": categoryID}
+	if householdID != "" {
+		filter = `household_id = {:h} && id = {:c}`
+		params["h"] = householdID
+	}
 	records, err := store.FindRecordsByFilter(
 		collections.ColCategories,
-		`id = {:c}`,
+		filter,
 		"", 1, 0,
-		map[string]any{"c": categoryID},
+		params,
 	)
 	if err != nil || len(records) == 0 {
 		return catMeta{}, false

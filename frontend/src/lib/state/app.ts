@@ -10,6 +10,7 @@ import { atom } from 'nanostores'
 
 import { PUBLIC_DEFAULT_LANG } from '../config/public'
 import {
+  defaultDict,
   detectLang,
   isLang,
   loadLang,
@@ -25,11 +26,24 @@ export type Theme = 'dark' | 'light'
 
 const THEME_KEY = 'sintya.theme'
 
-export const $session = atom<Session>(null)
-export const $ready = atom(false)
+function readStoredSession(): Session {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem('sintya.session')
+    return raw ? (JSON.parse(raw) as Session) : null
+  } catch {
+    return null
+  }
+}
+
+const initialSession = readStoredSession()
+
+export const $session = atom<Session>(initialSession)
+export const $ready = atom(initialSession !== null)
 export const $theme = atom<Theme>('light')
 export const $lang = atom<LangCode>(PUBLIC_DEFAULT_LANG as LangCode)
-export const $dict = atom<Dictionary | null>(null)
+export const $dict = atom<Dictionary | null>(defaultDict)
+export const $drawerOpen = atom(false)
 
 function readStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
@@ -87,6 +101,8 @@ export const appActions = {
     if (typeof window !== 'undefined') window.localStorage.setItem(THEME_KEY, theme)
   },
   setLang,
+  toggleDrawer: () => $drawerOpen.set(!$drawerOpen.get()),
+  setDrawerOpen: (open: boolean) => $drawerOpen.set(open),
   signOut: () => AuthStore.clear(),
 }
 

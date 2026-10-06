@@ -1,6 +1,10 @@
 package collections
 
-import "github.com/pocketbase/pocketbase/core"
+import (
+	"os"
+
+	"github.com/pocketbase/pocketbase/core"
+)
 
 // Aturan scope tenancy. Semua koleksi data wajib memakai aturan ini supaya
 // tidak ada record yang bisa dibaca lintas household.
@@ -119,10 +123,10 @@ func Households() *core.Collection {
 	// hook onUserCreated, jadi tidak ada alur API yang butuh rule publik; rule
 	// kosong di sini berarti siapa pun bisa membuat household — atau menghapus
 	// household milik orang lain beserta seluruh datanya.
-	c.ListRule = ptr(`@request.auth.household_id != "" && id = @request.auth.household_id`)
-	c.ViewRule = ptr(`@request.auth.household_id != "" && id = @request.auth.household_id`)
-	c.CreateRule = nil
-	c.UpdateRule = ptr(`@request.auth.household_id != "" && id = @request.auth.household_id`)
+	c.ListRule = ptr(`(@request.auth.household_id != "" && id = @request.auth.household_id) || created_by = @request.auth.id`)
+	c.ViewRule = ptr(`(@request.auth.household_id != "" && id = @request.auth.household_id) || created_by = @request.auth.id`)
+	c.CreateRule = ptr(`@request.auth.id != ""`)
+	c.UpdateRule = ptr(`(@request.auth.household_id != "" && id = @request.auth.household_id) || created_by = @request.auth.id`)
 	c.DeleteRule = nil
 
 	c.AddIndex("idx_households_name", false, "`name`", "")
@@ -151,12 +155,26 @@ func Users() *core.Collection {
 
 	c.ListRule = ptr(RuleReadOwnProfile)
 	c.ViewRule = ptr(RuleReadOwnProfile)
+	c.CreateRule = ptr("")
 	c.UpdateRule = ptr(RuleReadOwnProfile)
 	c.DeleteRule = ptr(RuleReadOwnProfile)
-	c.AuthRule = ptr(RuleReadOwnProfile)
+	c.AuthRule = ptr("")
 	// ManageRule `nil` berarti superuser only. Rule kosong berarti siapa pun boleh
 	// memakai endpoint impersonate/manage milik PocketBase.
 	c.ManageRule = nil
+
+	googleID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if googleID != "" && googleSecret != "" {
+		c.OAuth2.Enabled = true
+		c.OAuth2.Providers = []core.OAuth2ProviderConfig{
+			{
+				Name:         "google",
+				ClientId:     googleID,
+				ClientSecret: googleSecret,
+			},
+		}
+	}
 
 	c.AddIndex("idx_users_household", false, "`household_id`", "")
 

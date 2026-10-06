@@ -78,6 +78,7 @@ export const en = {
     all: "All",
     income: "Income",
     expense: "Expense",
+    transfer: "Transfer",
     loading: "Loading...",
     no_data: "No data found",
     prev: "Previous",

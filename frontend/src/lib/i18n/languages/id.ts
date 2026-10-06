@@ -78,6 +78,7 @@ export const id = {
     all: "Semua",
     income: "Pemasukan",
     expense: "Pengeluaran",
+    transfer: "Transfer",
     loading: "Memuat...",
     no_data: "Data tidak ditemukan",
     prev: "Sebelumnya",

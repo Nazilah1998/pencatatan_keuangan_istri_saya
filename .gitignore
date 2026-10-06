@@ -38,9 +38,5 @@ Thumbs.db
 !.vscode/extensions.json
 *.swp
 
-# --- Misc ---
-*.log
-npm-debug.log*
-yarn-error.log*
-*.tsbuildinfo
-.DS_Store
+# --- Android ---
+android/

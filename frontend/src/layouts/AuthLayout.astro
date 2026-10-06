@@ -1,9 +1,8 @@
 ---
 /**
- * Layout untuk halaman autentikasi: satu kolom, tanpa sidebar.
+ * Layout untuk halaman autentikasi: responsif, modern, dan visual premium.
  */
 import BaseLayout from './BaseLayout.astro'
-
 import { ThemeToggle } from '../components/ui/ThemeToggle'
 
 type Props = {
@@ -15,21 +14,150 @@ const { title, description } = Astro.props
 ---
 
 <BaseLayout title={title} description={description}>
-  <main class="safe-top mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-6">
-    <header class="flex items-center justify-between">
-      <span class="flex items-center gap-2.5">
+  <div class="relative min-h-dvh flex flex-col justify-between overflow-hidden bg-[var(--surface-base)]">
+    <!-- Ambient glowing meshes -->
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute -top-40 -left-40 size-[32rem] rounded-full bg-[var(--accent)]/10 blur-[100px]"
+    >
+    </div>
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute -bottom-40 -right-40 size-[32rem] rounded-full bg-emerald-500/10 blur-[100px]"
+    >
+    </div>
+
+    <!-- Header bar -->
+    <header class="safe-top relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 py-5 flex items-center justify-between">
+      <a href="/" class="group flex items-center gap-3">
         <span
-          class="grid size-9 place-items-center rounded-[0.625rem] bg-[var(--accent-soft)] font-display text-base font-bold text-[var(--accent)]"
+          class="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--color-brand-600)] font-display text-base font-bold text-[var(--text-inverted)] shadow-md transition-transform duration-200 group-hover:scale-105"
         >
           S
         </span>
-        <span class="font-display text-base font-semibold">Sintya Finance</span>
-      </span>
-      <ThemeToggle client:idle />
+        <div class="flex flex-col">
+          <span class="font-display text-lg font-bold tracking-tight text-[var(--text-primary)]">
+            Sintya Finance
+          </span>
+          <span class="text-[11px] font-medium text-[var(--text-muted)] -mt-1 hidden sm:inline">
+            Catatan Keuangan Rumah Tangga
+          </span>
+        </div>
+      </a>
+
+      <div class="flex items-center gap-3">
+        <ThemeToggle client:idle />
+      </div>
     </header>
 
-    <div class="flex flex-1 items-center py-10">
-      <slot />
-    </div>
-  </main>
+    <!-- Main Content Area -->
+    <main class="relative z-10 flex-1 w-full max-w-7xl mx-auto px-5 sm:px-8 py-6 sm:py-10 flex items-center justify-center">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
+        <!-- Left Column: Desktop Visual Showcase (Tersembunyi di mobile, tampil anggun di desktop) -->
+        <div class="hidden lg:flex lg:col-span-7 flex-col justify-center space-y-7">
+          <div
+            class="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[var(--accent-soft)] border border-[var(--accent)]/20 text-xs font-semibold text-[var(--accent)] tracking-wide w-fit"
+          >
+            <span class="size-2 rounded-full bg-[var(--accent)] animate-pulse"></span>
+            <span>BUKU KAS RUMAH TANGGA CERDAS</span>
+          </div>
+
+          <h1
+            class="font-display text-4xl xl:text-5xl font-extrabold tracking-tight text-[var(--text-primary)] leading-[1.18]"
+          >
+            Kelola Keuangan Bersama,<br />
+            <span class="bg-gradient-to-r from-[var(--accent)] via-emerald-400 to-teal-300 bg-clip-text text-transparent">
+              Lebih Tenang & Terencana.
+            </span>
+          </h1>
+
+          <p class="text-base xl:text-lg text-[var(--text-secondary)] leading-relaxed max-w-xl">
+            Satu buku kas digital untuk Anda dan pasangan. Pantau pengeluaran belanja harian, alokasi pos anggaran,
+            hingga target tabungan impian secara real-time dan teratur.
+          </p>
+
+          <!-- Showcase Bento Card -->
+          <div
+            class="relative rounded-2xl p-1 bg-gradient-to-br from-[var(--line-strong)]/30 via-[var(--line-subtle)]/20 to-transparent shadow-lg max-w-xl"
+          >
+            <div
+              class="rounded-[calc(1rem-2px)] bg-[var(--surface-raised)]/90 backdrop-blur-md p-5 border border-[var(--line-subtle)]/70 space-y-4"
+            >
+              <div class="flex items-center justify-between pb-3 border-b border-[var(--line-subtle)]/50">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="size-10 rounded-xl bg-[var(--accent-soft)] grid place-items-center text-[var(--accent)] font-bold text-lg"
+                  >
+                    📊
+                  </div>
+                  <div>
+                    <p class="text-xs text-[var(--text-muted)] font-medium">Estimasi Saldo Kas Keluarga</p>
+                    <p class="font-display text-xl font-bold text-[var(--text-primary)] tnum">
+                      Rp 38.450.000
+                    </p>
+                  </div>
+                </div>
+                <span
+                  class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                >
+                  +12.4% bln ini
+                </span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2.5 text-center">
+                <div
+                  class="p-2.5 rounded-xl bg-[var(--surface-sunken)]/60 border border-[var(--line-subtle)]/50"
+                >
+                  <p class="text-[11px] text-[var(--text-muted)]">Belanja Dapur</p>
+                  <p class="font-semibold text-xs text-[var(--text-primary)] mt-0.5">Terkendali</p>
+                </div>
+                <div
+                  class="p-2.5 rounded-xl bg-[var(--surface-sunken)]/60 border border-[var(--line-subtle)]/50"
+                >
+                  <p class="text-[11px] text-[var(--text-muted)]">Tabungan</p>
+                  <p class="font-semibold text-xs text-[var(--accent)] mt-0.5">85% Target</p>
+                </div>
+                <div
+                  class="p-2.5 rounded-xl bg-[var(--surface-sunken)]/60 border border-[var(--line-subtle)]/50"
+                >
+                  <p class="text-[11px] text-[var(--text-muted)]">Multi Dompet</p>
+                  <p class="font-semibold text-xs text-[var(--text-primary)] mt-0.5">4 Dompet</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature checklist -->
+          <div class="flex flex-wrap items-center gap-6 text-xs text-[var(--text-muted)] font-medium pt-1">
+            <span class="flex items-center gap-2">
+              <span class="text-[var(--accent)] font-bold">✓</span> Sinkronisasi Pasangan Instan
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="text-[var(--accent)] font-bold">✓</span> Privasi & Data Terenkripsi
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="text-[var(--accent)] font-bold">✓</span> Desain Cepat & Responsif
+            </span>
+          </div>
+        </div>
+
+        <!-- Right Column: Auth Card (Responsif & Adaptif) -->
+        <div class="w-full max-w-md mx-auto lg:max-w-none lg:col-span-5 flex flex-col justify-center">
+          <slot />
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer bar -->
+    <footer
+      class="safe-bottom relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 py-5 flex flex-col sm:flex-row items-center justify-between text-xs text-[var(--text-muted)] gap-2 border-t border-[var(--line-subtle)]/40 mt-auto"
+    >
+      <span>© 2026 Sintya Finance. Catatan Keuangan Rumah Tangga.</span>
+      <div class="flex items-center gap-4">
+        <span>Privasi Aman</span>
+        <span>•</span>
+        <span>Terhubung Real-time</span>
+      </div>
+    </footer>
+  </div>
 </BaseLayout>

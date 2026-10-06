@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,17 +18,75 @@ import (
 	"sintya-finance/backend/internal/collections"
 )
 
-// App adalah subset core.App yang dibutuhkan middleware. Dideklarasikan sebagai
-// interface agar package ini tidak bergantung pada PocketBase secara langsung,
-// sehingga mudah diuji dengan stub.
 type App interface {
 	FindCollectionByNameOrId(nameOrId string) (*core.Collection, error)
 	FindAuthRecordByToken(token string, validTypes ...string) (*core.Record, error)
 }
 
-// AuthGuard memverifikasi token PocketBase pada setiap request. Token dibaca dari
-// header Authorization, lalu record user dimuat dan household_id-nya disimpan di
-// Locals supaya handler tidak perlu memuat ulang.
+type RemoteUser struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	HouseholdID string `json:"household_id"`
+}
+
+var (
+	tokenCache   sync.Map
+	remoteClient = &http.Client{Timeout: 5 * time.Second}
+)
+
+func verifyRemoteToken(token string) (*RemoteUser, bool) {
+	remoteURL := os.Getenv("REMOTE_PB_URL")
+	if remoteURL == "" {
+		remoteURL = os.Getenv("PUBLIC_PB_URL")
+	}
+	if remoteURL == "" || !strings.HasPrefix(remoteURL, "http") {
+		return nil, false
+	}
+
+	if val, ok := tokenCache.Load(token); ok {
+		if u, ok := val.(*RemoteUser); ok {
+			return u, true
+		}
+	}
+
+	url := strings.TrimRight(remoteURL, "/") + "/api/collections/users/auth-refresh"
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return nil, false
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := remoteClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+	defer resp.Body.Close()
+
+	var data struct {
+		Record struct {
+			ID          string `json:"id"`
+			Email       string `json:"email"`
+			Name        string `json:"name"`
+			HouseholdID string `json:"household_id"`
+		} `json:"record"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, false
+	}
+
+	u := &RemoteUser{
+		ID:          data.Record.ID,
+		Email:       data.Record.Email,
+		Name:        data.Record.Name,
+		HouseholdID: data.Record.HouseholdID,
+	}
+
+	tokenCache.Store(token, u)
+	return u, true
+}
+
 func AuthGuard(app App) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		token := bearerToken(c)
@@ -34,32 +94,38 @@ func AuthGuard(app App) fiber.Handler {
 			return apierr.Fail(c, apierr.Unauthorized("Token tidak ditemukan"))
 		}
 
-		// Koleksi users dicek lebih dulu agar token dari koleksi lain
-		// (mis. admin PocketBase) tidak bisa dipakai accessing endpoint ini.
 		if _, err := app.FindCollectionByNameOrId(collections.ColUsers); err != nil {
 			return apierr.Fail(c, apierr.Internal("Koleksi user tidak ditemukan"))
 		}
 
 		record, err := app.FindAuthRecordByToken(token, collections.ColUsers)
 		if err != nil || record == nil {
+			if rUser, ok := verifyRemoteToken(token); ok {
+				c.Locals("user_id", rUser.ID)
+				c.Locals("household_id", rUser.HouseholdID)
+				c.Locals("remote_user", rUser)
+				return c.Next()
+			}
 			return apierr.Fail(c, apierr.Unauthorized("Token tidak valid atau sudah kedaluwarsa"))
 		}
 
 		c.Locals("user", record)
+		c.Locals("user_id", record.Id)
 		c.Locals("household_id", householdOf(record))
 
 		return c.Next()
 	}
 }
 
-// HouseholdID mengambil household_id yang sudah dipasang AuthGuard.
 func HouseholdID(c fiber.Ctx) string {
 	v, _ := c.Locals("household_id").(string)
 	return v
 }
 
-// UserID mengambil id user yang sedang login.
 func UserID(c fiber.Ctx) string {
+	if id, ok := c.Locals("user_id").(string); ok && id != "" {
+		return id
+	}
 	rec, _ := c.Locals("user").(*core.Record)
 	if rec == nil {
 		return ""

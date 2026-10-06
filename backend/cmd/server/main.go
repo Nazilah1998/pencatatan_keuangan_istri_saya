@@ -173,21 +173,34 @@ func mapFiberCode(status int) string {
 	}
 }
 
-// meHandler mengembalikan profil user yang sedang login.
 func meHandler(c fiber.Ctx) error {
 	rec := middleware.UserRecord(c)
-	if rec == nil {
+	if rec != nil {
+		return apierr.OK(c, fiber.Map{
+			"id":            rec.Id,
+			"email":         rec.Email(),
+			"name":          rec.GetString("name"),
+			"language":      rec.GetString("language"),
+			"household_id":  middleware.HouseholdID(c),
+			"base_currency": rec.GetString("base_currency"),
+			"has_pin":       rec.GetString("pin_hash") != "",
+			"avatar":        rec.GetString("avatar"),
+		})
+	}
+
+	remote, ok := c.Locals("remote_user").(*middleware.RemoteUser)
+	if !ok || remote == nil {
 		return apierr.Fail(c, apierr.Unauthorized("Sesi tidak valid"))
 	}
 
 	return apierr.OK(c, fiber.Map{
-		"id":            rec.Id,
-		"email":         rec.Email(),
-		"name":          rec.GetString("name"),
-		"language":      rec.GetString("language"),
-		"household_id":  middleware.HouseholdID(c),
-		"base_currency": rec.GetString("base_currency"),
-		"has_pin":       rec.GetString("pin_hash") != "",
-		"avatar":        rec.GetString("avatar"),
+		"id":            remote.ID,
+		"email":         remote.Email,
+		"name":          remote.Name,
+		"language":      "id",
+		"household_id":  remote.HouseholdID,
+		"base_currency": "IDR",
+		"has_pin":       false,
+		"avatar":        "",
 	})
 }

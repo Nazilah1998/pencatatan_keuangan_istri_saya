@@ -141,6 +141,11 @@ func merge(existing, desired *core.Collection) (*core.Collection, bool) {
 		changed = true
 	}
 
+	if desired.IsAuth() && !oauth2Equal(target.OAuth2, desired.OAuth2) {
+		target.OAuth2 = desired.OAuth2
+		changed = true
+	}
+
 	return target, changed
 }
 
@@ -216,6 +221,20 @@ func indexesEqual(a, b types.JSONArray[string]) bool {
 	}
 	for name, cols := range b {
 		if a[name] != cols {
+			return false
+		}
+	}
+	return true
+}
+
+func oauth2Equal(a, b core.OAuth2Config) bool {
+	if a.Enabled != b.Enabled || len(a.Providers) != len(b.Providers) {
+		return false
+	}
+	for i := range a.Providers {
+		if a.Providers[i].Name != b.Providers[i].Name ||
+			a.Providers[i].ClientId != b.Providers[i].ClientId ||
+			a.Providers[i].ClientSecret != b.Providers[i].ClientSecret {
 			return false
 		}
 	}

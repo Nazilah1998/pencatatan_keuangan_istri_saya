@@ -114,7 +114,15 @@ func main() {
 	if err := json.NewDecoder(resp.Body).Decode(&auth); err != nil {
 		log.Fatalf("decode auth: %v", err)
 	}
-	fmt.Println("Berhasil login ke remote PocketBase sebagai superuser")
+	for _, col := range cols {
+		if col.IsAuth() {
+			for i, p := range col.OAuth2.Providers {
+				if p.Name == "google" && p.ClientSecret == "" {
+					col.OAuth2.Providers[i].ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+				}
+			}
+		}
+	}
 
 	importPayload, err := json.Marshal(map[string]any{
 		"collections":   cols,
@@ -122,6 +130,26 @@ func main() {
 	})
 	if err != nil {
 		log.Fatalf("marshal payload import: %v", err)
+	}
+
+	var rawPayload map[string]any
+	if err := json.Unmarshal(importPayload, &rawPayload); err == nil {
+		if rawCols, ok := rawPayload["collections"].([]any); ok {
+			for _, rc := range rawCols {
+				if colMap, ok := rc.(map[string]any); ok && colMap["name"] == "users" {
+					if oauth2Map, ok := colMap["oauth2"].(map[string]any); ok {
+						if provs, ok := oauth2Map["providers"].([]any); ok {
+							for _, p := range provs {
+								if pMap, ok := p.(map[string]any); ok && pMap["name"] == "google" {
+									pMap["clientSecret"] = os.Getenv("GOOGLE_CLIENT_SECRET")
+								}
+							}
+						}
+					}
+				}
+			}
+			importPayload, _ = json.Marshal(rawPayload)
+		}
 	}
 
 	req, err := http.NewRequest(http.MethodPut, remoteURL+"/api/collections/import", bytes.NewReader(importPayload))

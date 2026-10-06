@@ -40,25 +40,25 @@ export function Modal({ open, title, onClose, children, footer }: Props) {
         // Backdrop adalah area dialog itu sendiri, bukan descendant-nya.
         if (event.target === ref.current) onClose()
       }}
-      className="m-0 h-full max-h-full w-full max-w-none bg-transparent p-0 backdrop:bg-black/60 sm:m-auto sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:p-0"
+      className="app-modal"
     >
-      <div className="flex max-h-full flex-col overflow-hidden rounded-none border border-[var(--line-subtle)] bg-[var(--surface-overlay)] shadow-[var(--shadow-modal)] sm:rounded-[var(--radius-tile)]">
-        <header className="flex items-center justify-between gap-3 border-b border-[var(--line-subtle)] px-4 py-3">
-          <h2 className="truncate text-base font-semibold">{title}</h2>
+      <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface-overlay)] sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:border sm:border-[var(--line-subtle)] sm:shadow-[var(--shadow-pop)]">
+        <header className="safe-top flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line-subtle)] bg-[var(--surface-overlay)] px-4 py-3 sm:py-3.5">
+          <h2 className="truncate font-display text-base font-bold tracking-tight text-[var(--text-primary)] sm:text-lg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="grid size-8 shrink-0 place-items-center rounded-[0.5rem] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] active:scale-95"
           >
-            <X className="size-4" aria-hidden />
+            <X className="size-4.5" aria-hidden />
           </button>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
 
         {footer && (
-          <footer className="flex justify-end gap-2 border-t border-[var(--line-subtle)] px-4 py-3">
+          <footer className="safe-bottom flex shrink-0 justify-end gap-2 border-t border-[var(--line-subtle)] bg-[var(--surface-overlay)] px-4 py-3">
             {footer}
           </footer>
         )}

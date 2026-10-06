@@ -5,7 +5,7 @@
 import { useMemo } from 'react'
 import { useStore } from '@nanostores/react'
 
-import { translateFn, appActions, $dict, $lang, $ready, $session, $theme } from '../../lib/state/app'
+import { translateFn, appActions, $dict, $drawerOpen, $lang, $ready, $session, $theme } from '../../lib/state/app'
 import { translate as msg, type MessageKey } from '../../lib/utils/messages'
 
 export function useApp() {
@@ -14,6 +14,7 @@ export function useApp() {
   const dict = useStore($dict)
   const session = useStore($session)
   const ready = useStore($ready)
+  const drawerOpen = useStore($drawerOpen)
 
   return useMemo(
     () => ({
@@ -26,9 +27,12 @@ export function useApp() {
       m: (key: MessageKey) => msg(key, lang === 'id' ? 'id' : 'en'),
       session,
       ready,
+      drawerOpen,
+      toggleDrawer: appActions.toggleDrawer,
+      setDrawerOpen: appActions.setDrawerOpen,
       signOut: appActions.signOut,
       isAuthed: !!session,
     }),
-    [theme, lang, dict, session, ready],
+    [theme, lang, dict, session, ready, drawerOpen],
   )
 }

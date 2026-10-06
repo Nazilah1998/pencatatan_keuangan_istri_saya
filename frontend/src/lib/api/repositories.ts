@@ -209,12 +209,19 @@ function mapSavings(rec: Rec): SavingsGoal {
 }
 
 function mapDebt(rec: Rec): Debt {
+  const principal = Number(rec.principal ?? 0)
+  const rawCur = rec.current_balance
+  const currentBalance =
+    rawCur !== undefined && rawCur !== null && rawCur !== ''
+      ? Number(rawCur)
+      : principal
+
   return {
     id: rec.id as string,
     creditor: rec.creditor as string,
     type: rec.type as Debt['type'],
-    principal: Number(rec.principal ?? 0),
-    currentBalance: Number(rec.current_balance ?? 0),
+    principal,
+    currentBalance,
     interestRate: Number(rec.interest_rate ?? 0),
     monthlyPayment: Number(rec.monthly_payment ?? 0),
     startDate: (rec.start_date as string) ?? '',
@@ -249,6 +256,7 @@ const WALLET_KEYS = [
   'name',
   'type',
   'initial_balance',
+  'balance',
   'icon',
   'color',
   'include_in_networth',
@@ -258,55 +266,23 @@ const WALLET_KEYS = [
 
 const CATEGORY_KEYS = ['name', 'type', 'icon', 'color', 'is_archived'] as const
 
-const TX_KEYS = [
-  'type',
-  'amount',
-  'date',
-  'note',
-  'category',
-  'sub_category',
-  'wallet',
-  'to_wallet',
-  'savings_goal',
-  'is_recurring',
-] as const
-
-const SAVINGS_KEYS = [
-  'name',
-  'target_amount',
-  'monthly_contribution',
-  'target_date',
-  'status',
-  'icon',
-  'color',
-  'include_in_net_worth',
-] as const
-
-const DEBT_KEYS = [
-  'creditor',
-  'type',
-  'principal',
-  'interest_rate',
-  'monthly_payment',
-  'start_date',
-  'due_date',
-  'status',
-  'notes',
-] as const
-
 export const WalletRepo = {
   async list(includeArchived = false): Promise<Wallet[]> {
     const clauses = includeArchived ? [] : ['is_archived = false']
 
     const records = await getPB()
       .collection('wallets')
-      .getFullList<Rec>({ filter: scope(...clauses), sort: 'sort_order, name' })
+      .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' })
 
     return records.map(mapWallet)
   },
 
   async create(input: Partial<Wallet>): Promise<Wallet> {
-    const payload = { ...pick(input as Rec, WALLET_KEYS), household_id: householdId() }
+    const payload = {
+      ...pick(input as Rec, WALLET_KEYS),
+      balance: input.balance ?? input.initialBalance ?? 0,
+      household_id: householdId(),
+    }
     const rec = await getPB().collection('wallets').create(payload)
     return mapWallet(rec as unknown as Rec)
   },
@@ -322,12 +298,27 @@ export const WalletRepo = {
   },
 }
 
+function unmapTx(input: Partial<Transaction>): Rec {
+  const out: Rec = {}
+  if (input.type !== undefined) out.type = input.type
+  if (input.amount !== undefined) out.amount = input.amount
+  if (input.date !== undefined) out.date = input.date
+  if (input.note !== undefined) out.note = input.note
+  if (input.category !== undefined) out.category = input.category
+  if (input.subCategory !== undefined) out.sub_category = input.subCategory
+  if (input.wallet !== undefined) out.wallet = input.wallet
+  if (input.toWallet !== undefined) out.to_wallet = input.toWallet
+  if (input.savingsGoal !== undefined) out.savings_goal = input.savingsGoal
+  if (input.isRecurring !== undefined) out.is_recurring = input.isRecurring
+  return out
+}
+
 export const CategoryRepo = {
   async list(type?: Category['type']): Promise<Category[]> {
     const clauses = type ? [`type = "${escape(type)}"`] : []
     const records = await getPB()
       .collection('categories')
-      .getFullList<Rec>({ filter: scope(...clauses), sort: 'sort_order, name' })
+      .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' })
 
     return records.map(mapCategory)
   },
@@ -404,19 +395,33 @@ export const TxRepo = {
   },
 
   async create(input: Partial<Transaction>): Promise<Transaction> {
-    const payload = { ...pick(input as Rec, TX_KEYS), household_id: householdId() }
+    const payload = { ...unmapTx(input), household_id: householdId() }
     const rec = await getPB().collection('transactions').create(payload)
     return mapTx(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<Transaction>): Promise<Transaction> {
-    const rec = await getPB().collection('transactions').update(id, pick(input as Rec, TX_KEYS))
+    const rec = await getPB().collection('transactions').update(id, unmapTx(input))
     return mapTx(rec as unknown as Rec)
   },
 
   async remove(id: string) {
     await getPB().collection('transactions').delete(id)
   },
+}
+
+function unmapSavings(input: Partial<SavingsGoal>): Rec {
+  const out: Rec = {}
+  if (input.name !== undefined) out.name = input.name
+  if (input.targetAmount !== undefined) out.target_amount = input.targetAmount
+  if (input.currentAmount !== undefined) out.current_amount = input.currentAmount
+  if (input.monthlyContribution !== undefined) out.monthly_contribution = input.monthlyContribution
+  if (input.targetDate !== undefined) out.target_date = input.targetDate
+  if (input.status !== undefined) out.status = input.status
+  if (input.icon !== undefined) out.icon = input.icon
+  if (input.color !== undefined) out.color = input.color
+  if (input.includeInNetWorth !== undefined) out.include_in_networth = input.includeInNetWorth
+  return out
 }
 
 export const SavingsRepo = {
@@ -430,19 +435,39 @@ export const SavingsRepo = {
   },
 
   async create(input: Partial<SavingsGoal>): Promise<SavingsGoal> {
-    const payload = { ...pick(input as Rec, SAVINGS_KEYS), household_id: householdId() }
+    const payload = {
+      ...unmapSavings(input),
+      current_amount: input.currentAmount ?? 0,
+      include_in_networth: input.includeInNetWorth ?? true,
+      household_id: householdId(),
+    }
     const rec = await getPB().collection('savings').create(payload)
     return mapSavings(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<SavingsGoal>): Promise<SavingsGoal> {
-    const rec = await getPB().collection('savings').update(id, pick(input as Rec, SAVINGS_KEYS))
+    const rec = await getPB().collection('savings').update(id, unmapSavings(input))
     return mapSavings(rec as unknown as Rec)
   },
 
   async remove(id: string) {
     await getPB().collection('savings').delete(id)
   },
+}
+
+function unmapDebt(input: Partial<Debt>): Rec {
+  const out: Rec = {}
+  if (input.creditor !== undefined) out.creditor = input.creditor
+  if (input.type !== undefined) out.type = input.type
+  if (input.principal !== undefined) out.principal = input.principal
+  if (input.currentBalance !== undefined) out.current_balance = input.currentBalance
+  if (input.interestRate !== undefined) out.interest_rate = input.interestRate
+  if (input.monthlyPayment !== undefined) out.monthly_payment = input.monthlyPayment
+  if (input.startDate !== undefined) out.start_date = input.startDate
+  if (input.dueDate !== undefined) out.due_date = input.dueDate
+  if (input.status !== undefined) out.status = input.status
+  if (input.notes !== undefined) out.notes = input.notes
+  return out
 }
 
 export const DebtRepo = {
@@ -456,13 +481,17 @@ export const DebtRepo = {
   },
 
   async create(input: Partial<Debt>): Promise<Debt> {
-    const payload = { ...pick(input as Rec, DEBT_KEYS), household_id: householdId() }
+    const payload = {
+      ...unmapDebt(input),
+      current_balance: input.currentBalance ?? input.principal ?? 0,
+      household_id: householdId(),
+    }
     const rec = await getPB().collection('debts').create(payload)
     return mapDebt(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<Debt>): Promise<Debt> {
-    const rec = await getPB().collection('debts').update(id, pick(input as Rec, DEBT_KEYS))
+    const rec = await getPB().collection('debts').update(id, unmapDebt(input))
     return mapDebt(rec as unknown as Rec)
   },
 

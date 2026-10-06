@@ -136,8 +136,20 @@ func fetchTransactions(ctx context.Context, store Store, householdID, start, end
 	return records, nil
 }
 
-// normalizeBoundary mengubah "2026-01-31" menjadi batas perbandingan yang benar.
+// normalizeBoundary mengubah "2026-01-31" atau "2026-01" menjadi batas perbandingan yang benar.
 func normalizeBoundary(day string, upper bool) string {
+	day = strings.TrimSpace(day)
+	if len(day) == 7 {
+		if upper {
+			t, err := time.Parse("2006-01", day)
+			if err == nil {
+				end := t.AddDate(0, 1, -1).Format("2006-01-02")
+				return end + " 23:59:59.999Z"
+			}
+		} else {
+			return day + "-01 00:00:00.000Z"
+		}
+	}
 	if len(day) < 10 {
 		return day
 	}

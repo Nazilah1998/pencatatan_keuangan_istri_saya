@@ -11,6 +11,7 @@ import { id as idDict } from './languages/id'
 
 import { PUBLIC_DEFAULT_LANG } from '../config/public'
 
+export { id as defaultDict } from './languages/id'
 export { LANGUAGES } from './dictionaries'
 
 export type LangCode = 'id' | 'en' | 'zh' | 'es' | 'ar' | 'hi' | 'fr' | 'ja' | 'ru' | 'pt'

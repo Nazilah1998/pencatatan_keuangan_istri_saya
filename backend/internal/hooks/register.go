@@ -33,6 +33,12 @@ func Register(app core.App) {
 	app.OnRecordAfterCreateSuccess(collections.ColDebtPayments).BindFunc(onDebtPaymentChanged)
 	app.OnRecordAfterUpdateSuccess(collections.ColDebtPayments).BindFunc(onDebtPaymentChanged)
 	app.OnRecordAfterDeleteSuccess(collections.ColDebtPayments).BindFunc(onDebtPaymentChanged)
+
+	app.OnRecordAfterCreateSuccess(collections.ColWallets).BindFunc(onWalletSaved)
+	app.OnRecordAfterUpdateSuccess(collections.ColWallets).BindFunc(onWalletSaved)
+
+	app.OnRecordAfterCreateSuccess(collections.ColDebts).BindFunc(onDebtSaved)
+	app.OnRecordAfterUpdateSuccess(collections.ColDebts).BindFunc(onDebtSaved)
 }
 
 // StartBackgroundJobs menjalankan tugas periodik. Dipanggil sebagai goroutine

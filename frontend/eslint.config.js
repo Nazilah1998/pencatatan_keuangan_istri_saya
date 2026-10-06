@@ -41,8 +41,12 @@ export default tseslint.config(
   },
   {
     // Service worker berjalan di scope service worker, bukan di browser window.
-    files: ['public/**/*.js'],
+    files: ['public/sw.js'],
     languageOptions: { globals: globals.serviceworker },
+  },
+  {
+    files: ['public/env-config.js'],
+    languageOptions: { globals: globals.browser },
   },
   {
     files: ['scripts/**/*.js', '*.config.js'],

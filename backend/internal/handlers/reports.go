@@ -30,14 +30,23 @@ func (h *Reports) Register(router fiber.Router) {
 
 // SummaryPayload menggabungkan angka-angka utama untuk halaman dashboard.
 type SummaryPayload struct {
-	NetWorth    *services.NetWorth     `json:"net_worth"`
-	Income      float64                `json:"income"`
-	Expense     float64                `json:"expense"`
-	Net         float64                `json:"net"`
-	TxCount     int                    `json:"tx_count"`
-	BudgetUsed  float64                `json:"budget_used"`
-	BudgetLimit float64                `json:"budget_limit"`
-	Breakdown   *services.CategoryItem `json:"-"`
+	NetWorth     *services.NetWorth     `json:"net_worth"`
+	NetWorthNum  float64                `json:"netWorth"`
+	TotalBalance float64                `json:"totalBalance"`
+	TotalBalSnake float64               `json:"total_balance"`
+	Income       float64                `json:"income"`
+	Expense      float64                `json:"expense"`
+	Transfer     float64                `json:"transfer"`
+	Net          float64                `json:"net"`
+	SavingsTotal float64                `json:"savingsTotal"`
+	SavingsSnake float64                `json:"savings_total"`
+	DebtTotal    float64                `json:"debtTotal"`
+	DebtSnake    float64                `json:"debt_total"`
+	TxCount      int                    `json:"tx_count"`
+	BudgetUsed   float64                `json:"budget_used"`
+	BudgetLimit  float64                `json:"budget_limit"`
+	Month        string                 `json:"month"`
+	Breakdown    *services.CategoryItem `json:"-"`
 }
 
 // Summary mengembalikan ringkasan untuk satu bulan.
@@ -71,13 +80,22 @@ func (h *Reports) Summary(c fiber.Ctx) error {
 	}
 
 	return apierr.OK(c, SummaryPayload{
-		NetWorth:    worth,
-		Income:      flow.Income,
-		Expense:     flow.Expense,
-		Net:         flow.Net,
-		TxCount:     flow.TxCount,
-		BudgetUsed:  budget.TotalSpent,
-		BudgetLimit: budget.TotalLimit,
+		NetWorth:      worth,
+		NetWorthNum:   worth.Net,
+		TotalBalance:  worth.Assets,
+		TotalBalSnake: worth.Assets,
+		Income:        flow.Income,
+		Expense:       flow.Expense,
+		Transfer:      flow.Transfer,
+		Net:           flow.Net,
+		SavingsTotal:  worth.SavingsTotal,
+		SavingsSnake:  worth.SavingsTotal,
+		DebtTotal:     worth.Liabilities,
+		DebtSnake:     worth.Liabilities,
+		TxCount:       flow.TxCount,
+		BudgetUsed:    budget.TotalSpent,
+		BudgetLimit:   budget.TotalLimit,
+		Month:         month,
 	})
 }
 
@@ -90,6 +108,15 @@ func (h *Reports) Cashflow(c fiber.Ctx) error {
 
 	start := c.Query("start", time.Now().AddDate(0, 0, -29).Format("2006-01-02"))
 	end := c.Query("end", time.Now().Format("2006-01-02"))
+
+	if len(start) == 7 && len(end) == 7 {
+		sDate, _, errS := services.MonthRange(start)
+		_, eDate, errE := services.MonthRange(end)
+		if errS == nil && errE == nil {
+			start = sDate
+			end = eDate
+		}
+	}
 
 	if end < start {
 		return apierr.Fail(c, apierr.BadRequest("Rentang tanggal terbalik"))

@@ -95,8 +95,15 @@ func (h *Data) Restore(c fiber.Ctx) error {
 	}
 
 	var body RestorePayloadBody
-	if err := json.Unmarshal(c.Body(), &body); err != nil {
-		return apierr.Fail(c, apierr.BadRequest("Format berkas tidak valid: "+err.Error()))
+	if err := json.Unmarshal(c.Body(), &body); err == nil && body.Data.Version == 1 {
+		// Parsed as wrapped body
+	} else {
+		var direct services.RestorePayload
+		if errDirect := json.Unmarshal(c.Body(), &direct); errDirect == nil && direct.Version == 1 {
+			body.Data = direct
+		} else {
+			return apierr.Fail(c, apierr.BadRequest("Format berkas cadangan tidak valid (harus file JSON ekspor sintya-finance)"))
+		}
 	}
 
 	if body.Data.HouseholdID == "" {

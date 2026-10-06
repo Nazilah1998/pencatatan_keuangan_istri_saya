@@ -5,6 +5,7 @@
  * Tidak ada fetch ke server pada build time. Data pengguna dimuat oleh island
  * React di dalam `<slot />` setelah halaman sampai di browser.
  */
+import ClientRouter from 'astro/components/ClientRouter.astro'
 import '../styles/global.css'
 
 import { PUBLIC_APP_NAME } from '../lib/config/public'
@@ -29,6 +30,7 @@ const {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <ClientRouter />
     <meta name="theme-color" content={themeColor} />
     <meta name="description" content={description} />
     <meta name="application-name" content={PUBLIC_APP_NAME} />
@@ -44,6 +46,7 @@ const {
 
     <title>{title}</title>
 
+    <script is:inline src="/env-config.js"></script>
     <script is:inline>
       (() => {
         try {
@@ -61,10 +64,15 @@ const {
     <script>
       // Registrasi service worker setelah halaman selesai dimuat agar tidak
       // hinderingi First Contentful Paint di koneksi lambat.
-      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      if (
+        'serviceWorker' in navigator &&
+        (location.protocol === 'https:' ||
+          location.hostname === 'localhost' ||
+          location.hostname === '127.0.0.1' ||
+          location.hostname.startsWith('192.168.'))
+      ) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {
-            // PWA bersifat opsional; aplikasi tetap berfungsi tanpanya.
           })
         })
       }

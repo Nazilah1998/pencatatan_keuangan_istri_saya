@@ -4,9 +4,9 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 import { cn } from './Button'
 
 const FIELD =
-  'w-full rounded-[0.75rem] border border-[var(--line-subtle)] bg-[var(--surface-sunken)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent)] focus:outline-none disabled:opacity-50'
+  'w-full h-11 sm:h-12 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)] px-3.5 py-2 text-base sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all duration-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50'
 
-const LABEL = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]'
+const LABEL = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]'
 
 function FieldShell({
   label,

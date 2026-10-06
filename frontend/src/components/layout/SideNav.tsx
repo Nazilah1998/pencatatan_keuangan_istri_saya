@@ -2,6 +2,7 @@
  * Sidebar desktop. Butuh session (untuk nama & tombol keluar) sehingga
  * di-hidrate `client:load`, bukan `client:visible`.
  */
+import { useEffect, useState } from 'react'
 import { LayoutDashboard, LogOut, Moon, Sun } from 'lucide-react'
 
 import { useApp } from '../providers/useApp'
@@ -11,8 +12,13 @@ import { NAV_ITEMS, NAV_ICONS, isActivePath, usePathname } from './nav'
 export function SideNav() {
   const { t, theme, toggleTheme, signOut, session } = useApp()
   const path = usePathname()
+  const [mounted, setMounted] = useState(false)
 
-  const initial = session?.name?.charAt(0).toUpperCase() ?? 'S'
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const initial = (mounted && session?.name ? session.name.charAt(0).toUpperCase() : null) ?? 'S'
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col py-6 lg:flex">
@@ -22,7 +28,7 @@ export function SideNav() {
         </span>
         <span className="min-w-0">
           <span className="block truncate font-display text-base font-semibold leading-tight">
-            {session?.name || t('app.name')}
+            {mounted && session?.name ? session.name : t('app.name')}
           </span>
           <span className="block truncate text-xs text-[var(--text-muted)]">{t('app.tagline')}</span>
         </span>
