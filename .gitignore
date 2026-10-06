@@ -3,9 +3,10 @@ node_modules/
 .pnpm-store/
 
 # --- Environment ---
+*.env*
 .env
 .env.*
-!.env.example
+
 
 # --- Astro ---
 frontend/dist/

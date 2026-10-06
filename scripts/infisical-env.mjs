@@ -138,14 +138,5 @@ export async function loadInfisicalSecrets() {
     }
   }
 
-  try {
-    const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-    const envFilePath = path.join(rootDir, '.env')
-    const lines = Object.entries(envObj).map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
-    fs.writeFileSync(envFilePath, lines.join('\n') + '\n', 'utf8')
-  } catch {
-    // Abaikan jika penulisan .env lokal gagal
-  }
-
   return envObj
 }
