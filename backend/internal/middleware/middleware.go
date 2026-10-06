@@ -243,14 +243,22 @@ func RateLimit(perMinute int) fiber.Handler {
 	}
 }
 
-// RequestLogger mencatat kegagalan server agar mudah ditelusuri.
 func RequestLogger() fiber.Handler {
 	return func(c fiber.Ctx) error {
+		start := time.Now()
 		err := c.Next()
+		duration := time.Since(start)
+
+		status := c.Response().StatusCode()
+		method := c.Method()
+		path := c.Path()
+
+		LogHTTP("api", method, path, status, duration)
+
 		if err != nil {
 			var appErr *apierr.Error
 			if errors.As(err, &appErr) && appErr.Status >= 500 {
-				slog.Error("request gagal", "method", c.Method(), "path", c.Path(), "error", err)
+				slog.Error("request gagal", "method", method, "path", path, "error", err)
 			}
 		}
 		return err

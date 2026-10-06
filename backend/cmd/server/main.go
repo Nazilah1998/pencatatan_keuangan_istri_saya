@@ -75,7 +75,7 @@ func run() error {
 
 	go func() {
 		slog.Info("api siap", "alamat", cfg.APIAddress())
-		if err := app.Listen(cfg.APIAddress(), fiber.ListenConfig{DisableStartupMessage: false}); err != nil {
+		if err := app.Listen(cfg.APIAddress(), fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
 			errCh <- err
 		}
 	}()

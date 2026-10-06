@@ -8,12 +8,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
 	"sintya-finance/backend/internal/collections"
 	"sintya-finance/backend/internal/config"
 	"sintya-finance/backend/internal/hooks"
+	"sintya-finance/backend/internal/middleware"
 )
 
 // New membuat dan membootstrap instance PocketBase yang ter-embed.
@@ -24,7 +26,7 @@ import (
 func New(cfg *config.Config) (*pocketbase.PocketBase, error) {
 	pb := pocketbase.NewWithConfig(pocketbase.Config{
 		HideStartBanner:     true,
-		DefaultDev:          cfg.Dev,
+		DefaultDev:          false,
 		DefaultDataDir:      cfg.DataDir,
 		DefaultQueryTimeout: 30,
 		DataMaxOpenConns:    8,
@@ -36,6 +38,34 @@ func New(cfg *config.Config) (*pocketbase.PocketBase, error) {
 	if err := pb.Bootstrap(); err != nil {
 		return nil, fmt.Errorf("bootstrap pocketbase: %w", err)
 	}
+
+	if db, ok := pb.ConcurrentDB().(*dbx.DB); ok {
+		db.QueryLogFunc = nil
+		db.ExecLogFunc = nil
+	}
+	if db, ok := pb.NonconcurrentDB().(*dbx.DB); ok {
+		db.QueryLogFunc = nil
+		db.ExecLogFunc = nil
+	}
+	if db, ok := pb.AuxConcurrentDB().(*dbx.DB); ok {
+		db.QueryLogFunc = nil
+		db.ExecLogFunc = nil
+	}
+	if db, ok := pb.AuxNonconcurrentDB().(*dbx.DB); ok {
+		db.QueryLogFunc = nil
+		db.ExecLogFunc = nil
+	}
+
+	pb.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		e.Router.BindFunc(func(re *core.RequestEvent) error {
+			start := time.Now()
+			err := re.Next()
+			duration := time.Since(start)
+			middleware.LogHTTP("pb", re.Request.Method, re.Request.URL.Path, re.Status(), duration)
+			return err
+		})
+		return e.Next()
+	})
 
 	hooks.Register(pb)
 	go hooks.StartBackgroundJobs(pb)
