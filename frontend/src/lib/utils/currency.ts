@@ -88,16 +88,44 @@ export function formatCompact(value: number, currency: CurrencyCode = 'IDR'): st
   return formatMoney(value, currency)
 }
 
-/** Urutan parse yang aman untuk input nominal bertanda Indonesia. */
-export function parseAmount(input: string): number {
+export function formatAmountInput(value: string | number): string {
+  if (value === '' || value === null || value === undefined) return ''
+  const str = String(value)
+  const digits = str.replace(/\D/g, '')
+  if (!digits) return ''
+  const trimmed = digits.replace(/^0+(?=\d)/, '')
+  return trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+export function parseAmount(input: string | number): number {
+  if (typeof input === 'number') return Number.isFinite(input) ? input : 0
+  if (!input) return 0
   const cleaned = input.replace(/[^\d,.-]/g, '')
   if (!cleaned) return 0
 
-  const normalized = cleaned.includes(',')
-    ? cleaned.replace(/\./g, '').replace(',', '.')
-    : cleaned
+  if (cleaned.includes(',')) {
+    const normalized = cleaned.replace(/\./g, '').replace(',', '.')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
 
-  const parsed = Number(normalized)
+  const dotCount = (cleaned.match(/\./g) || []).length
+  if (dotCount > 1) {
+    const normalized = cleaned.replace(/\./g, '')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  if (dotCount === 1) {
+    const parts = cleaned.split('.')
+    if (parts[1]?.length === 3 && parts[0] !== '0') {
+      const normalized = cleaned.replace(/\./g, '')
+      const parsed = Number(normalized)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+  }
+
+  const parsed = Number(cleaned)
   return Number.isFinite(parsed) ? parsed : 0
 }
 

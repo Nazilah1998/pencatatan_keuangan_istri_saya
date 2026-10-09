@@ -22,6 +22,20 @@ const MONTH_NAMES = [
 
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 
+function getSafeYMD(val: string): { year: number; month: number; day: number } {
+  if (val) {
+    const parts = val.slice(0, 10).split('-')
+    const y = Number(parts[0])
+    const m = Number(parts[1])
+    const d = Number(parts[2])
+    if (Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)) {
+      return { year: y, month: m - 1, day: d }
+    }
+  }
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() }
+}
+
 export function ModernDatePicker({
   label,
   value,
@@ -36,18 +50,16 @@ export function ModernDatePicker({
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const initialDate = value ? new Date(value + 'T00:00:00') : new Date()
-  const safeDate = Number.isNaN(initialDate.getTime()) ? new Date() : initialDate
-  const [viewYear, setViewYear] = useState(safeDate.getFullYear())
-  const [viewMonth, setViewMonth] = useState(safeDate.getMonth())
+  const normalizedValue = value ? value.slice(0, 10) : ''
+  const initial = getSafeYMD(value)
+  const [viewYear, setViewYear] = useState<number>(initial.year)
+  const [viewMonth, setViewMonth] = useState<number>(initial.month)
 
   useEffect(() => {
     if (value) {
-      const d = new Date(value + 'T00:00:00')
-      if (!Number.isNaN(d.getTime())) {
-        setViewYear(d.getFullYear())
-        setViewMonth(d.getMonth())
-      }
+      const parsed = getSafeYMD(value)
+      setViewYear(parsed.year)
+      setViewMonth(parsed.month)
     }
   }, [value])
 
@@ -111,13 +123,12 @@ export function ModernDatePicker({
     setIsOpen(false)
   }
 
-  // Perhitungan kalender
   const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
   const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate()
 
   const today = todayISO()
-  const isTodaySelected = value === today
+  const isTodaySelected = normalizedValue === today
 
   return (
     <div ref={containerRef} className={['relative w-full', className].join(' ')}>
@@ -169,12 +180,12 @@ export function ModernDatePicker({
       >
         <div className="flex items-center gap-2.5 truncate">
           <CalendarIcon className="size-4 shrink-0 text-[var(--accent)]" />
-          <span className={['truncate font-medium', value ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'].join(' ')}>
-            {value ? formatDate(value, 'short') : placeholder}
+          <span className={['truncate font-medium', normalizedValue ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'].join(' ')}>
+            {normalizedValue ? formatDate(normalizedValue, 'short') : placeholder}
           </span>
         </div>
 
-        {value && isTodaySelected && (
+        {normalizedValue && isTodaySelected && (
           <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[0.625rem] font-bold text-[var(--accent)]">
             Hari ini
           </span>
@@ -184,7 +195,7 @@ export function ModernDatePicker({
       {/* Floating Calendar Popover */}
       {isOpen && (
         <div
-          className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[17.5rem] max-w-[20rem] rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-overlay)] p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+          className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[17.5rem] rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-overlay)] p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
           role="dialog"
           aria-label="Pilih tanggal"
         >
@@ -224,24 +235,22 @@ export function ModernDatePicker({
 
           {/* Grid Tanggal */}
           <div className="grid grid-cols-7 gap-1">
-            {/* Hari bulan sebelumnya */}
             {Array.from({ length: firstDayOfWeek }).map((_, i) => {
               const dayNum = daysInPrevMonth - firstDayOfWeek + i + 1
               return (
                 <span
                   key={`prev-${i}`}
-                  className="grid size-8 place-items-center text-xs text-[var(--text-muted)]/30 font-medium"
+                  className="grid h-9 w-full place-items-center text-xs text-[var(--text-muted)]/30 font-medium"
                 >
                   {dayNum}
                 </span>
               )
             })}
 
-            {/* Hari bulan ini */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const dayNum = i + 1
               const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-              const isSelected = value === dateStr
+              const isSelected = normalizedValue === dateStr
               const isCurrentDay = today === dateStr
 
               return (
@@ -250,7 +259,7 @@ export function ModernDatePicker({
                   type="button"
                   onClick={() => selectDate(viewYear, viewMonth, dayNum)}
                   className={[
-                    'grid size-8 place-items-center rounded-xl text-xs font-medium transition-all duration-150',
+                    'grid h-9 w-full place-items-center rounded-xl text-xs font-medium transition-all duration-150',
                     isSelected
                       ? 'bg-[var(--accent)] text-[var(--text-inverted)] font-bold shadow-xs scale-105'
                       : isCurrentDay

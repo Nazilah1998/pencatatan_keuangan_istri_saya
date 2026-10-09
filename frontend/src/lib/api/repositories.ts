@@ -415,7 +415,7 @@ export const TxRepo = {
     const records = await getPB()
       .collection('transactions')
       .getList<Rec>(1, 200, {
-        filter: scope('date >= "' + start + '"', 'date <= "' + end + '"'),
+        filter: scope(`date >= "${start} 00:00:00"`, `date <= "${end} 23:59:59.999Z"`),
         sort: '-date, -created',
       })
 
@@ -426,7 +426,7 @@ export const TxRepo = {
     const records = await getPB()
       .collection('transactions')
       .getList<Rec>(1, 500, {
-        filter: scope(`date >= "${start}"`, `date <= "${end}"`),
+        filter: scope(`date >= "${start} 00:00:00"`, `date <= "${end} 23:59:59.999Z"`),
         sort: '-date, -created',
       })
 

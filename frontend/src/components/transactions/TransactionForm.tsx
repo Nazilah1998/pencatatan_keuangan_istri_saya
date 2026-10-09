@@ -26,7 +26,7 @@ import {
   type TxType,
   type Wallet,
 } from '../../lib/api/repositories'
-import { formatMoney, parseAmount } from '../../lib/utils/currency'
+import { formatAmountInput, formatMoney, parseAmount } from '../../lib/utils/currency'
 import { todayISO } from '../../lib/utils/date'
 import { useApp } from '../providers/useApp'
 import { ModernDatePicker } from '../ui/ModernDatePicker'
@@ -67,7 +67,11 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
   const { m, t, session } = useApp()
   const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
 
-  const [form, setForm] = useState<FormState>(EMPTY)
+  const [form, setForm] = useState<FormState>(() => ({
+    ...EMPTY,
+    type: defaultType,
+    date: todayISO(),
+  }))
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [subs, setSubs] = useState<SubCategory[]>([])
@@ -121,13 +125,13 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
   useEffect(() => {
     if (!editing) {
       setForm((prev) => ({
-        ...EMPTY,
-        type: defaultType,
-        date: todayISO(),
+        ...prev,
+        type: prev.type || defaultType,
+        date: prev.date || todayISO(),
         wallet: prev.wallet || wallets[0]?.id || '',
         category:
           prev.category ||
-          categories.filter((c) => !c.isArchived && c.type === defaultType)[0]?.id ||
+          categories.filter((c) => !c.isArchived && c.type === (prev.type || defaultType))[0]?.id ||
           '',
       }))
       return
@@ -135,8 +139,8 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
     setForm({
       type: editing.type,
-      amount: String(editing.amount),
-      date: editing.date.slice(0, 10),
+      amount: formatAmountInput(editing.amount),
+      date: (editing.date || todayISO()).slice(0, 10),
       wallet: editing.wallet,
       toWallet: editing.toWallet,
       category: editing.category,
@@ -250,6 +254,73 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }, [])
 
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target
+    const val = input.value
+    const digits = val.replace(/\D/g, '')
+
+    if (!digits) {
+      set('amount', '')
+      return
+    }
+
+    const cursor = input.selectionStart ?? val.length
+    const digitsBeforeCursor = val.slice(0, cursor).replace(/\D/g, '').length
+
+    const formatted = formatAmountInput(digits)
+    set('amount', formatted)
+
+    requestAnimationFrame(() => {
+      let counted = 0
+      let newCursor = formatted.length
+      for (let i = 0; i < formatted.length; i++) {
+        const char = formatted[i]
+        if (char && /\d/.test(char)) counted++
+        if (counted === digitsBeforeCursor) {
+          newCursor = i + 1
+          break
+        }
+      }
+      input.setSelectionRange(newCursor, newCursor)
+    })
+  }
+
+  function handleAmountKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      const input = e.currentTarget
+      const { selectionStart, selectionEnd, value } = input
+      if (selectionStart !== null && selectionStart === selectionEnd && selectionStart > 0) {
+        if (value[selectionStart - 1] === '.') {
+          e.preventDefault()
+          const before = value.slice(0, selectionStart - 2)
+          const after = value.slice(selectionStart)
+          const digits = (before + after).replace(/\D/g, '')
+          if (!digits) {
+            set('amount', '')
+            return
+          }
+          const formatted = formatAmountInput(digits)
+          set('amount', formatted)
+
+          requestAnimationFrame(() => {
+            const digitsBefore = before.replace(/\D/g, '').length
+            let counted = 0
+            let newCursor = 0
+            for (let i = 0; i < formatted.length; i++) {
+              const char = formatted[i]
+              if (char && /\d/.test(char)) counted++
+              if (counted === digitsBefore) {
+                newCursor = i + 1
+                break
+              }
+            }
+            input.setSelectionRange(newCursor, newCursor)
+          })
+        }
+      }
+    }
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 space-y-4 pb-8">
@@ -329,20 +400,12 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
               type="text"
               inputMode="numeric"
               value={form.amount}
-              onChange={(e) => {
-                const cleaned = e.target.value.replace(/[^0-9]/g, '')
-                set('amount', cleaned)
-              }}
+              onChange={handleAmountChange}
+              onKeyDown={handleAmountKeyDown}
               placeholder="0"
               className="w-full bg-transparent font-display text-3xl font-black tracking-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]/30"
             />
           </div>
-
-          {currentAmountNum > 0 && (
-            <p className="mt-1.5 font-sans text-xs font-medium text-[var(--text-secondary)]">
-              {formatMoney(currentAmountNum, currency)}
-            </p>
-          )}
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
