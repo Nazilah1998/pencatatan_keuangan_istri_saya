@@ -138,7 +138,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, Props>(function
   if (!PUBLIC_TURNSTILE_SITE_KEY) return null
 
   return (
-    <div className="w-full my-3 min-h-[65px] flex items-center justify-center transition-all">
+    <div className="w-full my-2 sm:my-3 min-h-[65px] flex items-center justify-center transition-all">
       <div
         ref={containerRef}
         className="w-full [&>iframe]:!w-full [&>iframe]:!min-w-full [&>div]:!w-full"

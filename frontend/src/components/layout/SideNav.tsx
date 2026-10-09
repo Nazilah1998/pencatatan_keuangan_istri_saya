@@ -1,10 +1,7 @@
-/**
- * Sidebar desktop. Butuh session (untuk nama & tombol keluar) sehingga
- * di-hidrate `client:load`, bukan `client:visible`.
- */
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, LogOut, Moon, Sun } from 'lucide-react'
 
+import { HouseholdRepo } from '../../lib/api/repositories'
 import { useApp } from '../providers/useApp'
 
 import { NAV_ITEMS, NAV_ICONS, isActivePath, usePathname } from './nav'
@@ -13,10 +10,33 @@ export function SideNav() {
   const { t, theme, toggleTheme, signOut, session } = useApp()
   const path = usePathname()
   const [mounted, setMounted] = useState(false)
+  const [householdName, setHouseholdName] = useState<string>('')
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!session?.householdId) return
+    const cached = window.localStorage.getItem(`sintya.household_name_${session.householdId}`)
+    if (cached) setHouseholdName(cached)
+
+    HouseholdRepo.current()
+      .then((h) => {
+        if (h?.name) {
+          setHouseholdName(h.name)
+          window.localStorage.setItem(`sintya.household_name_${session.householdId}`, h.name)
+        }
+      })
+      .catch(() => null)
+
+    const onUpdated = (e: Event) => {
+      const custom = e as CustomEvent<string>
+      if (custom.detail) setHouseholdName(custom.detail)
+    }
+    window.addEventListener('household:updated', onUpdated)
+    return () => window.removeEventListener('household:updated', onUpdated)
+  }, [session?.householdId])
 
   const initial = (mounted && session?.name ? session.name.charAt(0).toUpperCase() : null) ?? 'S'
 
@@ -30,7 +50,9 @@ export function SideNav() {
           <span className="block truncate font-display text-base font-semibold leading-tight">
             {mounted && session?.name ? session.name : t('app.name')}
           </span>
-          <span className="block truncate text-xs text-[var(--text-muted)]">{t('app.tagline')}</span>
+          <span className="block truncate text-xs text-[var(--text-muted)]">
+            {mounted && householdName ? `🏠 ${householdName}` : t('app.tagline')}
+          </span>
         </span>
       </a>
 
@@ -63,14 +85,14 @@ export function SideNav() {
           onClick={toggleTheme}
           className="flex w-full items-center gap-3 rounded-[0.75rem] px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
         >
-          {theme === 'dark' ? <Sun className="size-4.5" aria-hidden /> : <Moon className="size-4.5" aria-hidden />}
+          {theme === 'dark' ? <Sun className="size-4.5 text-[var(--warning)]" aria-hidden /> : <Moon className="size-4.5 text-sky-500" aria-hidden />}
           <span>{t('app.toggle_theme')}</span>
         </button>
 
         <button
           type="button"
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-[0.75rem] px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+          className="flex w-full items-center gap-3 rounded-[0.75rem] px-3 py-2.5 text-sm font-semibold text-[var(--negative)] transition-colors hover:bg-[var(--negative-soft)]"
         >
           <LogOut className="size-4.5" aria-hidden />
           <span>{t('auth.sign_out')}</span>

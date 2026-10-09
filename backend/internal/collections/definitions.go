@@ -194,6 +194,7 @@ func Wallets() *core.Collection {
 		&core.TextField{Name: "color", Max: 40},
 		&core.BoolField{Name: "include_in_networth"},
 		&core.BoolField{Name: "is_archived"},
+		&core.NumberField{Name: "sort_order"},
 		householdField(),
 	)
 	timestamps(c)

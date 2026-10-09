@@ -252,17 +252,19 @@ function mapBudget(rec: Rec): Budget {
   }
 }
 
-const WALLET_KEYS = [
-  'name',
-  'type',
-  'initial_balance',
-  'balance',
-  'icon',
-  'color',
-  'include_in_networth',
-  'is_archived',
-  'sort_order',
-] as const
+function unmapWallet(input: Partial<Wallet>): Rec {
+  const out: Rec = {}
+  if (input.name !== undefined) out.name = input.name
+  if (input.type !== undefined) out.type = input.type
+  if (input.initialBalance !== undefined) out.initial_balance = input.initialBalance
+  if (input.balance !== undefined) out.balance = input.balance
+  if (input.icon !== undefined) out.icon = input.icon
+  if (input.color !== undefined) out.color = input.color
+  if (input.includeInNetWorth !== undefined) out.include_in_networth = input.includeInNetWorth
+  if (input.isArchived !== undefined) out.is_archived = input.isArchived
+  if (input.sortOrder !== undefined) out.sort_order = input.sortOrder
+  return out
+}
 
 const CATEGORY_KEYS = ['name', 'type', 'icon', 'color', 'is_archived'] as const
 
@@ -270,16 +272,61 @@ export const WalletRepo = {
   async list(includeArchived = false): Promise<Wallet[]> {
     const clauses = includeArchived ? [] : ['is_archived = false']
 
-    const records = await getPB()
-      .collection('wallets')
-      .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' })
+    const [recordsResult, txRecords] = await Promise.all([
+      getPB()
+        .collection('wallets')
+        .getFullList<Rec>({ filter: scope(...clauses), sort: 'sort_order,name' })
+        .catch(() =>
+          getPB()
+            .collection('wallets')
+            .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' }),
+        ),
+      getPB()
+        .collection('transactions')
+        .getFullList<Rec>({ filter: scope(), fields: 'id,wallet,to_wallet,type,amount' })
+        .catch(() => []),
+    ])
 
-    return records.map(mapWallet)
+    const list = recordsResult.map((rec) => {
+      const wallet = mapWallet(rec)
+      const wId = wallet.id
+      const inTx = txRecords.filter((t) => t.wallet === wId && t.type === 'income').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const outTx = txRecords.filter((t) => t.wallet === wId && t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const trfOut = txRecords.filter((t) => t.wallet === wId && t.type === 'transfer').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const trfIn = txRecords.filter((t) => t.to_wallet === wId && t.type === 'transfer').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const computedBalance = (wallet.initialBalance || 0) + inTx - outTx - trfOut + trfIn
+
+      if (Number(rec.balance ?? 0) !== computedBalance) {
+        getPB().collection('wallets').update(wId, { balance: computedBalance }).catch(() => null)
+      }
+
+      return {
+        ...wallet,
+        balance: computedBalance,
+      }
+    })
+
+    try {
+      const stored = localStorage.getItem('sintya.wallet_order')
+      if (stored) {
+        const orderMap = JSON.parse(stored) as Record<string, number>
+        list.sort((a, b) => {
+          const ordA = a.sortOrder || orderMap[a.id] || 999
+          const ordB = b.sortOrder || orderMap[b.id] || 999
+          if (ordA !== ordB) return ordA - ordB
+          return a.name.localeCompare(b.name)
+        })
+      }
+    } catch {
+      void 0
+    }
+
+    return list
   },
 
   async create(input: Partial<Wallet>): Promise<Wallet> {
     const payload = {
-      ...pick(input as Rec, WALLET_KEYS),
+      ...unmapWallet(input),
       balance: input.balance ?? input.initialBalance ?? 0,
       household_id: householdId(),
     }
@@ -288,7 +335,7 @@ export const WalletRepo = {
   },
 
   async update(id: string, input: Partial<Wallet>): Promise<Wallet> {
-    const payload = pick(input as Rec, WALLET_KEYS)
+    const payload = unmapWallet(input)
     const rec = await getPB().collection('wallets').update(id, payload)
     return mapWallet(rec as unknown as Rec)
   },

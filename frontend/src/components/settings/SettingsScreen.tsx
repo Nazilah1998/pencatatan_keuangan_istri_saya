@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   AlertCircle,
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Database,
   Download,
   Globe,
@@ -11,6 +15,7 @@ import {
   LogOut,
   Moon,
   Palette,
+  Pencil,
   Plus,
   Shield,
   ShieldAlert,
@@ -20,6 +25,8 @@ import {
   Trash2,
   Upload,
   User,
+  Wallet as WalletIcon,
+  X,
 } from 'lucide-react'
 
 import { api, ApiError, ApiPaths } from '../../lib/api/client'
@@ -29,9 +36,13 @@ import {
   HouseholdRepo,
   SubCategoryRepo,
   UserRepo,
+  WalletRepo,
   type Category,
   type SubCategory,
+  type Wallet,
+  type WalletType,
 } from '../../lib/api/repositories'
+import { formatMoney, parseAmount } from '../../lib/utils/currency'
 import { LANGUAGES } from '../../lib/i18n'
 import type { LangCode } from '../../lib/i18n'
 import { useApp } from '../providers/useApp'
@@ -47,12 +58,69 @@ type SettingSubMenu =
   | 'pin'
   | 'theme'
   | 'language'
+  | 'wallets'
   | 'categories'
   | 'backup'
   | 'about'
 
+const WALLET_TYPE_OPTIONS: { value: WalletType; label: string; icon: string }[] = [
+  { value: 'cash', label: 'Uang Tunai (Cash)', icon: '💵' },
+  { value: 'bank', label: 'Rekening Bank', icon: '🏦' },
+  { value: 'ewallet', label: 'E-Wallet / Dompet Digital', icon: '📱' },
+  { value: 'savings', label: 'Tabungan Khusus', icon: '🐷' },
+  { value: 'credit_card', label: 'Kartu Kredit', icon: '💳' },
+  { value: 'investment', label: 'Investasi', icon: '📈' },
+]
+
+function getWalletTypeMeta(type: WalletType) {
+  switch (type) {
+    case 'cash':
+      return {
+        label: 'Tunai',
+        icon: '💵',
+        badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      }
+    case 'bank':
+      return {
+        label: 'Bank',
+        icon: '🏦',
+        badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      }
+    case 'ewallet':
+      return {
+        label: 'E-Wallet',
+        icon: '📱',
+        badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      }
+    case 'savings':
+      return {
+        label: 'Tabungan',
+        icon: '🐷',
+        badgeClass: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20',
+      }
+    case 'credit_card':
+      return {
+        label: 'Kartu Kredit',
+        icon: '💳',
+        badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      }
+    case 'investment':
+      return {
+        label: 'Investasi',
+        icon: '📈',
+        badgeClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+      }
+    default:
+      return {
+        label: 'Lainnya',
+        icon: '👛',
+        badgeClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+      }
+  }
+}
+
 export function SettingsScreen() {
-  const { t, m, lang, setLang, theme, setTheme, signOut, isAuthed } = useApp()
+  const { t, m, lang, setLang, theme, setTheme, signOut, isAuthed, session } = useApp()
 
   const [selectedMenu, setSelectedMenu] = useState<SettingSubMenu | null>(null)
 
@@ -63,6 +131,12 @@ export function SettingsScreen() {
   const [newCategory, setNewCategory] = useState('')
   const [newSub, setNewSub] = useState('')
   const [subParent, setSubParent] = useState('')
+
+  const [wallets, setWallets] = useState<Wallet[]>([])
+  const [walletName, setWalletName] = useState('')
+  const [walletType, setWalletType] = useState<WalletType>('bank')
+  const [walletInitialBalance, setWalletInitialBalance] = useState('')
+  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null)
 
   const [pin, setPin] = useState<PinStatus | null>(null)
   const [pinInput, setPinInput] = useState('')
@@ -78,17 +152,19 @@ export function SettingsScreen() {
     setError('')
 
     try {
-      const [household, list, subList, pinStatus] = await Promise.all([
+      const [household, list, subList, pinStatus, walletList] = await Promise.all([
         HouseholdRepo.current().catch(() => null),
         CategoryRepo.list(),
         SubCategoryRepo.list(),
         api.get<PinStatus>(ApiPaths.pinStatus).catch(() => null),
+        WalletRepo.list(true).catch(() => []),
       ])
 
       if (household) setHouseholdName(household.name)
       setCategories(list)
       setSubs(subList)
       setPin(pinStatus)
+      setWallets(walletList)
       if (list[0] && !subParent) {
         setSubParent(list[0].id)
       }
@@ -100,6 +176,22 @@ export function SettingsScreen() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => {
+      setNotice('')
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [notice])
+
+  useEffect(() => {
+    if (!error) return
+    const timer = setTimeout(() => {
+      setError('')
+    }, 4500)
+    return () => clearTimeout(timer)
+  }, [error])
 
   const visibleCategories = categories.filter((c) => c.type === kind)
   const visibleSubs = subs.filter((s) => s.category === subParent)
@@ -127,7 +219,10 @@ export function SettingsScreen() {
 
     await run(async () => {
       await HouseholdRepo.update({ name: householdName.trim() })
-      await UserRepo.updateProfile({ name: householdName.trim() }).catch(() => null)
+      if (session?.householdId) {
+        window.localStorage.setItem(`sintya.household_name_${session.householdId}`, householdName.trim())
+      }
+      window.dispatchEvent(new CustomEvent('household:updated', { detail: householdName.trim() }))
     }, 'Nama rumah tangga berhasil disimpan')
   }
 
@@ -265,6 +360,168 @@ export function SettingsScreen() {
     }, 'Data berhasil dipulihkan dari berkas cadangan')
   }
 
+  function startEditWallet(w: Wallet) {
+    setEditingWallet(w)
+    setWalletName(w.name)
+    setWalletType(w.type)
+    setWalletInitialBalance('')
+    setError('')
+    setNotice('')
+  }
+
+  function cancelEditWallet() {
+    setEditingWallet(null)
+    setWalletName('')
+    setWalletType('bank')
+    setWalletInitialBalance('')
+  }
+
+  async function moveWalletOrder(index: number, direction: 'up' | 'down') {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= wallets.length) return
+
+    const newWallets = [...wallets]
+    const current = newWallets[index]
+    const target = newWallets[targetIndex]
+    if (!current || !target) return
+
+    newWallets[index] = target
+    newWallets[targetIndex] = current
+
+    const updatedWallets = newWallets.map((w, idx) => ({
+      ...w,
+      sortOrder: idx + 1,
+    }))
+    setWallets(updatedWallets)
+
+    try {
+      const orderMap: Record<string, number> = {}
+      updatedWallets.forEach((w) => {
+        orderMap[w.id] = w.sortOrder
+      })
+      localStorage.setItem('sintya.wallet_order', JSON.stringify(orderMap))
+
+      await Promise.all([
+        WalletRepo.update(current.id, { sortOrder: targetIndex + 1 }).catch(() => null),
+        WalletRepo.update(target.id, { sortOrder: index + 1 }).catch(() => null),
+      ])
+      window.dispatchEvent(new CustomEvent('tx:created'))
+    } catch {
+      void load()
+    }
+  }
+
+  async function addWallet() {
+    if (!walletName.trim()) {
+      setError('Nama dompet wajib diisi')
+      return
+    }
+
+    if (wallets.some((w) => w.name.toLowerCase() === walletName.trim().toLowerCase())) {
+      setError('Nama dompet sudah terdaftar. Gunakan nama lain.')
+      return
+    }
+
+    await run(async () => {
+      const initial = parseAmount(walletInitialBalance)
+      await WalletRepo.create({
+        name: walletName.trim(),
+        type: walletType,
+        initialBalance: initial,
+        balance: initial,
+        includeInNetWorth: true,
+        isArchived: false,
+        sortOrder: wallets.length + 1,
+      })
+      setWalletName('')
+      setWalletInitialBalance('')
+      window.dispatchEvent(new CustomEvent('tx:created'))
+      await load()
+    }, 'Dompet berhasil ditambahkan')
+  }
+
+  async function saveEditWallet() {
+    if (!editingWallet) return
+    if (!walletName.trim()) {
+      setError('Nama dompet wajib diisi')
+      return
+    }
+
+    if (
+      wallets.some(
+        (w) => w.id !== editingWallet.id && w.name.toLowerCase() === walletName.trim().toLowerCase(),
+      )
+    ) {
+      setError('Nama dompet sudah terdaftar. Gunakan nama lain.')
+      return
+    }
+
+    await run(async () => {
+      await WalletRepo.update(editingWallet.id, {
+        name: walletName.trim(),
+        type: walletType,
+      })
+      cancelEditWallet()
+      window.dispatchEvent(new CustomEvent('tx:created'))
+      await load()
+    }, 'Dompet berhasil diperbarui')
+  }
+
+  async function removeWallet(wallet: Wallet) {
+    const ok = await confirmDelete(
+      `Hapus Dompet "${wallet.name}"?`,
+      'Jika dompet ini memiliki riwayat transaksi, sistem akan meminta konfirmasi pengarsipan agar catatan keuangan tetap konsisten.',
+    )
+    if (!ok) return
+
+    await run(async () => {
+      try {
+        await WalletRepo.remove(wallet.id)
+        if (editingWallet?.id === wallet.id) {
+          cancelEditWallet()
+        }
+        window.dispatchEvent(new CustomEvent('tx:created'))
+        await load()
+      } catch {
+        const archiveOk = await confirmAction({
+          title: 'Dompet Memiliki Riwayat Transaksi',
+          message: `Dompet "${wallet.name}" tidak dapat dihapus permanen karena masih terkait dengan data transaksi. Apakah Anda ingin mengarsipkannya agar tidak muncul di pilihan transaksi?`,
+          confirmText: 'Arsipkan Dompet',
+          cancelText: 'Batal',
+          variant: 'warning',
+        })
+        if (archiveOk) {
+          await WalletRepo.update(wallet.id, { isArchived: true })
+          if (editingWallet?.id === wallet.id) {
+            cancelEditWallet()
+          }
+          window.dispatchEvent(new CustomEvent('tx:created'))
+          await load()
+        }
+      }
+    }, 'Daftar dompet berhasil diperbarui')
+  }
+
+  async function toggleArchiveWallet(wallet: Wallet) {
+    const nextStatus = !wallet.isArchived
+    const ok = await confirmAction({
+      title: nextStatus ? 'Arsipkan Dompet?' : 'Aktifkan Kembali Dompet?',
+      message: nextStatus
+        ? `Dompet "${wallet.name}" akan disembunyikan dari pilihan dompet transaksi. Riwayat transaksi sebelumnya tetap aman.`
+        : `Dompet "${wallet.name}" akan ditampilkan kembali pada pilihan dompet transaksi.`,
+      confirmText: nextStatus ? 'Arsipkan' : 'Aktifkan',
+      cancelText: 'Batal',
+      variant: 'info',
+    })
+    if (!ok) return
+
+    await run(async () => {
+      await WalletRepo.update(wallet.id, { isArchived: nextStatus })
+      window.dispatchEvent(new CustomEvent('tx:created'))
+      await load()
+    }, nextStatus ? 'Dompet berhasil diarsipkan' : 'Dompet berhasil diaktifkan kembali')
+  }
+
   const MENU_ITEMS = [
     {
       id: 'profile' as const,
@@ -287,6 +544,11 @@ export function SettingsScreen() {
       icon: Globe,
     },
     {
+      id: 'wallets' as const,
+      title: 'Kelola Dompet & Akun',
+      icon: WalletIcon,
+    },
+    {
       id: 'categories' as const,
       title: 'Kategori & Sub-Kategori',
       icon: Tag,
@@ -307,16 +569,36 @@ export function SettingsScreen() {
     <div className="space-y-4">
       {/* Alert Notifikasi / Error */}
       {error && (
-        <div className="flex items-center gap-2.5 rounded-2xl border border-[var(--negative)]/20 bg-[var(--negative-soft)] p-3.5 text-xs font-semibold text-[var(--negative)] animate-in fade-in duration-200">
-          <AlertCircle className="size-4 shrink-0" />
-          <span className="flex-1">{error}</span>
+        <div className="flex items-center justify-between gap-2.5 rounded-2xl border border-[var(--negative)]/20 bg-[var(--negative-soft)] p-3.5 text-xs font-semibold text-[var(--negative)] animate-in fade-in slide-in-from-top-1 duration-200 shadow-2xs">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <AlertCircle className="size-4 shrink-0" />
+            <span className="flex-1">{error}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={() => setError('')}
+            className="grid size-6 place-items-center rounded-lg hover:bg-[var(--negative)]/10 text-[var(--negative)] shrink-0 transition-colors cursor-pointer"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       )}
 
       {notice && (
-        <div className="flex items-center gap-2.5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] p-3.5 text-xs font-semibold text-[var(--accent)] animate-in fade-in duration-200">
-          <Check className="size-4 shrink-0 stroke-[2.5]" />
-          <span className="flex-1">{notice}</span>
+        <div className="flex items-center justify-between gap-2.5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] p-3.5 text-xs font-semibold text-[var(--accent)] animate-in fade-in slide-in-from-top-1 duration-200 shadow-2xs">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <Check className="size-4 shrink-0 stroke-[2.5]" />
+            <span className="flex-1">{notice}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={() => setNotice('')}
+            className="grid size-6 place-items-center rounded-lg hover:bg-[var(--accent)]/10 text-[var(--accent)] shrink-0 transition-colors cursor-pointer"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       )}
 
@@ -556,6 +838,204 @@ export function SettingsScreen() {
                 })}
               </div>
             </Card>
+          )}
+
+          {/* SUB-MENU: KELOLA DOMPET & AKUN */}
+          {selectedMenu === 'wallets' && (
+            <div className="space-y-4">
+              <Card
+                title="Daftar Dompet Transaksi"
+                subtitle="Kelola dan atur urutan prioritas dompet yang muncul saat transaksi"
+              >
+                <div className="space-y-2.5">
+                  {wallets.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/50">
+                      <WalletIcon className="size-8 mx-auto text-[var(--text-muted)] mb-2" />
+                      <p className="text-xs font-medium text-[var(--text-muted)]">
+                        Belum ada dompet terdaftar. Tambahkan dompet baru pada formulir di bawah.
+                      </p>
+                    </div>
+                  ) : (
+                    wallets.map((wallet, idx) => {
+                      const meta = getWalletTypeMeta(wallet.type)
+                      return (
+                        <div
+                          key={wallet.id}
+                          className={`flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl border transition-all ${
+                            wallet.isArchived
+                              ? 'opacity-60 bg-[var(--surface-sunken)]/40 border-[var(--line-subtle)]'
+                              : 'bg-[var(--surface-base)] border-[var(--line-subtle)] hover:border-[var(--line-strong)] shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="flex flex-col gap-0.5 shrink-0">
+                              <button
+                                type="button"
+                                title="Pindahkan ke atas"
+                                disabled={idx === 0}
+                                onClick={() => void moveWalletOrder(idx, 'up')}
+                                className="grid size-5.5 place-items-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
+                              >
+                                <ChevronUp className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                title="Pindahkan ke bawah"
+                                disabled={idx === wallets.length - 1}
+                                onClick={() => void moveWalletOrder(idx, 'down')}
+                                className="grid size-5.5 place-items-center rounded-md bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
+                              >
+                                <ChevronDown className="size-3.5" />
+                              </button>
+                            </div>
+
+                            <div
+                              className={`grid size-9 sm:size-10 place-items-center rounded-xl shrink-0 text-base shadow-2xs border ${meta.badgeClass}`}
+                            >
+                              {meta.icon}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                                  {wallet.name}
+                                </span>
+                                {wallet.isArchived && (
+                                  <span className="rounded-md bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-muted)] border border-[var(--line-subtle)]">
+                                    Diarsipkan
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                                <span className="text-[var(--text-muted)] font-medium">
+                                  {meta.label}
+                                </span>
+                                <span className="text-[var(--text-muted)]">•</span>
+                                <span className="font-semibold text-[var(--accent)] tnum">
+                                  {formatMoney(wallet.balance)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              title="Edit Dompet"
+                              aria-label="Edit Dompet"
+                              onClick={() => startEditWallet(wallet)}
+                              className="grid size-8 place-items-center rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/25 hover:bg-sky-500/20 active:scale-95 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              title={wallet.isArchived ? 'Aktifkan Kembali' : 'Arsipkan Dompet'}
+                              aria-label={wallet.isArchived ? 'Aktifkan Kembali' : 'Arsipkan Dompet'}
+                              onClick={() => void toggleArchiveWallet(wallet)}
+                              className={`grid size-8 place-items-center rounded-xl border active:scale-95 transition-all cursor-pointer shadow-2xs ${
+                                wallet.isArchived
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 hover:bg-amber-500/20'
+                              }`}
+                            >
+                              {wallet.isArchived ? (
+                                <ArchiveRestore className="size-3.5" />
+                              ) : (
+                                <Archive className="size-3.5" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Hapus Dompet"
+                              aria-label="Hapus Dompet"
+                              onClick={() => void removeWallet(wallet)}
+                              className="grid size-8 place-items-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </Card>
+
+              <Card
+                title={editingWallet ? `Edit Dompet: ${editingWallet.name}` : 'Tambah Dompet Baru'}
+                subtitle={
+                  editingWallet
+                    ? 'Ubah nama atau jenis dompet ini'
+                    : 'Tambahkan rekening bank, e-wallet, atau pos kas baru ke pembukuan'
+                }
+              >
+                <div className="space-y-3.5">
+                  {editingWallet && (
+                    <div className="flex items-center justify-between rounded-xl bg-sky-500/10 border border-sky-500/20 px-3.5 py-2.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                      <span>Sedang mengedit dompet: {editingWallet.name}</span>
+                      <button
+                        type="button"
+                        onClick={cancelEditWallet}
+                        className="underline hover:no-underline cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  )}
+
+                  <Input
+                    label="Nama Dompet"
+                    value={walletName}
+                    onChange={(e) => setWalletName(e.target.value)}
+                    placeholder="Contoh: Bank BCA, GoPay Utama, Kas Harian"
+                  />
+
+                  <ModernSelect
+                    label="Jenis Dompet"
+                    value={walletType}
+                    onChange={(val) => setWalletType(val as WalletType)}
+                    options={WALLET_TYPE_OPTIONS.map((opt) => ({
+                      value: opt.value,
+                      label: opt.label,
+                      icon: <span className="text-sm">{opt.icon}</span>,
+                    }))}
+                    placeholder="Pilih Jenis Dompet"
+                  />
+
+                  {!editingWallet && (
+                    <Input
+                      label="Saldo Awal (Opsional)"
+                      value={walletInitialBalance}
+                      onChange={(e) => setWalletInitialBalance(e.target.value)}
+                      placeholder="0"
+                      inputMode="numeric"
+                    />
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    {editingWallet ? (
+                      <>
+                        <Button loading={busy} onClick={() => void saveEditWallet()} className="flex-1">
+                          <Check className="size-4" />
+                          <span>Simpan Perubahan</span>
+                        </Button>
+                        <Button variant="secondary" onClick={cancelEditWallet}>
+                          <span>Batal</span>
+                        </Button>
+                      </>
+                    ) : (
+                      <Button loading={busy} onClick={() => void addWallet()} className="w-full">
+                        <Plus className="size-4" />
+                        <span>Tambah Dompet</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </div>
           )}
 
           {/* 5. SUB-MENU: KATEGORI & SUB-KATEGORI */}

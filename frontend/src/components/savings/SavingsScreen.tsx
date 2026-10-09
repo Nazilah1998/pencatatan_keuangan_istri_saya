@@ -132,7 +132,8 @@ export function SavingsScreen() {
 
   function openFund(goal: SavingsGoal) {
     setFunding(goal)
-    setFundForm({ wallet: wallets[0]?.id ?? '', amount: '', date: todayISO() })
+    const firstWithBalance = wallets.find((w) => w.balance > 0) || wallets[0]
+    setFundForm({ wallet: firstWithBalance?.id ?? '', amount: '', date: todayISO() })
     setError('')
   }
 
@@ -205,6 +206,12 @@ export function SavingsScreen() {
       return
     }
 
+    const selectedWallet = wallets.find((w) => w.id === fundForm.wallet)
+    if (selectedWallet && amount > selectedWallet.balance) {
+      setError(`Saldo ${selectedWallet.name} tidak mencukupi (Tersedia: ${formatMoney(selectedWallet.balance, currency)})`)
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -224,6 +231,7 @@ export function SavingsScreen() {
         }),
       ])
 
+      window.dispatchEvent(new CustomEvent('tx:created'))
       setFunding(null)
       await load()
     } catch (err) {
@@ -536,28 +544,67 @@ export function SavingsScreen() {
         onClose={() => setFunding(null)}
       >
         <div className="space-y-4">
-          <ModernSelect
-            label={
-              <span className="flex items-center gap-1.5 normal-case font-medium text-[var(--text-secondary)]">
-                <WalletIcon className="size-3.5 text-[var(--text-muted)]" />
-                <span>Sumber Dompet</span>
-              </span>
-            }
-            value={fundForm.wallet}
-            onChange={(w) => setFundForm((prev) => ({ ...prev, wallet: w }))}
-            options={wallets.map((w) => ({
-              value: w.id,
-              label: w.name,
-              icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
-              badge: formatMoney(w.balance, currency),
-            }))}
-            placeholder="Pilih Dompet"
-          />
+          <div>
+            <ModernSelect
+              label={
+                <span className="flex items-center gap-1.5 normal-case font-medium text-[var(--text-secondary)]">
+                  <WalletIcon className="size-3.5 text-[var(--text-muted)]" />
+                  <span>Sumber Dompet</span>
+                </span>
+              }
+              value={fundForm.wallet}
+              onChange={(w) => {
+                setFundForm((prev) => ({ ...prev, wallet: w }))
+                setError('')
+              }}
+              options={wallets.map((w) => ({
+                value: w.id,
+                label: w.name,
+                icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                badge: formatMoney(w.balance, currency),
+              }))}
+              placeholder="Pilih Dompet"
+            />
+            {(() => {
+              const selectedFundWallet = wallets.find((w) => w.id === fundForm.wallet)
+              if (!selectedFundWallet) return null
+              return (
+                <div className="mt-1.5 flex items-center justify-between px-1 text-xs">
+                  <span className="text-[var(--text-muted)]">Saldo tersedia:</span>
+                  <span
+                    className={`font-semibold ${
+                      selectedFundWallet.balance > 0 ? 'text-[var(--positive)]' : 'text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {formatMoney(selectedFundWallet.balance, currency)}
+                  </span>
+                </div>
+              )
+            })()}
+          </div>
 
           <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/60 p-3.5 transition-colors focus-within:border-[var(--accent)]">
-            <label htmlFor="fund-amount-input" className="block text-xs font-medium text-[var(--text-muted)]">
-              Jumlah Dana yang Ditabung
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="fund-amount-input" className="block text-xs font-medium text-[var(--text-muted)]">
+                Jumlah Dana yang Ditabung
+              </label>
+              {(() => {
+                const selectedFundWallet = wallets.find((w) => w.id === fundForm.wallet)
+                if (!selectedFundWallet || selectedFundWallet.balance <= 0) return null
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFundForm((prev) => ({ ...prev, amount: String(selectedFundWallet.balance) }))
+                      setError('')
+                    }}
+                    className="text-[0.6875rem] font-bold text-[var(--accent)] hover:underline active:scale-95 transition-transform"
+                  >
+                    Gunakan Semua Saldo
+                  </button>
+                )
+              })()}
+            </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-display text-lg font-bold text-[var(--text-muted)]">
                 {currency === 'IDR' ? 'Rp' : '$'}
@@ -570,6 +617,7 @@ export function SavingsScreen() {
                 onChange={(e) => {
                   const cleaned = e.target.value.replace(/[^0-9]/g, '')
                   setFundForm((prev) => ({ ...prev, amount: cleaned }))
+                  if (error) setError('')
                 }}
                 placeholder="0"
                 className="w-full bg-transparent font-display text-xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]/40"
@@ -582,16 +630,21 @@ export function SavingsScreen() {
             )}
 
             <div className="mt-2.5 flex flex-wrap gap-1.5 pt-2 border-t border-[var(--line-subtle)]/60">
-              {PRESET_FUNDS.map((val) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => addFundPreset(val)}
-                  className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] shadow-2xs transition-all hover:border-[var(--accent)] hover:text-[var(--text-primary)] active:scale-95"
-                >
-                  +{val >= 1000000 ? `${val / 1000000}jt` : `${val / 1000}rb`}
-                </button>
-              ))}
+              {PRESET_FUNDS.map((val) => {
+                const selectedFundWallet = wallets.find((w) => w.id === fundForm.wallet)
+                const isExceeding = selectedFundWallet ? fundAmountNum + val > selectedFundWallet.balance : false
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    disabled={isExceeding}
+                    onClick={() => addFundPreset(val)}
+                    className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] shadow-2xs transition-all hover:border-[var(--accent)] hover:text-[var(--text-primary)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--line-subtle)]"
+                  >
+                    +{val >= 1000000 ? `${val / 1000000}jt` : `${val / 1000}rb`}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -606,6 +659,29 @@ export function SavingsScreen() {
             onChange={(d) => setFundForm((prev) => ({ ...prev, date: d }))}
           />
 
+          {(() => {
+            const selectedFundWallet = wallets.find((w) => w.id === fundForm.wallet)
+            if (selectedFundWallet && fundAmountNum > selectedFundWallet.balance) {
+              return (
+                <div className="flex items-center gap-2 rounded-xl bg-[var(--negative-soft)] p-3 text-xs font-medium text-[var(--negative)]">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>
+                    Nominal melebihi saldo dompet yang tersedia ({formatMoney(selectedFundWallet.balance, currency)})
+                  </span>
+                </div>
+              )
+            }
+            if (selectedFundWallet && selectedFundWallet.balance <= 0) {
+              return (
+                <div className="flex items-center gap-2 rounded-xl bg-[var(--surface-sunken)] p-3 text-xs font-medium text-[var(--text-muted)]">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>Dompet terpilih tidak memiliki saldo. Pilih dompet lain yang memiliki saldo.</span>
+                </div>
+              )
+            }
+            return null
+          })()}
+
           {error && (
             <div className="flex items-center gap-2 rounded-xl bg-[var(--negative-soft)] p-3 text-xs font-medium text-[var(--negative)]">
               <AlertCircle className="size-4 shrink-0" />
@@ -613,14 +689,23 @@ export function SavingsScreen() {
             </div>
           )}
 
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void submitFund()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 font-display text-sm font-bold text-[var(--text-inverted)] shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
-          >
-            <span>Setor ke Tabungan</span>
-          </button>
+          {(() => {
+            const selectedFundWallet = wallets.find((w) => w.id === fundForm.wallet)
+            const isInsufficient = selectedFundWallet ? fundAmountNum > selectedFundWallet.balance : false
+            const isZero = selectedFundWallet ? selectedFundWallet.balance <= 0 : false
+            const isSubmitDisabled = saving || fundAmountNum <= 0 || !fundForm.wallet || isInsufficient || isZero
+
+            return (
+              <button
+                type="button"
+                disabled={isSubmitDisabled}
+                onClick={() => void submitFund()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 font-display text-sm font-bold text-[var(--text-inverted)] shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>Setor ke Tabungan</span>
+              </button>
+            )
+          })()}
         </div>
       </Modal>
     </div>

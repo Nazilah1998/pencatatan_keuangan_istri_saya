@@ -166,7 +166,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </p>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-3.5 sm:space-y-4">
         {isRegister && (
           <Input
             label={t('auth.name')}
@@ -241,13 +241,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
           block
           loading={busy}
           disabled={googleBusy || Boolean(PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken)}
-          className="h-12 rounded-xl font-semibold shadow-md hover:shadow-[0_4px_20px_var(--accent-soft)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 cursor-pointer"
+          className="h-11 sm:h-12 rounded-xl font-semibold shadow-md hover:shadow-[0_4px_20px_var(--accent-soft)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 cursor-pointer"
         >
           {isRegister ? t('auth.register') : t('auth.sign_in')}
         </Button>
       </form>
 
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-4.5 sm:my-6 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-[var(--line-subtle)]" />
         </div>
@@ -260,7 +260,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         type="button"
         onClick={handleGoogleLogin}
         disabled={googleBusy || busy}
-        className="group relative flex w-full h-12 items-center justify-center gap-3 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-overlay)]/30 hover:bg-[var(--surface-overlay)] hover:border-[var(--line-strong)] text-[var(--text-primary)] font-medium text-sm sm:text-base shadow-xs hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+        className="group relative flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-overlay)]/30 hover:bg-[var(--surface-overlay)] hover:border-[var(--line-strong)] text-[var(--text-primary)] font-medium text-sm sm:text-base shadow-xs hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
       >
         <span className="grid size-7 place-items-center rounded-lg bg-[var(--surface-raised)] border border-[var(--line-subtle)]/70 shadow-xs transition-transform duration-200 group-hover:scale-105">
           <GoogleIcon className="size-4.5" />

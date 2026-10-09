@@ -55,6 +55,12 @@ const minPinLength = 4
 func (h *Auth) Status(c fiber.Ctx) error {
 	rec := middleware.UserRecord(c)
 	if rec == nil {
+		if remote, ok := c.Locals("remote_user").(*middleware.RemoteUser); ok && remote != nil {
+			return apierr.OK(c, PinStatusPayload{
+				HasPin: false,
+				Hint:   "",
+			})
+		}
 		return apierr.Fail(c, apierr.Unauthorized("Sesi tidak valid"))
 	}
 
@@ -69,6 +75,9 @@ func (h *Auth) Status(c fiber.Ctx) error {
 func (h *Auth) SetPin(c fiber.Ctx) error {
 	rec := middleware.UserRecord(c)
 	if rec == nil {
+		if remote, ok := c.Locals("remote_user").(*middleware.RemoteUser); ok && remote != nil {
+			return apierr.Fail(c, apierr.BadRequest("PIN belum didukung untuk sesi remote"))
+		}
 		return apierr.Fail(c, apierr.Unauthorized("Sesi tidak valid"))
 	}
 
@@ -145,6 +154,9 @@ func (h *Auth) VerifyPin(c fiber.Ctx) error {
 func (h *Auth) RemovePin(c fiber.Ctx) error {
 	rec := middleware.UserRecord(c)
 	if rec == nil {
+		if remote, ok := c.Locals("remote_user").(*middleware.RemoteUser); ok && remote != nil {
+			return apierr.OK(c, PinStatusPayload{HasPin: false})
+		}
 		return apierr.Fail(c, apierr.Unauthorized("Sesi tidak valid"))
 	}
 

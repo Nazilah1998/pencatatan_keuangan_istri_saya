@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Globe,
   LogOut,
   Moon,
   Sun,
@@ -9,6 +8,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react'
 
+import { HouseholdRepo } from '../../lib/api/repositories'
 import { useApp } from '../providers/useApp'
 import { NAV_ITEMS, NAV_ICONS, isActivePath, usePathname } from './nav'
 
@@ -25,6 +25,46 @@ export function MobileDrawer() {
     setDrawerOpen,
   } = useApp()
   const path = usePathname()
+
+  const [householdName, setHouseholdName] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    return window.localStorage.getItem(`sintya.household_name_${session?.householdId}`) || ''
+  })
+
+  useEffect(() => {
+    if (!session?.householdId) return
+
+    const cached = window.localStorage.getItem(`sintya.household_name_${session.householdId}`)
+    if (cached) setHouseholdName(cached)
+
+    let mounted = true
+    HouseholdRepo.current()
+      .then((h) => {
+        if (mounted && h?.name) {
+          setHouseholdName(h.name)
+          window.localStorage.setItem(`sintya.household_name_${session.householdId}`, h.name)
+        }
+      })
+      .catch(() => null)
+
+    const onUpdated = (e: Event) => {
+      const custom = e as CustomEvent<string>
+      if (custom.detail) {
+        setHouseholdName(custom.detail)
+      } else {
+        HouseholdRepo.current()
+          .then((h) => {
+            if (mounted && h?.name) setHouseholdName(h.name)
+          })
+          .catch(() => null)
+      }
+    }
+    window.addEventListener('household:updated', onUpdated)
+    return () => {
+      mounted = false
+      window.removeEventListener('household:updated', onUpdated)
+    }
+  }, [session?.householdId])
 
   useEffect(() => {
     if (!drawerOpen) return
@@ -89,9 +129,12 @@ export function MobileDrawer() {
               </div>
             </div>
             {session.householdId && (
-              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-[0.6875rem] font-medium text-[var(--accent)]">
+              <div
+                className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]"
+                title={`Rumah Tangga: ${householdName || 'Keluarga'}`}
+              >
                 <span>🏠</span>
-                <span className="truncate">Keluarga</span>
+                <span className="truncate">{householdName || 'Keluarga'}</span>
               </div>
             )}
           </div>
@@ -126,9 +169,9 @@ export function MobileDrawer() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors active:scale-95"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-all active:scale-95"
             >
-              {theme === 'dark' ? <Sun className="size-4 text-[var(--warning)]" /> : <Moon className="size-4" />}
+              {theme === 'dark' ? <Sun className="size-4 text-[var(--warning)]" /> : <Moon className="size-4 text-sky-500 dark:text-sky-400" />}
               <span>{theme === 'dark' ? t('app.theme_light') : t('app.theme_dark')}</span>
             </button>
 
@@ -137,9 +180,11 @@ export function MobileDrawer() {
             <button
               type="button"
               onClick={() => setLang(lang === 'id' ? 'en' : 'id')}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors active:scale-95"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] transition-all active:scale-95"
             >
-              <Globe className="size-4 text-[var(--accent)]" />
+              <span className="text-base leading-none" role="img" aria-label={lang === 'id' ? 'Indonesia' : 'English'}>
+                {lang === 'id' ? '🇮🇩' : '🇬🇧'}
+              </span>
               <span className="uppercase">{lang}</span>
             </button>
           </div>
@@ -150,9 +195,9 @@ export function MobileDrawer() {
               setDrawerOpen(false)
               signOut()
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line-subtle)] px-3 py-2 text-xs font-semibold text-[var(--negative)] hover:bg-[var(--negative-soft)] transition-colors active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--negative)]/30 bg-[var(--negative-soft)] px-3 py-2.5 text-xs font-bold text-[var(--negative)] shadow-xs hover:bg-[var(--negative)] hover:text-white transition-all active:scale-[0.98]"
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-4 stroke-[2.2]" />
             <span>{t('auth.sign_out')}</span>
           </button>
         </div>
