@@ -468,7 +468,11 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
               options={visibleCategories.map((c) => ({
                 value: c.id,
                 label: c.name,
-                icon: <Tag className="size-4 text-[var(--text-muted)]" />,
+                icon: c.icon ? (
+                  <span className="text-base select-none leading-none">{c.icon}</span>
+                ) : (
+                  <Tag className="size-4 text-[var(--text-muted)]" />
+                ),
               }))}
               placeholder="Pilih Kategori"
             />

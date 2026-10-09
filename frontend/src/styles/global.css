@@ -1,17 +1,10 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@import '@fontsource-variable/inter';
-@import '@fontsource-variable/plus-jakarta-sans';
-
-/*
- * Seluruh warna, radius, dan bayangan didefinisikan satu kali di sini.
- * Komponen hanya boleh memakai nama token (mis. var(--color-surface)) dan
- * NEVER menulis literal hex, supaya mode gelap konsisten di seluruh aplikasi.
- */
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 
   --color-base-950: oklch(0.16 0.024 264);
   --color-base-900: oklch(0.2 0.028 264);
@@ -106,25 +99,40 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html,
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--font-sans);
+  }
+
   body {
     min-height: 100dvh;
     background-color: var(--surface-base);
     color: var(--text-primary);
     font-family: var(--font-sans);
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
     text-rendering: optimizeLegibility;
   }
 
   h1,
   h2,
   h3,
-  h4 {
-    font-family: var(--font-display);
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
     letter-spacing: -0.02em;
   }
 
-  /* Angka rupiah memakai tabular figures supaya kolom mudah dibandingkan. */
-  .tnum {
+  .tnum,
+  .font-mono,
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-sans) !important;
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
   }
@@ -272,5 +280,59 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header.safe-top,
+  nav,
+  aside,
+  [data-sidebar],
+  [data-fab],
+  .no-print,
+  .print-hidden,
+  dialog {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .card, .tile {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    break-inside: avoid !important;
+    background: #ffffff !important;
+  }
+
+  .card.print-break-auto,
+  .print-break-auto {
+    break-inside: auto !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 10px !important;
   }
 }

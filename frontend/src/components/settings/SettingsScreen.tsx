@@ -34,11 +34,9 @@ import type { PinStatus } from '../../lib/api/types'
 import {
   CategoryRepo,
   HouseholdRepo,
-  SubCategoryRepo,
   UserRepo,
   WalletRepo,
   type Category,
-  type SubCategory,
   type Wallet,
   type WalletType,
 } from '../../lib/api/repositories'
@@ -49,6 +47,7 @@ import { useApp } from '../providers/useApp'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Input } from '../ui/Field'
+import { Modal } from '../ui/Modal'
 import { ModernSelect } from '../ui/ModernSelect'
 import { confirmAction, confirmDelete } from '../../lib/state/confirm'
 
@@ -70,6 +69,18 @@ const WALLET_TYPE_OPTIONS: { value: WalletType; label: string; icon: string }[] 
   { value: 'savings', label: 'Tabungan Khusus', icon: '🐷' },
   { value: 'credit_card', label: 'Kartu Kredit', icon: '💳' },
   { value: 'investment', label: 'Investasi', icon: '📈' },
+]
+
+const EXPENSE_EMOJI_PRESETS = [
+  '🛍️', '🛒', '🍕', '🍔', '☕', '🍜', '🚗', '⛽', '🚌', '🛵',
+  '🏠', '💡', '💧', '📱', '💊', '🏥', '🎬', '🎮', '✈️', '📚',
+  '👶', '🎁', '🐾', '💇', '🧺', '🍿', '👕', '👟', '💳', '🔧',
+  '📦', '🧼', '🧾', '🎉', '🏋️', '⛺',
+]
+
+const INCOME_EMOJI_PRESETS = [
+  '💰', '💵', '💼', '📈', '🏦', '🪙', '🎁', '🏆', '💎', '💳',
+  '💻', '💸', '⭐', '🤝', '🏢', '🏷️', '🧧', '✨', '🎯', '🛒',
 ]
 
 function getWalletTypeMeta(type: WalletType) {
@@ -126,11 +137,12 @@ export function SettingsScreen() {
 
   const [householdName, setHouseholdName] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
-  const [subs, setSubs] = useState<SubCategory[]>([])
   const [kind, setKind] = useState<CategoryKind>('expense')
-  const [newCategory, setNewCategory] = useState('')
-  const [newSub, setNewSub] = useState('')
-  const [subParent, setSubParent] = useState('')
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [catFormName, setCatFormName] = useState('')
+  const [catFormIcon, setCatFormIcon] = useState('🏷️')
+  const [catFormType, setCatFormType] = useState<CategoryKind>('expense')
 
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [walletName, setWalletName] = useState('')
@@ -152,26 +164,21 @@ export function SettingsScreen() {
     setError('')
 
     try {
-      const [household, list, subList, pinStatus, walletList] = await Promise.all([
+      const [household, list, pinStatus, walletList] = await Promise.all([
         HouseholdRepo.current().catch(() => null),
         CategoryRepo.list(),
-        SubCategoryRepo.list(),
         api.get<PinStatus>(ApiPaths.pinStatus).catch(() => null),
         WalletRepo.list(true).catch(() => []),
       ])
 
       if (household) setHouseholdName(household.name)
       setCategories(list)
-      setSubs(subList)
       setPin(pinStatus)
       setWallets(walletList)
-      if (list[0] && !subParent) {
-        setSubParent(list[0].id)
-      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : m('common.retry'))
     }
-  }, [m, subParent])
+  }, [m])
 
   useEffect(() => {
     void load()
@@ -194,7 +201,6 @@ export function SettingsScreen() {
   }, [error])
 
   const visibleCategories = categories.filter((c) => c.type === kind)
-  const visibleSubs = subs.filter((s) => s.category === subParent)
 
   async function run(action: () => Promise<void>, okMessage?: string) {
     setBusy(true)
@@ -226,22 +232,67 @@ export function SettingsScreen() {
     }, 'Nama rumah tangga berhasil disimpan')
   }
 
-  async function addCategory() {
-    if (!newCategory.trim()) {
+  function openAddCategory(targetKind: CategoryKind = kind) {
+    setEditingCategory(null)
+    setCatFormName('')
+    setCatFormType(targetKind)
+    setCatFormIcon(targetKind === 'income' ? '💰' : '🛍️')
+    setError('')
+    setIsCategoryModalOpen(true)
+  }
+
+  function openEditCategory(category: Category) {
+    setEditingCategory(category)
+    setCatFormName(category.name)
+    setCatFormType((category.type === 'income' ? 'income' : 'expense') as CategoryKind)
+    setCatFormIcon(category.icon || (category.type === 'income' ? '💰' : '🏷️'))
+    setError('')
+    setIsCategoryModalOpen(true)
+  }
+
+  async function saveCategory() {
+    if (!catFormName.trim()) {
       setError(m('category.nameRequired'))
       return
     }
 
-    if (categories.some((c) => c.name.toLowerCase() === newCategory.trim().toLowerCase())) {
+    const trimmedName = catFormName.trim()
+    const duplicate = categories.some(
+      (c) =>
+        c.type === catFormType &&
+        c.name.toLowerCase() === trimmedName.toLowerCase() &&
+        c.id !== editingCategory?.id,
+    )
+    if (duplicate) {
       setError(m('category.duplicateName'))
       return
     }
 
+    const iconToSave = catFormIcon.trim() || (catFormType === 'income' ? '💰' : '🏷️')
+
     await run(async () => {
-      await CategoryRepo.create({ name: newCategory.trim(), type: kind })
-      setNewCategory('')
+      if (editingCategory) {
+        await CategoryRepo.update(editingCategory.id, {
+          name: trimmedName,
+          type: catFormType,
+          icon: iconToSave,
+        })
+      } else {
+        await CategoryRepo.create({
+          name: trimmedName,
+          type: catFormType,
+          icon: iconToSave,
+        })
+      }
+      setIsCategoryModalOpen(false)
+      setEditingCategory(null)
+      setCatFormName('')
+      if (kind !== catFormType) {
+        setKind(catFormType)
+      }
       await load()
-    }, 'Kategori berhasil ditambahkan')
+      window.dispatchEvent(new CustomEvent('category:updated'))
+    }, editingCategory ? 'Kategori berhasil diperbarui' : 'Kategori berhasil ditambahkan')
   }
 
   async function removeCategory(category: Category) {
@@ -251,20 +302,8 @@ export function SettingsScreen() {
     await run(async () => {
       await CategoryRepo.remove(category.id)
       await load()
+      window.dispatchEvent(new CustomEvent('category:updated'))
     }, 'Kategori berhasil dihapus')
-  }
-
-  async function addSubCategory() {
-    if (!newSub.trim() || !subParent) {
-      setError(m('category.nameRequired'))
-      return
-    }
-
-    await run(async () => {
-      await SubCategoryRepo.create({ name: newSub.trim(), category: subParent })
-      setNewSub('')
-      await load()
-    }, 'Sub-kategori berhasil ditambahkan')
   }
 
   async function savePin() {
@@ -550,7 +589,7 @@ export function SettingsScreen() {
     },
     {
       id: 'categories' as const,
-      title: 'Kategori & Sub-Kategori',
+      title: 'Kelola Kategori',
       icon: Tag,
     },
     {
@@ -1038,151 +1077,126 @@ export function SettingsScreen() {
             </div>
           )}
 
-          {/* 5. SUB-MENU: KATEGORI & SUB-KATEGORI */}
+          {/* 5. SUB-MENU: KELOLA KATEGORI */}
           {selectedMenu === 'categories' && (
-            <>
-              <Card title="Kategori Utama" subtitle="Kelola kategori pemasukan dan pengeluaran">
-                <div className="space-y-4">
-                  {/* Filter Jenis: Pengeluaran vs Pemasukan */}
-                  <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[var(--surface-sunken)] p-1">
-                    {(['expense', 'income'] as CategoryKind[]).map((value) => (
+            <Card
+              title="Kelola Kategori"
+              subtitle="Atur kategori transaksi pemasukan dan pengeluaran"
+              action={
+                <Button size="sm" onClick={() => openAddCategory(kind)}>
+                  <Plus className="size-4" />
+                  <span>Tambah</span>
+                </Button>
+              }
+            >
+              <div className="space-y-4">
+                {/* Tab Switcher: Pengeluaran vs Pemasukan */}
+                <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-[var(--surface-sunken)] p-1.5">
+                  {(['expense', 'income'] as CategoryKind[]).map((value) => {
+                    const count = categories.filter((c) => c.type === value).length
+                    const isActive = kind === value
+                    return (
                       <button
                         key={value}
                         type="button"
                         onClick={() => setKind(value)}
                         className={[
-                          'rounded-lg py-2 text-xs font-semibold transition-all active:scale-95',
-                          kind === value
+                          'flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98]',
+                          isActive
                             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] font-bold shadow-2xs'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
                         ].join(' ')}
                       >
-                        {value === 'income' ? t('common.income') : t('common.expense')}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Daftar Kategori */}
-                  <div className="max-h-60 overflow-y-auto rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] divide-y divide-[var(--line-subtle)]">
-                    {visibleCategories.length === 0 ? (
-                      <p className="p-4 text-center text-xs text-[var(--text-muted)]">
-                        Belum ada kategori {kind === 'expense' ? 'pengeluaran' : 'pemasukan'}.
-                      </p>
-                    ) : (
-                      visibleCategories.map((category) => (
-                        <div
-                          key={category.id}
-                          className="flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-[var(--surface-sunken)]/50"
+                        <span>{value === 'income' ? t('common.income') : t('common.expense')}</span>
+                        <span
+                          className={[
+                            'rounded-full px-1.5 py-0.2 text-[0.6875rem] font-bold',
+                            isActive
+                              ? value === 'income'
+                                ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                                : 'bg-[var(--negative-soft)] text-[var(--negative)]'
+                              : 'bg-[var(--surface-sunken)] text-[var(--text-muted)]',
+                          ].join(' ')}
                         >
-                          <div className="flex items-center gap-2 truncate">
-                            <Tag className="size-3.5 shrink-0 text-[var(--text-muted)]" />
-                            <span className="truncate text-xs font-medium text-[var(--text-primary)]">
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Tombol Cepat Tambah Kategori */}
+                <button
+                  type="button"
+                  onClick={() => openAddCategory(kind)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--line-subtle)] bg-[var(--surface-raised)]/40 p-3 text-xs font-bold text-[var(--accent)] transition-all hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] active:scale-[0.99] cursor-pointer"
+                >
+                  <Plus className="size-4 stroke-[2.5]" />
+                  <span>
+                    + Tambah Kategori {kind === 'expense' ? 'Pengeluaran' : 'Pemasukan'}
+                  </span>
+                </button>
+
+                {/* Daftar Kategori */}
+                <div className="space-y-2">
+                  {visibleCategories.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--line-subtle)] p-8 text-center">
+                      <span className="grid size-12 place-items-center rounded-2xl bg-[var(--surface-sunken)] text-2xl">
+                        {kind === 'income' ? '💰' : '🛍️'}
+                      </span>
+                      <p className="mt-3 font-display text-sm font-semibold text-[var(--text-primary)]">
+                        Belum ada kategori {kind === 'expense' ? 'pengeluaran' : 'pemasukan'}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                        Klik tombol tambah untuk mendaftarkan kategori baru.
+                      </p>
+                    </div>
+                  ) : (
+                    visibleCategories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="group flex items-center justify-between gap-3 rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-3 shadow-2xs transition-all hover:border-[var(--line-strong)]"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--surface-sunken)] text-xl shadow-2xs">
+                            {category.icon || (category.type === 'income' ? '💰' : '🏷️')}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-display text-sm font-bold text-[var(--text-primary)]">
                               {category.name}
+                            </p>
+                            <span className="text-[0.6875rem] font-medium text-[var(--text-muted)]">
+                              {category.type === 'income' ? 'Kategori Pemasukan' : 'Kategori Pengeluaran'}
                             </span>
                           </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            aria-label={t('common.delete')}
+                            title="Ubah Kategori"
+                            aria-label={`Ubah kategori ${category.name}`}
+                            onClick={() => openEditCategory(category)}
+                            className="grid size-8 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] active:scale-95 cursor-pointer"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Hapus Kategori"
+                            aria-label={`Hapus kategori ${category.name}`}
                             onClick={() => void removeCategory(category)}
-                            className="grid size-7 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--negative-soft)] hover:text-[var(--negative)] active:scale-95"
+                            className="grid size-8 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--negative-soft)] hover:text-[var(--negative)] active:scale-95 cursor-pointer"
                           >
                             <Trash2 className="size-3.5" />
                           </button>
                         </div>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Form Tambah Kategori */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      placeholder={`Tambah kategori ${kind === 'expense' ? 'pengeluaran' : 'pemasukan'} baru...`}
-                      className="flex-1 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-                    />
-                    <Button loading={busy} onClick={() => void addCategory()}>
-                      <Plus className="size-4" />
-                      <span>{t('common.add')}</span>
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              <Card
-                title="Sub-Kategori"
-                subtitle="Atur sub-kategori spesifik di bawah kategori induk"
-              >
-                <div className="space-y-4">
-                  <ModernSelect
-                    label="Pilih Kategori Induk"
-                    value={subParent}
-                    onChange={(val) => setSubParent(val)}
-                    options={categories.map((c) => ({
-                      value: c.id,
-                      label: `${c.name} (${c.type === 'expense' ? 'Pengeluaran' : 'Pemasukan'})`,
-                      icon: <Tag className="size-4 text-[var(--accent)]" />,
-                    }))}
-                    placeholder="Pilih Kategori Induk"
-                  />
-
-                  {subParent ? (
-                    <>
-                      <div className="max-h-52 overflow-y-auto rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] divide-y divide-[var(--line-subtle)]">
-                        {visibleSubs.length === 0 ? (
-                          <p className="p-4 text-center text-xs text-[var(--text-muted)]">
-                            Belum ada sub-kategori untuk kategori ini.
-                          </p>
-                        ) : (
-                          visibleSubs.map((sub) => (
-                            <div
-                              key={sub.id}
-                              className="flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-[var(--surface-sunken)]/50"
-                            >
-                              <span className="truncate text-xs font-medium text-[var(--text-primary)]">
-                                {sub.name}
-                              </span>
-                              <button
-                                type="button"
-                                aria-label={t('common.delete')}
-                                onClick={() =>
-                                  void run(async () => {
-                                    await SubCategoryRepo.remove(sub.id)
-                                    await load()
-                                  }, 'Sub-kategori berhasil dihapus')
-                                }
-                                className="grid size-7 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--negative-soft)] hover:text-[var(--negative)] active:scale-95"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            </div>
-                          ))
-                        )}
                       </div>
-
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newSub}
-                          onChange={(e) => setNewSub(e.target.value)}
-                          placeholder="Nama sub-kategori baru..."
-                          className="flex-1 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-                        />
-                        <Button loading={busy} onClick={() => void addSubCategory()}>
-                          <Plus className="size-4" />
-                          <span>{t('common.add')}</span>
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Pilih salah satu kategori induk di atas untuk melihat dan menambah sub-kategori.
-                    </p>
+                    ))
                   )}
                 </div>
-              </Card>
-            </>
+              </div>
+            </Card>
           )}
 
           {/* 6. SUB-MENU: CADANGAN & DATA */}
@@ -1250,6 +1264,133 @@ export function SettingsScreen() {
           )}
         </div>
       )}
+
+      {/* Modal Tambah / Edit Kategori */}
+      <Modal
+        open={isCategoryModalOpen}
+        title={editingCategory ? 'Ubah Kategori' : 'Tambah Kategori Baru'}
+        onClose={() => setIsCategoryModalOpen(false)}
+      >
+        <div className="space-y-4">
+          {/* Tipe Kategori Switcher */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-[var(--surface-sunken)] p-1">
+            {(['expense', 'income'] as CategoryKind[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setCatFormType(value)
+                  if (!editingCategory) {
+                    setCatFormIcon(value === 'income' ? '💰' : '🛍️')
+                  }
+                }}
+                className={[
+                  'rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer',
+                  catFormType === value
+                    ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] font-bold shadow-2xs'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                ].join(' ')}
+              >
+                {value === 'income' ? t('common.income') : t('common.expense')}
+              </button>
+            ))}
+          </div>
+
+          {/* Nama Kategori */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">
+              Nama Kategori
+            </label>
+            <input
+              type="text"
+              value={catFormName}
+              onChange={(e) => setCatFormName(e.target.value)}
+              placeholder="Contoh: Belanja Bulanan, Jajan, Gaji..."
+              className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              autoFocus
+            />
+          </div>
+
+          {/* Pilih Icon / Emoji */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                Pilih Icon / Emoji
+              </label>
+              <span className="text-[0.6875rem] text-[var(--text-muted)]">
+                Bisa diklik atau ketik bebas
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-base)] p-3">
+              <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-2xl shadow-2xs">
+                {catFormIcon || '🏷️'}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={catFormIcon}
+                  onChange={(e) => setCatFormIcon(e.target.value)}
+                  placeholder="Ketik emoji bebas..."
+                  className="w-full rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                />
+                <span className="mt-1 block text-[0.625rem] text-[var(--text-muted)]">
+                  Icon aktif: {catFormIcon || '(kosong)'}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/40 p-3">
+              <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                Pilihan Icon Cepat ({catFormType === 'income' ? 'Pemasukan' : 'Pengeluaran'})
+              </p>
+              <div
+                className="max-h-56 overflow-y-auto p-1"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+                  gap: '0.5rem',
+                }}
+              >
+                {(catFormType === 'income' ? INCOME_EMOJI_PRESETS : EXPENSE_EMOJI_PRESETS).map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setCatFormIcon(emoji)}
+                    className={[
+                      'flex items-center justify-center aspect-square rounded-xl text-xl transition-all active:scale-90 cursor-pointer',
+                      catFormIcon === emoji
+                        ? 'bg-[var(--accent)] text-[var(--text-inverted)] shadow-sm scale-105 ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--surface-base)]'
+                        : 'bg-[var(--surface-raised)] border border-[var(--line-subtle)] hover:bg-[var(--surface-overlay)] hover:border-[var(--line-strong)] hover:scale-105',
+                    ].join(' ')}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Tombol Aksi */}
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setIsCategoryModalOpen(false)}
+              className="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              loading={busy}
+              onClick={() => void saveCategory()}
+              className="flex-1"
+            >
+              <Check className="size-4" />
+              <span>{editingCategory ? 'Simpan Perubahan' : 'Tambah Kategori'}</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

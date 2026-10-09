@@ -26,7 +26,7 @@ import {
   type Transaction,
   type TxType,
 } from '../../lib/api/repositories'
-import { formatMoney, formatNumber } from '../../lib/utils/currency'
+import { formatMoney, type CurrencyCode } from '../../lib/utils/currency'
 import { currentMonth, formatDate, formatMonth, shiftMonth } from '../../lib/utils/date'
 import { useApp } from '../providers/useApp'
 import { Button } from '../ui/Button'
@@ -40,11 +40,13 @@ type Filter = TxType | 'all'
 function TransactionRow({
   tx,
   names,
+  currency = 'IDR',
   onEdit,
   onDelete,
 }: {
   tx: Transaction
   names: Record<string, string>
+  currency?: CurrencyCode
   onEdit: (tx: Transaction) => void
   onDelete: (id: string) => void
 }) {
@@ -287,7 +289,7 @@ function TransactionRow({
               ].join(' ')}
             >
               {isIncome ? '+' : isExpense ? '−' : ''}
-              {formatNumber(tx.amount)}
+              {formatMoney(tx.amount, currency)}
             </p>
           </div>
         </button>
@@ -695,6 +697,7 @@ export function TransactionsScreen() {
                     key={tx.id}
                     tx={tx}
                     names={names}
+                    currency={currency}
                     onEdit={setEditing}
                     onDelete={(id) => void handleDelete(id)}
                   />

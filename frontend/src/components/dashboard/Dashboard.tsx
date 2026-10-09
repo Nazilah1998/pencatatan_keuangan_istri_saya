@@ -3,8 +3,15 @@
  * terakhir. Semua angka berasal dari endpoint agregasi Go Fiber, bukan dari
  * penjumlahan di komponen.
  */
-import { useCallback, useEffect, useState } from 'react'
-import { ArrowDownRight, ArrowUpRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  Landmark,
+  PiggyBank,
+  Wallet,
+} from 'lucide-react'
 
 import { api, ApiError, ApiPaths } from '../../lib/api/client'
 import type { BudgetReport, Cashflow, Summary } from '../../lib/api/types'
@@ -16,6 +23,7 @@ import {
   TxRepo,
   WalletRepo,
   type Transaction,
+  type Wallet as WalletItem,
 } from '../../lib/api/repositories'
 import { formatCompact, formatMoney } from '../../lib/utils/currency'
 import { currentMonth, formatMonth, monthRange, todayISO } from '../../lib/utils/date'
@@ -33,6 +41,8 @@ export function Dashboard() {
   const [budget, setBudget] = useState<BudgetReport | null>(null)
   const [recent, setRecent] = useState<Transaction[]>([])
   const [wallets, setWallets] = useState<Record<string, string>>({})
+  const [walletList, setWalletList] = useState<WalletItem[]>([])
+  const [walletsOpen, setWalletsOpen] = useState(true)
   const [categoryMap, setCategoryMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -250,12 +260,17 @@ export function Dashboard() {
       setBudget(b)
       setRecent(tx.slice(0, 5))
       setWallets(Object.fromEntries(w.map((item) => [item.id, item.name])))
+      setWalletList(w.filter((item) => !item.isArchived))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : m('common.retry'))
     } finally {
       setLoading(false)
     }
   }, [currency, isAuthed, m, month, ready, t])
+
+  const totalWalletAssets = useMemo(() => {
+    return walletList.reduce((acc, item) => acc + (item.balance || 0), 0)
+  }, [walletList])
 
   useEffect(() => {
     if (!ready || !isAuthed) return
@@ -264,8 +279,12 @@ export function Dashboard() {
       void load()
     }
     window.addEventListener('tx:created', onTxCreated)
+    window.addEventListener('wallet:updated', onTxCreated)
+    window.addEventListener('wallet:created', onTxCreated)
     return () => {
       window.removeEventListener('tx:created', onTxCreated)
+      window.removeEventListener('wallet:updated', onTxCreated)
+      window.removeEventListener('wallet:created', onTxCreated)
     }
   }, [isAuthed, load, ready])
 
@@ -322,6 +341,91 @@ export function Dashboard() {
         )}
       </div>
 
+      <div className="overflow-hidden rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] shadow-xs">
+        <button
+          type="button"
+          onClick={() => setWalletsOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-sunken)]/40 active:bg-[var(--surface-sunken)]/60 cursor-pointer"
+          aria-expanded={walletsOpen}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-display text-sm font-bold text-[var(--text-primary)]">
+              Aset Dompet & Rekening
+            </span>
+            <span className="rounded-full bg-[var(--surface-sunken)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--text-muted)]">
+              {walletList.length} Akun
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="font-mono text-sm font-bold text-[var(--accent)] sm:text-base">
+              {formatMoney(totalWalletAssets, currency)}
+            </span>
+            <ChevronDown
+              className={[
+                'size-4 text-[var(--text-muted)] transition-transform duration-200',
+                walletsOpen ? 'rotate-180' : 'rotate-0',
+              ].join(' ')}
+            />
+          </div>
+        </button>
+
+        {walletsOpen && (
+          <div className="border-t border-[var(--line-subtle)]">
+            {loading ? (
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+              </div>
+            ) : walletList.length === 0 ? (
+              <div className="py-4 text-center text-xs text-[var(--text-muted)]">
+                Belum ada dompet aktif.
+              </div>
+            ) : (
+              <ul className="divide-y divide-[var(--line-subtle)] px-4">
+                {walletList.map((item) => {
+                  const percent = totalWalletAssets > 0 ? Math.round((Math.max(0, item.balance) / totalWalletAssets) * 100) : 0
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between py-2.5 transition-colors"
+                    >
+                      <div className="min-w-0 pr-3">
+                        <p className="truncate text-xs font-semibold text-[var(--text-primary)] sm:text-sm">
+                          {item.name}
+                        </p>
+                        <p className="text-[0.6875rem] text-[var(--text-muted)]">
+                          {getWalletTypeLabel(item.type)} {percent > 0 ? `· ${percent}% aset` : ''}
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className={[
+                          'font-mono text-xs font-bold sm:text-sm',
+                          item.balance < 0 ? 'text-[var(--negative)]' : 'text-[var(--text-primary)]',
+                        ].join(' ')}>
+                          {formatMoney(item.balance, currency)}
+                        </p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            <div className="flex items-center justify-between border-t border-[var(--line-subtle)] bg-[var(--surface-sunken)]/30 px-4 py-2.5 text-[0.6875rem] text-[var(--text-muted)]">
+              <span>Semua dompet tersinkronisasi</span>
+              <a
+                href="/aset-hutang"
+                className="font-medium text-[var(--accent)] hover:underline inline-flex items-center gap-1"
+              >
+                Kelola Aset &rarr;
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-5">
         <Card
           className="lg:col-span-3"
@@ -333,7 +437,7 @@ export function Dashboard() {
           ) : flow.daily.length === 0 ? (
             <EmptyState title={t('common.no_data')} />
           ) : (
-            <CashflowChart daily={flow.daily} currency={currency} t={t} />
+            <CashflowChart daily={flow.daily} currency={currency} t={t} month={month} />
           )}
         </Card>
 
@@ -444,10 +548,12 @@ function CashflowChart({
   daily,
   currency,
   t,
+  month,
 }: {
   daily: { date: string; income: number; expense: number }[]
   currency: 'IDR' | 'USD'
   t: (path: string) => string
+  month: string
 }) {
   const weeks = [
     { label: 'Mgg 1', range: '1-7', income: 0, expense: 0 },
@@ -467,57 +573,179 @@ function CashflowChart({
     }
   }
 
+  const currentDay = todayISO().startsWith(month) ? parseInt(todayISO().slice(8, 10), 10) : 1
+  const currentWeekIdx = currentDay <= 7 ? 0 : currentDay <= 14 ? 1 : currentDay <= 21 ? 2 : currentDay <= 28 ? 3 : 4
+
+  const [selectedIdx, setSelectedIdx] = useState<number>(currentWeekIdx)
+
+  const totalInc = weeks.reduce((sum, w) => sum + w.income, 0)
+  const totalExp = weeks.reduce((sum, w) => sum + w.expense, 0)
+  const totalNet = totalInc - totalExp
+
   const maxVal = Math.max(1, ...weeks.flatMap((w) => [w.income, w.expense]))
-  const chartHeightPx = 120
+  const chartHeightPx = 110
+
+  const fallbackWeek = { label: 'Mgg 1', range: '1-7', income: 0, expense: 0 }
+  const selWeek = weeks[selectedIdx] ?? weeks[0] ?? fallbackWeek
+  const selNet = selWeek.income - selWeek.expense
 
   return (
-    <div className="pt-2">
-      <div className="grid grid-cols-5 gap-2 border-b border-[var(--line-subtle)] pb-2">
-        {weeks.map((w, i) => {
-          const incHeight = w.income > 0 ? Math.max(8, Math.round((w.income / maxVal) * chartHeightPx)) : 0
-          const expHeight = w.expense > 0 ? Math.max(8, Math.round((w.expense / maxVal) * chartHeightPx)) : 0
-
-          return (
-            <div key={i} className="flex flex-col items-center">
-              <div
-                className="flex w-full items-end justify-center gap-1 sm:gap-2"
-                style={{ height: `${chartHeightPx}px` }}
-              >
-                <div
-                  className="w-3 sm:w-4 rounded-t-sm bg-[var(--accent)] transition-all duration-300"
-                  style={{ height: `${incHeight}px` }}
-                  title={`${w.label} (Pemasukan): ${formatMoney(w.income, currency)}`}
-                />
-                <div
-                  className="w-3 sm:w-4 rounded-t-sm bg-[var(--negative)] transition-all duration-300"
-                  style={{ height: `${expHeight}px` }}
-                  title={`${w.label} (Pengeluaran): ${formatMoney(w.expense, currency)}`}
-                />
-              </div>
-
-              <div className="mt-2 text-center">
-                <span className="block font-display text-[0.6875rem] font-semibold text-[var(--text-primary)]">
-                  {w.label}
-                </span>
-                <span className="block text-[0.625rem] text-[var(--text-muted)]">
-                  {w.range}
-                </span>
-              </div>
-            </div>
-          )
-        })}
+    <div className="space-y-3 pt-1">
+      <div className="grid grid-cols-3 gap-2 rounded-xl bg-[var(--surface-sunken)]/60 p-2 text-center text-xs">
+        <div>
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pemasukan</span>
+          <span className="font-mono text-xs font-bold text-[var(--accent)]">
+            +{formatCompact(totalInc, currency)}
+          </span>
+        </div>
+        <div className="border-x border-[var(--line-subtle)]">
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pengeluaran</span>
+          <span className="font-mono text-xs font-bold text-[var(--negative)]">
+            −{formatCompact(totalExp, currency)}
+          </span>
+        </div>
+        <div>
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Arus Bersih</span>
+          <span className={[
+            'font-mono text-xs font-bold',
+            totalNet >= 0 ? 'text-[var(--accent)]' : 'text-[var(--negative)]',
+          ].join(' ')}>
+            {totalNet >= 0 ? '+' : '−'}{formatCompact(Math.abs(totalNet), currency)}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-6 text-xs text-[var(--text-muted)]">
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="size-2.5 rounded-full bg-[var(--accent)]" aria-hidden />
-          {t('common.income')}
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="size-2.5 rounded-full bg-[var(--negative)]" aria-hidden />
-          {t('common.expense')}
+      <div className="relative pt-2">
+        <div className="absolute inset-x-0 top-3 border-b border-dashed border-[var(--line-subtle)]/70 pointer-events-none" />
+        <div className="absolute inset-x-0 top-[65px] border-b border-dashed border-[var(--line-subtle)]/70 pointer-events-none" />
+
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 relative z-10">
+          {weeks.map((w, i) => {
+            const incPct = w.income > 0 ? Math.max(10, Math.round((w.income / maxVal) * 100)) : 0
+            const expPct = w.expense > 0 ? Math.max(10, Math.round((w.expense / maxVal) * 100)) : 0
+            const isSelected = selectedIdx === i
+            const isTodayWeek = currentWeekIdx === i
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelectedIdx(i)}
+                className={[
+                  'flex flex-col items-center rounded-xl py-2 px-1 transition-all cursor-pointer text-left',
+                  isSelected
+                    ? 'bg-[var(--surface-sunken)] ring-1 ring-[var(--line-strong)] shadow-2xs'
+                    : 'hover:bg-[var(--surface-sunken)]/50',
+                ].join(' ')}
+              >
+                <div
+                  className="flex w-full items-end justify-center gap-1 sm:gap-1.5"
+                  style={{ height: `${chartHeightPx}px` }}
+                >
+                  <div className="w-2.5 sm:w-3.5 h-full rounded-full bg-[var(--surface-sunken)] flex items-end justify-center overflow-hidden">
+                    <div
+                      className="w-full rounded-full bg-[var(--accent)] transition-all duration-300"
+                      style={{ height: `${incPct}%` }}
+                    />
+                  </div>
+                  <div className="w-2.5 sm:w-3.5 h-full rounded-full bg-[var(--surface-sunken)] flex items-end justify-center overflow-hidden">
+                    <div
+                      className="w-full rounded-full bg-[var(--negative)] transition-all duration-300"
+                      style={{ height: `${expPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-2 text-center w-full">
+                  <span className={[
+                    'block font-display text-[0.6875rem]',
+                    isSelected ? 'font-bold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]',
+                  ].join(' ')}>
+                    {w.label}
+                  </span>
+                  <span className="block text-[0.625rem] text-[var(--text-muted)]">
+                    {w.range}
+                  </span>
+                  {isTodayWeek && (
+                    <span className="mx-auto mt-0.5 block size-1 rounded-full bg-[var(--accent)]" />
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/30 p-2.5 sm:p-3 transition-all">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-[var(--text-primary)]">
+              {selWeek.label} ({selWeek.range})
+            </span>
+            {currentWeekIdx === selectedIdx && (
+              <span className="rounded-full bg-[var(--accent-soft)] px-1.5 py-0.2 text-[0.5625rem] font-bold text-[var(--accent)]">
+                Minggu Ini
+              </span>
+            )}
+          </div>
+          <span className={[
+            'font-mono text-xs font-bold',
+            selNet >= 0 ? 'text-[var(--accent)]' : 'text-[var(--negative)]',
+          ].join(' ')}>
+            Net: {selNet >= 0 ? '+' : '−'}{formatMoney(Math.abs(selNet), currency)}
+          </span>
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-[var(--surface-raised)] p-2 border border-[var(--line-subtle)]">
+            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pemasukan</span>
+            <span className="font-mono text-xs font-bold text-[var(--accent)]">
+              +{formatMoney(selWeek.income, currency)}
+            </span>
+          </div>
+          <div className="rounded-lg bg-[var(--surface-raised)] p-2 border border-[var(--line-subtle)]">
+            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pengeluaran</span>
+            <span className="font-mono text-xs font-bold text-[var(--negative)]">
+              −{formatMoney(selWeek.expense, currency)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-[0.6875rem] text-[var(--text-muted)] pt-0.5">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="size-2 rounded-full bg-[var(--accent)]" />
+            {t('common.income')}
+          </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="size-2 rounded-full bg-[var(--negative)]" />
+            {t('common.expense')}
+          </span>
+        </div>
+        <span className="text-[0.625rem] text-[var(--text-muted)]">
+          Pilih minggu untuk rincian
         </span>
       </div>
     </div>
   )
+}
+
+function getWalletTypeLabel(type: string) {
+  switch (type) {
+    case 'bank':
+      return 'Bank'
+    case 'cash':
+      return 'Tunai'
+    case 'ewallet':
+      return 'E-Wallet'
+    case 'credit_card':
+      return 'Kartu Kredit'
+    case 'investment':
+      return 'Investasi'
+    case 'savings':
+      return 'Tabungan'
+    default:
+      return 'Dompet'
+  }
 }
