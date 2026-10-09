@@ -24,7 +24,7 @@ import { Button } from '../ui/Button'
 import { Card, EmptyState, Skeleton, StatTile } from '../ui/Card'
 
 export function Dashboard() {
-  const { t, m, session } = useApp()
+  const { t, m, session, isAuthed, ready } = useApp()
   const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
   const [mounted, setMounted] = useState(false)
 
@@ -56,6 +56,10 @@ export function Dashboard() {
   }, [t])
 
   const load = useCallback(async () => {
+    if (!ready || !isAuthed) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -251,9 +255,10 @@ export function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [currency, m, month, t])
+  }, [currency, isAuthed, m, month, ready, t])
 
   useEffect(() => {
+    if (!ready || !isAuthed) return
     void load()
     const onTxCreated = () => {
       void load()
@@ -262,7 +267,7 @@ export function Dashboard() {
     return () => {
       window.removeEventListener('tx:created', onTxCreated)
     }
-  }, [load])
+  }, [isAuthed, load, ready])
 
   return (
     <div className="space-y-4">

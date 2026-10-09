@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -35,6 +36,37 @@ var (
 	remoteClient = &http.Client{Timeout: 5 * time.Second}
 )
 
+type jwtPayload struct {
+	ID  string `json:"id"`
+	Exp int64  `json:"exp"`
+}
+
+func parseJWTPayload(token string) (*jwtPayload, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, errors.New("format token tidak valid")
+	}
+	segment := parts[1]
+	switch len(segment) % 4 {
+	case 2:
+		segment += "=="
+	case 3:
+		segment += "="
+	}
+	raw, err := base64.URLEncoding.DecodeString(segment)
+	if err != nil {
+		raw, err = base64.RawURLEncoding.DecodeString(parts[1])
+		if err != nil {
+			return nil, err
+		}
+	}
+	var p jwtPayload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 func verifyRemoteToken(token string) (*RemoteUser, bool) {
 	remoteURL := os.Getenv("REMOTE_PB_URL")
 	if remoteURL == "" {
@@ -44,14 +76,70 @@ func verifyRemoteToken(token string) (*RemoteUser, bool) {
 		return nil, false
 	}
 
+	payload, err := parseJWTPayload(token)
+	if err != nil {
+		return nil, false
+	}
+	if payload.Exp > 0 && time.Now().Unix() > payload.Exp {
+		return nil, false
+	}
+
 	if val, ok := tokenCache.Load(token); ok {
 		if u, ok := val.(*RemoteUser); ok {
 			return u, true
 		}
 	}
 
-	url := strings.TrimRight(remoteURL, "/") + "/api/collections/users/auth-refresh"
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	baseURL := strings.TrimRight(remoteURL, "/")
+
+	if payload.ID != "" {
+		reqURL := baseURL + "/api/collections/users/records/" + payload.ID
+		req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+		if err == nil {
+			req.Header.Set("Authorization", "Bearer "+token)
+			resp, err := remoteClient.Do(req)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				defer resp.Body.Close()
+				var record struct {
+					ID          string `json:"id"`
+					Email       string `json:"email"`
+					Name        string `json:"name"`
+					HouseholdID string `json:"household_id"`
+				}
+				if json.NewDecoder(resp.Body).Decode(&record) == nil && record.ID != "" {
+					u := &RemoteUser{
+						ID:          record.ID,
+						Email:       record.Email,
+						Name:        record.Name,
+						HouseholdID: record.HouseholdID,
+					}
+					if u.HouseholdID == "" {
+						hReq, hErr := http.NewRequest(http.MethodGet, baseURL+"/api/collections/households/records?filter=(created_by='"+u.ID+"')", nil)
+						if hErr == nil {
+							hReq.Header.Set("Authorization", "Bearer "+token)
+							if hResp, err := remoteClient.Do(hReq); err == nil && hResp.StatusCode == http.StatusOK {
+								defer hResp.Body.Close()
+								var hData struct {
+									Items []struct {
+										ID string `json:"id"`
+									} `json:"items"`
+								}
+								if json.NewDecoder(hResp.Body).Decode(&hData) == nil && len(hData.Items) > 0 {
+									u.HouseholdID = hData.Items[0].ID
+								}
+							}
+						}
+					}
+					tokenCache.Store(token, u)
+					return u, true
+				}
+			} else if resp != nil {
+				_ = resp.Body.Close()
+			}
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/api/collections/users/auth-refresh", nil)
 	if err != nil {
 		return nil, false
 	}

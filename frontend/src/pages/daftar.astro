@@ -1,14 +1,3 @@
 ---
-import AuthLayout from '../layouts/AuthLayout.astro'
-
-import { AuthForm } from '../components/auth/AuthForm'
-import { RedirectIfAuthed } from '../components/auth/RedirectIfAuthed'
+return Astro.redirect('/masuk')
 ---
-
-<AuthLayout
-  title="Daftar · Sintya Finance"
-  description="Buat akun Sintya Finance dan mulai mencatat keuangan rumah tangga."
->
-  <RedirectIfAuthed client:load />
-  <AuthForm client:load mode="register" />
-</AuthLayout>

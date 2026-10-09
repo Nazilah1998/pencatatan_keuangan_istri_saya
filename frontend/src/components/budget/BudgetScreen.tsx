@@ -38,7 +38,7 @@ const EMPTY: FormState = { category: '', amount: '', notes: '' }
 const PRESET_LIMITS = [200000, 500000, 1000000, 2000000, 5000000]
 
 export function BudgetScreen() {
-  const { t, m, session } = useApp()
+  const { t, m, session, isAuthed, ready } = useApp()
   const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
 
   const [month, setMonth] = useState(currentMonth())
@@ -53,6 +53,10 @@ export function BudgetScreen() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
+    if (!ready || !isAuthed) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -129,6 +133,7 @@ export function BudgetScreen() {
   }, [month, m])
 
   useEffect(() => {
+    if (!ready || !isAuthed) return
     void load()
     const onTxCreated = () => {
       void load()
@@ -137,7 +142,7 @@ export function BudgetScreen() {
     return () => {
       window.removeEventListener('tx:created', onTxCreated)
     }
-  }, [load])
+  }, [isAuthed, load, ready])
 
   const spentByCategory = useMemo(() => {
     const map = new Map<string, number>()

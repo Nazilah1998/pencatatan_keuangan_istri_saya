@@ -20,7 +20,7 @@ import { Modal } from '../ui/Modal'
 type Range = 'monthly' | 'yearly'
 
 export function ReportsScreen() {
-  const { t, m, session } = useApp()
+  const { t, m, session, isAuthed, ready } = useApp()
   const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
 
   const [range, setRange] = useState<Range>('monthly')
@@ -37,6 +37,10 @@ export function ReportsScreen() {
   const year = anchor.slice(0, 4)
 
   const load = useCallback(async () => {
+    if (!ready || !isAuthed) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -56,11 +60,12 @@ export function ReportsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [range, start, end, year, anchor, m])
+  }, [anchor, end, isAuthed, m, range, ready, start, year])
 
   useEffect(() => {
+    if (!ready || !isAuthed) return
     void load()
-  }, [load])
+  }, [isAuthed, load, ready])
 
   async function loadInsights() {
     setAiLoading(true)

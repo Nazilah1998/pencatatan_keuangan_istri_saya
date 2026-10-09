@@ -6,6 +6,7 @@
  */
 import { PUBLIC_API_BASE } from '../config/public'
 import { AuthStore } from '../pb/authStore'
+import { getPB, hasPB } from '../pb/client'
 
 export class ApiError extends Error {
   readonly status: number
@@ -26,9 +27,17 @@ type Envelope<T> = {
   meta?: { total: number }
 }
 
-/** Token sesi; `AuthStore` sudah disinkronkan dengan `pb.authStore`. */
 function authToken(): string {
-  return AuthStore.get()?.token ?? ''
+  const fromStore = AuthStore.get()?.token
+  if (fromStore) return fromStore
+  if (typeof window !== 'undefined' && hasPB()) {
+    try {
+      return getPB().authStore.token || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
