@@ -119,6 +119,7 @@ func TransactionsToCSV(ctx context.Context, store Store, householdID, start, end
 	}
 
 	var sb strings.Builder
+	sb.WriteString("\xef\xbb\xbf")
 	w := csv.NewWriter(&sb)
 
 	header := []string{

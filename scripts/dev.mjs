@@ -26,6 +26,13 @@ try {
   console.log(`📡 Injected ${Object.keys(publicSecrets).length} public variables to frontend/public/env-config.js`)
 } catch (err) {
   console.warn(`⚠️ Gagal memuat dari Infisical Cloud (${err.message}). Menggunakan process.env lokal jika tersedia.`)
+  try {
+    const fs = await import('node:fs/promises')
+    const target = resolve(root, 'frontend/public/env-config.js')
+    await fs.access(target).catch(async () => {
+      await fs.writeFile(target, 'window.__PUBLIC_ENV__ = window.__PUBLIC_ENV__ || {};\n')
+    })
+  } catch {}
 }
 
 const { result } = concurrently(

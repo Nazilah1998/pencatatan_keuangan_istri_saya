@@ -45,7 +45,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    files: ['public/env-config.js'],
+    files: ['public/env-config*.js'],
     languageOptions: { globals: globals.browser },
   },
   {

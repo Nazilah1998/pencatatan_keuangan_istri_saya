@@ -201,6 +201,7 @@ func Wallets() *core.Collection {
 
 	applyTenantRules(c)
 	tenantIndexes(c)
+	c.AddIndex("idx_wallets_household_active", false, "`household_id`, `is_archived`, `include_in_networth`", "")
 
 	return c
 }
@@ -265,6 +266,7 @@ func Savings() *core.Collection {
 
 	applyTenantRules(c)
 	tenantIndexes(c)
+	c.AddIndex("idx_savings_household_status", false, "`household_id`, `status`", "")
 
 	return c
 }
@@ -290,6 +292,7 @@ func Debts() *core.Collection {
 
 	applyTenantRules(c)
 	tenantIndexes(c)
+	c.AddIndex("idx_debts_household_status", false, "`household_id`, `status`", "")
 
 	return c
 }
@@ -310,7 +313,7 @@ func DebtPayments() *core.Collection {
 
 	applyTenantRules(c)
 	tenantIndexes(c)
-	c.AddIndex("idx_debtpayments_debt", false, "`debt`", "")
+	c.AddIndex("idx_debtpayments_debt", false, "`household_id`, `debt`", "")
 
 	return c
 }
@@ -339,8 +342,10 @@ func Transactions() *core.Collection {
 	applyTenantRules(c)
 	tenantIndexes(c)
 	c.AddIndex("idx_transactions_date", false, "`household_id`, `date`", "")
-	c.AddIndex("idx_transactions_wallet", false, "`wallet`", "")
-	c.AddIndex("idx_transactions_category", false, "`category`", "")
+	c.AddIndex("idx_transactions_wallet_date", false, "`household_id`, `wallet`, `date`", "")
+	c.AddIndex("idx_transactions_to_wallet", false, "`household_id`, `to_wallet`", "")
+	c.AddIndex("idx_transactions_savings", false, "`household_id`, `savings_goal`", "")
+	c.AddIndex("idx_transactions_cat_date", false, "`household_id`, `category`, `date`", "")
 
 	return c
 }

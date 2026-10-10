@@ -3,7 +3,7 @@
  * terakhir. Semua angka berasal dari endpoint agregasi Go Fiber, bukan dari
  * penjumlahan di komponen.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -11,10 +11,10 @@ import {
   Landmark,
   PiggyBank,
   Wallet,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { api, ApiError, ApiPaths } from '../../lib/api/client'
-import type { BudgetReport, Cashflow, Summary } from '../../lib/api/types'
+import { api, ApiError, ApiPaths } from "../../lib/api/client";
+import type { BudgetReport, Cashflow, Summary } from "../../lib/api/types";
 import {
   BudgetRepo,
   CategoryRepo,
@@ -24,137 +24,170 @@ import {
   WalletRepo,
   type Transaction,
   type Wallet as WalletItem,
-} from '../../lib/api/repositories'
-import { formatCompact, formatMoney } from '../../lib/utils/currency'
-import { currentMonth, formatMonth, monthRange, todayISO } from '../../lib/utils/date'
-import { useApp } from '../providers/useApp'
-import { Button } from '../ui/Button'
-import { Card, EmptyState, Skeleton, StatTile } from '../ui/Card'
+} from "../../lib/api/repositories";
+import { formatCompact, formatMoney } from "../../lib/utils/currency";
+import {
+  currentMonth,
+  formatMonth,
+  monthRange,
+  todayISO,
+} from "../../lib/utils/date";
+import { useApp } from "../providers/useApp";
+import { Button } from "../ui/Button";
+import { Card, EmptyState, Skeleton, StatTile } from "../ui/Card";
 
 export function Dashboard() {
-  const { t, m, session, isAuthed, ready } = useApp()
-  const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
-  const [mounted, setMounted] = useState(false)
+  const { t, m, session, isAuthed, ready } = useApp();
+  const currency = session?.baseCurrency === "USD" ? "USD" : "IDR";
+  const [mounted, setMounted] = useState(false);
 
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [flow, setFlow] = useState<Cashflow | null>(null)
-  const [budget, setBudget] = useState<BudgetReport | null>(null)
-  const [recent, setRecent] = useState<Transaction[]>([])
-  const [wallets, setWallets] = useState<Record<string, string>>({})
-  const [walletList, setWalletList] = useState<WalletItem[]>([])
-  const [walletsOpen, setWalletsOpen] = useState(true)
-  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [flow, setFlow] = useState<Cashflow | null>(null);
+  const [budget, setBudget] = useState<BudgetReport | null>(null);
+  const [recent, setRecent] = useState<Transaction[]>([]);
+  const [wallets, setWallets] = useState<Record<string, string>>({});
+  const [walletList, setWalletList] = useState<WalletItem[]>([]);
+  const [walletsOpen, setWalletsOpen] = useState(false);
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const month = currentMonth()
+  const month = currentMonth();
 
-  const [greeting, setGreeting] = useState('')
+  const [greeting, setGreeting] = useState("");
 
   useEffect(() => {
-    setMounted(true)
-    const hour = new Date().getHours()
+    setMounted(true);
+    const hour = new Date().getHours();
     setGreeting(
       hour < 11
-        ? t('dashboard.greeting_morning')
+        ? t("dashboard.greeting_morning")
         : hour < 15
-          ? t('dashboard.greeting_afternoon')
+          ? t("dashboard.greeting_afternoon")
           : hour < 18
-            ? t('dashboard.greeting_evening')
-            : t('dashboard.greeting_night'),
-    )
-  }, [t])
+            ? t("dashboard.greeting_evening")
+            : t("dashboard.greeting_night"),
+    );
+  }, [t]);
 
   const load = useCallback(async () => {
     if (!ready || !isAuthed) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
 
     try {
-      const { start, end } = monthRange(month)
+      const { start, end } = monthRange(month);
 
-      const [sRes, cRes, bRes, tx, w, bList, savings, debts, categories] = await Promise.all([
-        api.get<Summary>(ApiPaths.summary(month)).catch(() => null),
-        api.get<Cashflow>(ApiPaths.cashflow(start, end)).catch(() => null),
-        api.get<BudgetReport>(ApiPaths.budget(month)).catch(() => null),
-        TxRepo.listByMonth(month).catch(() => []),
-        WalletRepo.list(true).catch(() => []),
-        BudgetRepo.listByMonth(month).catch(() => []),
-        SavingsRepo.list(true).catch(() => []),
-        DebtRepo.list(false).catch(() => []),
-        CategoryRepo.list().catch(() => []),
-      ])
+      const [sRes, cRes, tx, w, bList, savings, debts, categories] =
+        await Promise.all([
+          api.get<Summary>(ApiPaths.summary(month)).catch(() => null),
+          api.get<Cashflow>(ApiPaths.cashflow(start, end)).catch(() => null),
+          TxRepo.listByMonth(month).catch(() => []),
+          WalletRepo.list(true).catch(() => []),
+          BudgetRepo.listByMonth(month).catch(() => []),
+          SavingsRepo.list(true).catch(() => []),
+          DebtRepo.list(false).catch(() => []),
+          CategoryRepo.list().catch(() => []),
+        ]);
 
-      const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]))
-      setCategoryMap(catMap)
+      const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+      setCategoryMap(catMap);
 
-      const localIncome = tx.filter((item) => item.type === 'income').reduce((acc, item) => acc + item.amount, 0)
-      const localExpense = tx.filter((item) => item.type === 'expense').reduce((acc, item) => acc + item.amount, 0)
-      const localTransfer = tx.filter((item) => item.type === 'transfer').reduce((acc, item) => acc + item.amount, 0)
+      const localIncome = tx
+        .filter((item) => item.type === "income")
+        .reduce((acc, item) => acc + item.amount, 0);
+      const localExpense = tx
+        .filter((item) => item.type === "expense")
+        .reduce((acc, item) => acc + item.amount, 0);
+      const localTransfer = tx
+        .filter((item) => item.type === "transfer")
+        .reduce((acc, item) => acc + item.amount, 0);
 
-      let calculatedWalletTotal = 0
+      let calculatedWalletTotal = 0;
       for (const wallet of w) {
-        if (!wallet.includeInNetWorth || wallet.isArchived) continue
-        let bal = wallet.balance || 0
-        if (bal === 0) {
-          const inTx = tx.filter((t) => t.wallet === wallet.id && t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
-          const outTx = tx.filter((t) => t.wallet === wallet.id && t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
-          const trfOut = tx.filter((t) => t.wallet === wallet.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
-          const trfIn = tx.filter((t) => t.toWallet === wallet.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
-          const netTx = inTx - outTx - trfOut + trfIn
-          bal = (wallet.initialBalance || 0) + netTx
-        }
-        calculatedWalletTotal += bal
-      }
-
-      if (calculatedWalletTotal === 0 && (localIncome > 0 || localExpense > 0)) {
-        const initialSum = w.filter((x) => x.includeInNetWorth && !x.isArchived).reduce((acc, x) => acc + (x.initialBalance || 0), 0)
-        calculatedWalletTotal = initialSum + (localIncome - localExpense)
+        if (!wallet.includeInNetWorth || wallet.isArchived) continue;
+        calculatedWalletTotal += wallet.balance ?? wallet.initialBalance ?? 0;
       }
 
       const localSavingsTotal = savings.reduce((acc, s) => {
-        let amt = s.currentAmount || 0
+        let amt = s.currentAmount || 0;
         if (amt === 0) {
-          const fromTx = tx.filter((t) => t.savingsGoal === s.id).reduce((sum, t) => sum + t.amount, 0)
-          amt = fromTx
+          const fromTx = tx
+            .filter((t) => t.savingsGoal === s.id)
+            .reduce((sum, t) => sum + t.amount, 0);
+          amt = fromTx;
         }
-        return acc + amt
-      }, 0)
+        return acc + amt;
+      }, 0);
 
       const localSavingsInNetWorth = savings
         .filter((s) => s.includeInNetWorth)
         .reduce((acc, s) => {
-          let amt = s.currentAmount || 0
+          let amt = s.currentAmount || 0;
           if (amt === 0) {
-            const fromTx = tx.filter((t) => t.savingsGoal === s.id).reduce((sum, t) => sum + t.amount, 0)
-            amt = fromTx
+            const fromTx = tx
+              .filter((t) => t.savingsGoal === s.id)
+              .reduce((sum, t) => sum + t.amount, 0);
+            amt = fromTx;
           }
-          return acc + amt
-        }, 0)
+          return acc + amt;
+        }, 0);
 
       const localDebtTotal = debts
-        .filter((d) => d.status !== 'paid')
-        .reduce((acc, d) => acc + (d.currentBalance ?? d.principal ?? 0), 0)
+        .filter((d) => d.status !== "paid")
+        .reduce((acc, d) => acc + (d.currentBalance ?? d.principal ?? 0), 0);
 
-      const calculatedNetWorth = calculatedWalletTotal + localSavingsInNetWorth - localDebtTotal
+      const calculatedNetWorth =
+        calculatedWalletTotal + localSavingsInNetWorth - localDebtTotal;
 
-      const sAny = sRes as Record<string, unknown> | null
-      const resNetWorth = sAny?.netWorth ?? (sAny?.net_worth as Record<string, unknown> | undefined)?.net ?? null
-      const resTotalBalance = sAny?.totalBalance ?? (sAny?.net_worth as Record<string, unknown> | undefined)?.assets ?? null
-      const resIncome = sAny?.income ?? null
-      const resExpense = sAny?.expense ?? null
-      const resSavingsTotal = sAny?.savingsTotal ?? sAny?.savings_total ?? (sAny?.net_worth as Record<string, unknown> | undefined)?.savings_total ?? null
-      const resDebtTotal = sAny?.debtTotal ?? sAny?.debt_total ?? (sAny?.net_worth as Record<string, unknown> | undefined)?.liabilities ?? null
+      const sAny = sRes as Record<string, unknown> | null;
+      const resNetWorth =
+        sAny?.netWorth ??
+        (sAny?.net_worth as Record<string, unknown> | undefined)?.net ??
+        null;
+      const resTotalBalance =
+        sAny?.totalBalance ??
+        (sAny?.net_worth as Record<string, unknown> | undefined)?.assets ??
+        null;
+      const resIncome = sAny?.income ?? null;
+      const resExpense = sAny?.expense ?? null;
+      const resSavingsTotal =
+        sAny?.savingsTotal ??
+        sAny?.savings_total ??
+        (sAny?.net_worth as Record<string, unknown> | undefined)
+          ?.savings_total ??
+        null;
+      const resDebtTotal =
+        sAny?.debtTotal ??
+        sAny?.debt_total ??
+        (sAny?.net_worth as Record<string, unknown> | undefined)?.liabilities ??
+        null;
 
-      const finalNetWorth = (resNetWorth !== null && resNetWorth !== 0) ? Number(resNetWorth) : calculatedNetWorth
-      const finalTotalBalance = (resTotalBalance !== null && resTotalBalance !== 0) ? Number(resTotalBalance) : calculatedWalletTotal
-      const finalIncome = (resIncome !== null && resIncome !== 0) ? Number(resIncome) : localIncome
-      const finalExpense = (resExpense !== null && resExpense !== 0) ? Number(resExpense) : localExpense
-      const finalSavingsTotal = (resSavingsTotal !== null && resSavingsTotal !== 0) ? Number(resSavingsTotal) : localSavingsTotal
-      const finalDebtTotal = (resDebtTotal !== null && resDebtTotal !== 0) ? Number(resDebtTotal) : localDebtTotal
+      const finalNetWorth =
+        resNetWorth !== null && resNetWorth !== 0
+          ? Number(resNetWorth)
+          : calculatedNetWorth;
+      const finalTotalBalance =
+        resTotalBalance !== null && resTotalBalance !== 0
+          ? Number(resTotalBalance)
+          : calculatedWalletTotal;
+      const finalIncome =
+        resIncome !== null && resIncome !== 0 ? Number(resIncome) : localIncome;
+      const finalExpense =
+        resExpense !== null && resExpense !== 0
+          ? Number(resExpense)
+          : localExpense;
+      const finalSavingsTotal =
+        resSavingsTotal !== null && resSavingsTotal !== 0
+          ? Number(resSavingsTotal)
+          : localSavingsTotal;
+      const finalDebtTotal =
+        resDebtTotal !== null && resDebtTotal !== 0
+          ? Number(resDebtTotal)
+          : localDebtTotal;
 
       const s: Summary = {
         netWorth: finalNetWorth,
@@ -167,131 +200,135 @@ export function Dashboard() {
         debtTotal: finalDebtTotal,
         month,
         baseCurrency: currency,
-      }
+      };
 
-      let dailyList = cRes?.daily ?? []
+      let dailyList = cRes?.daily ?? [];
       if (dailyList.length === 0 && tx.length > 0) {
-        const dayMap = new Map<string, { date: string; income: number; expense: number }>()
+        const dayMap = new Map<
+          string,
+          { date: string; income: number; expense: number }
+        >();
         for (const item of tx) {
-          const d = item.date ? item.date.slice(0, 10) : todayISO()
-          const existing = dayMap.get(d) ?? { date: d, income: 0, expense: 0 }
-          if (item.type === 'income') existing.income += item.amount
-          else if (item.type === 'expense') existing.expense += item.amount
-          dayMap.set(d, existing)
+          const d = item.date ? item.date.slice(0, 10) : todayISO();
+          const existing = dayMap.get(d) ?? { date: d, income: 0, expense: 0 };
+          if (item.type === "income") existing.income += item.amount;
+          else if (item.type === "expense") existing.expense += item.amount;
+          dayMap.set(d, existing);
         }
-        dailyList = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+        dailyList = Array.from(dayMap.values()).sort((a, b) =>
+          a.date.localeCompare(b.date),
+        );
       }
 
       const c: Cashflow = {
         month,
         income: cRes?.income || finalIncome,
         expense: cRes?.expense || finalExpense,
-        transfer: cRes?.transfer || (sAny?.transfer as number | undefined) || localTransfer,
+        transfer:
+          cRes?.transfer ||
+          (sAny?.transfer as number | undefined) ||
+          localTransfer,
         net: (cRes?.income || finalIncome) - (cRes?.expense || finalExpense),
         daily: dailyList,
+      };
+
+      const budgetByCat = new Map(bList.map((item) => [item.category, item]));
+      const expCats = new Map<string, number>();
+      for (const tItem of tx) {
+        if (tItem.type === "expense" && tItem.category) {
+          expCats.set(
+            tItem.category,
+            (expCats.get(tItem.category) ?? 0) + tItem.amount,
+          );
+        }
       }
 
-      let budgetItems: BudgetReport['items'] = []
+      const allCatKeys = new Set<string>([
+        ...Array.from(budgetByCat.keys()),
+        ...Array.from(expCats.keys()),
+      ]);
 
-      if (bList.length > 0) {
-        budgetItems = bList.map((item) => {
-          const spent = tx
-            .filter((tItem) => tItem.category === item.category && tItem.type === 'expense')
-            .reduce((acc, tItem) => acc + tItem.amount, 0)
-          const pct = item.amount > 0 ? (spent / item.amount) * 100 : 0
+      const budgetItems: BudgetReport["items"] = Array.from(allCatKeys)
+        .map((catId) => {
+          const b = budgetByCat.get(catId);
+          const spent = expCats.get(catId) ?? 0;
+          const limit = b ? b.amount : 0;
+          const pct = limit > 0 ? (spent / limit) * 100 : 0;
+          const status =
+            limit === 0
+              ? ("safe" as const)
+              : pct > 100
+                ? ("over" as const)
+                : pct >= 80
+                  ? ("warning" as const)
+                  : ("safe" as const);
+
           return {
-            id: item.id,
-            category: catMap[item.category] || item.category,
-            limit: item.amount,
-            spent,
-            percentage: pct,
-            status: pct > 100 ? ('over' as const) : pct >= 80 ? ('warning' as const) : ('safe' as const),
-          }
-        })
-      } else if (bRes && Array.isArray((bRes as unknown as Record<string, unknown>).items) && ((bRes as unknown as Record<string, unknown>).items as unknown[]).length > 0) {
-        budgetItems = ((bRes as unknown as Record<string, unknown>).items as Record<string, unknown>[]).map((item) => {
-          const catId = (item.category_id as string) || (item.category as string) || ''
-          const catName = catMap[catId] || (item.category as string) || catId || t('common.total')
-          const limit = Number(item.limit ?? 0)
-          const spent = Number(item.spent ?? 0)
-          const pct = (item.percentage as number) ?? (item.percent as number) ?? (limit > 0 ? (spent / limit) * 100 : 0)
-          return {
-            id: (item.id as string) || catId || Math.random().toString(),
-            category: catName,
+            id: b ? b.id : `cat-${catId}`,
+            category: catMap[catId] || catId,
             limit,
             spent,
             percentage: pct,
-            status: ((item.status as string) === 'over' || (item.status as string) === 'warning' || (item.status as string) === 'safe')
-              ? (item.status as 'over' | 'warning' | 'safe')
-              : (pct > 100 ? 'over' : pct >= 80 ? 'warning' : 'safe'),
-          }
+            status,
+          };
         })
-      } else if (localExpense > 0) {
-        const expCats = new Map<string, number>()
-        for (const tItem of tx) {
-          if (tItem.type === 'expense' && tItem.category) {
-            expCats.set(tItem.category, (expCats.get(tItem.category) ?? 0) + tItem.amount)
-          }
-        }
-        budgetItems = Array.from(expCats.entries()).map(([catId, spent]) => ({
-          id: catId,
-          category: catMap[catId] || catId,
-          limit: 0,
-          spent,
-          percentage: 100,
-          status: 'safe' as const,
-        }))
-      }
+        .sort((a, b) => b.spent - a.spent);
 
-      const bTotalLimit = budgetItems.reduce((acc, item) => acc + item.limit, 0)
-      const bTotalSpent = budgetItems.reduce((acc, item) => acc + item.spent, 0)
+      const bTotalLimit = bList.reduce((acc, item) => acc + item.amount, 0);
+      const bTotalSpent = tx
+        .filter((item) => item.type === "expense")
+        .reduce((acc, item) => acc + item.amount, 0);
 
-      const bResAny = bRes as Record<string, unknown> | null
+      const finalLimit =
+        (sAny?.budget_limit as number | undefined) ?? bTotalLimit;
+      const finalSpent =
+        (sAny?.budget_used as number | undefined) ?? bTotalSpent;
+
       const b: BudgetReport = {
         month,
-        totalLimit: (bResAny?.totalLimit as number) ?? (bResAny?.total_limit as number) ?? bTotalLimit,
-        totalSpent: (bResAny?.totalSpent as number) ?? (bResAny?.total_spent as number) ?? bTotalSpent,
-        remaining: Math.max(0, bTotalLimit - bTotalSpent),
+        totalLimit: finalLimit,
+        totalSpent: finalSpent,
+        remaining: Math.max(0, finalLimit - finalSpent),
         items: budgetItems,
-      }
+      };
 
-      setSummary(s)
-      setFlow(c)
-      setBudget(b)
-      setRecent(tx.slice(0, 5))
-      setWallets(Object.fromEntries(w.map((item) => [item.id, item.name])))
-      setWalletList(w.filter((item) => !item.isArchived))
+      setSummary(s);
+      setFlow(c);
+      setBudget(b);
+      setRecent(tx.slice(0, 5));
+      setWallets(Object.fromEntries(w.map((item) => [item.id, item.name])));
+      setWalletList(w.filter((item) => !item.isArchived));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : m('common.retry'))
+      setError(err instanceof ApiError ? err.message : m("common.retry"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [currency, isAuthed, m, month, ready, t])
+  }, [currency, isAuthed, m, month, ready, t]);
 
   const totalWalletAssets = useMemo(() => {
-    return walletList.reduce((acc, item) => acc + (item.balance || 0), 0)
-  }, [walletList])
+    return walletList.reduce((acc, item) => acc + (item.balance || 0), 0);
+  }, [walletList]);
 
   useEffect(() => {
-    if (!ready || !isAuthed) return
-    void load()
+    if (!ready || !isAuthed) return;
+    void load();
     const onTxCreated = () => {
-      void load()
-    }
-    window.addEventListener('tx:created', onTxCreated)
-    window.addEventListener('wallet:updated', onTxCreated)
-    window.addEventListener('wallet:created', onTxCreated)
+      void load();
+    };
+    window.addEventListener("tx:created", onTxCreated);
+    window.addEventListener("wallet:updated", onTxCreated);
+    window.addEventListener("wallet:created", onTxCreated);
     return () => {
-      window.removeEventListener('tx:created', onTxCreated)
-      window.removeEventListener('wallet:updated', onTxCreated)
-      window.removeEventListener('wallet:created', onTxCreated)
-    }
-  }, [isAuthed, load, ready])
+      window.removeEventListener("tx:created", onTxCreated);
+      window.removeEventListener("wallet:updated", onTxCreated);
+      window.removeEventListener("wallet:created", onTxCreated);
+    };
+  }, [isAuthed, load, ready]);
 
   return (
     <div className="space-y-4">
       <p className="min-h-[1.25rem] text-sm text-[var(--text-muted)]">
-        {mounted ? (greeting + (session?.name ? `, ${session.name}` : '')) : ''}
+        {mounted ? greeting + (session?.name ? `, ${session.name}` : "") : ""}
       </p>
 
       {error && (
@@ -299,7 +336,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-[var(--negative)]">{error}</p>
             <Button size="sm" variant="secondary" onClick={() => void load()}>
-              {m('common.retry')}
+              {m("common.retry")}
             </Button>
           </div>
         </Card>
@@ -316,24 +353,24 @@ export function Dashboard() {
         ) : (
           <>
             <StatTile
-              label={t('dashboard.total_balance')}
+              label={t("dashboard.total_balance")}
               value={formatMoney(summary.netWorth, currency)}
               icon={<Landmark className="size-4" aria-hidden />}
             />
             <StatTile
-              label={t('common.income')}
+              label={t("common.income")}
               value={formatCompact(summary.income, currency)}
               tone="positive"
               icon={<ArrowUpRight className="size-4" aria-hidden />}
             />
             <StatTile
-              label={t('common.expense')}
+              label={t("common.expense")}
               value={formatCompact(summary.expense, currency)}
               tone="negative"
               icon={<ArrowDownRight className="size-4" aria-hidden />}
             />
             <StatTile
-              label={t('dashboard.savings')}
+              label={t("dashboard.savings")}
               value={formatCompact(summary.savingsTotal, currency)}
               icon={<PiggyBank className="size-4" aria-hidden />}
             />
@@ -350,7 +387,7 @@ export function Dashboard() {
         >
           <div className="flex items-center gap-2">
             <span className="font-display text-sm font-bold text-[var(--text-primary)]">
-              Aset Dompet & Rekening
+              Aset Dompet
             </span>
             <span className="rounded-full bg-[var(--surface-sunken)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--text-muted)]">
               {walletList.length} Akun
@@ -363,9 +400,9 @@ export function Dashboard() {
             </span>
             <ChevronDown
               className={[
-                'size-4 text-[var(--text-muted)] transition-transform duration-200',
-                walletsOpen ? 'rotate-180' : 'rotate-0',
-              ].join(' ')}
+                "size-4 text-[var(--text-muted)] transition-transform duration-200",
+                walletsOpen ? "rotate-180" : "rotate-0",
+              ].join(" ")}
             />
           </div>
         </button>
@@ -384,7 +421,12 @@ export function Dashboard() {
             ) : (
               <ul className="divide-y divide-[var(--line-subtle)] px-4">
                 {walletList.map((item) => {
-                  const percent = totalWalletAssets > 0 ? Math.round((Math.max(0, item.balance) / totalWalletAssets) * 100) : 0
+                  const percent =
+                    totalWalletAssets > 0
+                      ? Math.round(
+                          (Math.max(0, item.balance) / totalWalletAssets) * 100,
+                        )
+                      : 0;
                   return (
                     <li
                       key={item.id}
@@ -395,20 +437,25 @@ export function Dashboard() {
                           {item.name}
                         </p>
                         <p className="text-[0.6875rem] text-[var(--text-muted)]">
-                          {getWalletTypeLabel(item.type)} {percent > 0 ? `· ${percent}% aset` : ''}
+                          {getWalletTypeLabel(item.type)}{" "}
+                          {percent > 0 ? `· ${percent}% aset` : ""}
                         </p>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <p className={[
-                          'font-mono text-xs font-bold sm:text-sm',
-                          item.balance < 0 ? 'text-[var(--negative)]' : 'text-[var(--text-primary)]',
-                        ].join(' ')}>
+                        <p
+                          className={[
+                            "font-mono text-xs font-bold sm:text-sm",
+                            item.balance < 0
+                              ? "text-[var(--negative)]"
+                              : "text-[var(--text-primary)]",
+                          ].join(" ")}
+                        >
                           {formatMoney(item.balance, currency)}
                         </p>
                       </div>
                     </li>
-                  )
+                  );
                 })}
               </ul>
             )}
@@ -429,50 +476,98 @@ export function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-5">
         <Card
           className="lg:col-span-3"
-          title={t('dashboard.weekly_flow')}
+          title={t("dashboard.weekly_flow")}
           subtitle={formatMonth(month)}
         >
           {!flow ? (
             <Skeleton className="h-40" />
           ) : flow.daily.length === 0 ? (
-            <EmptyState title={t('common.no_data')} />
+            <EmptyState title={t("common.no_data")} />
           ) : (
-            <CashflowChart daily={flow.daily} currency={currency} t={t} month={month} />
+            <CashflowChart
+              daily={flow.daily}
+              currency={currency}
+              t={t}
+              month={month}
+            />
           )}
         </Card>
 
-        <Card className="lg:col-span-2" title={t('sidebar.budget')}>
+        <Card
+          className="lg:col-span-2"
+          title={t("sidebar.budget")}
+          action={
+            <a
+              href="/anggaran"
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              {t("dashboard.see_all")}
+            </a>
+          }
+        >
           {!budget ? (
             <Skeleton className="h-40" />
           ) : budget.items.length === 0 ? (
-            <EmptyState title={t('common.no_data')} hint={t('budget.subtitle')} />
+            <EmptyState
+              title={t("common.no_data")}
+              hint={t("budget.subtitle")}
+            />
           ) : (
             <ul className="space-y-3">
               {budget.items.slice(0, 5).map((item) => (
                 <li key={item.id}>
                   <div className="mb-1 flex items-baseline justify-between gap-2">
-                    <span className="truncate text-sm">{item.category || t('common.total')}</span>
+                    <span className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      {item.category || t("common.total")}
+                    </span>
                     <span className="tnum shrink-0 text-xs text-[var(--text-muted)]">
-                      {formatCompact(item.spent, currency)} / {formatCompact(item.limit, currency)}
+                      {item.limit > 0 ? (
+                        <>
+                          <span className="font-semibold text-[var(--text-secondary)]">
+                            {formatCompact(item.spent, currency)}
+                          </span>
+                          <span className="text-[var(--text-muted)]">
+                            {" "}
+                            / {formatCompact(item.limit, currency)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-[var(--text-secondary)]">
+                            {formatCompact(item.spent, currency)}
+                          </span>
+                          <span className="ml-1 text-[0.6875rem] font-normal text-[var(--text-muted)]">
+                            (Pagu Rp 0)
+                          </span>
+                        </>
+                      )}
                     </span>
                   </div>
                   <div
                     className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-sunken)]"
                     role="progressbar"
-                    aria-valuenow={Math.min(item.percentage, 100)}
+                    aria-valuenow={
+                      item.limit > 0 ? Math.min(item.percentage, 100) : 0
+                    }
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
                     <div
                       className="h-full rounded-full transition-[width]"
                       style={{
-                        width: `${Math.min(item.percentage, 100)}%`,
+                        width:
+                          item.limit > 0
+                            ? `${Math.min(item.percentage, 100)}%`
+                            : "100%",
+                        opacity: item.limit > 0 ? 1 : 0.2,
                         backgroundColor:
-                          item.status === 'over'
-                            ? 'var(--negative)'
-                            : item.status === 'warning'
-                              ? 'var(--warning)'
-                              : 'var(--accent)',
+                          item.limit === 0
+                            ? "var(--text-muted)"
+                            : item.status === "over"
+                              ? "var(--negative)"
+                              : item.status === "warning"
+                                ? "var(--warning)"
+                                : "var(--accent)",
                       }}
                     />
                   </div>
@@ -484,10 +579,13 @@ export function Dashboard() {
       </div>
 
       <Card
-        title={t('dashboard.recent_transactions')}
+        title={t("dashboard.recent_transactions")}
         action={
-          <a href="/transaksi" className="text-sm font-medium text-[var(--accent)] hover:underline">
-            {t('dashboard.see_all')}
+          <a
+            href="/transaksi"
+            className="text-sm font-medium text-[var(--accent)] hover:underline"
+          >
+            {t("dashboard.see_all")}
           </a>
         }
       >
@@ -499,10 +597,10 @@ export function Dashboard() {
               <Wallet className="size-5" />
             </span>
             <p className="mt-2 font-display text-sm font-semibold text-[var(--text-primary)]">
-              {t('transactions.empty_state')}
+              {t("transactions.empty_state")}
             </p>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-              {t('transactions.empty_subtitle')}
+              {t("transactions.empty_subtitle")}
             </p>
             <a
               href="/transaksi"
@@ -514,25 +612,40 @@ export function Dashboard() {
         ) : (
           <ul className="divide-y divide-[var(--line-subtle)]">
             {recent.map((tx) => (
-              <li key={tx.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+              <li
+                key={tx.id}
+                className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+              >
                 <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[var(--surface-sunken)] text-[var(--text-muted)]">
                   <Wallet className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">
-                    {tx.note || categoryMap[tx.category] || tx.category || t('transactions.form.type')}
+                    {tx.note ||
+                      categoryMap[tx.category] ||
+                      tx.category ||
+                      t("transactions.form.type")}
                   </span>
                   <span className="block truncate text-xs text-[var(--text-muted)]">
-                    {tx.date.slice(0, 10)} · {wallets[tx.wallet] ?? t('common.total')}
+                    {tx.date.slice(0, 10)} ·{" "}
+                    {wallets[tx.wallet] ?? t("common.total")}
                   </span>
                 </span>
                 <span
                   className={[
-                    'tnum shrink-0 text-sm font-semibold',
-                    tx.type === 'income' ? 'text-[var(--accent)]' : tx.type === 'expense' ? 'text-[var(--negative)]' : '',
-                  ].join(' ')}
+                    "tnum shrink-0 text-sm font-semibold",
+                    tx.type === "income"
+                      ? "text-[var(--accent)]"
+                      : tx.type === "expense"
+                        ? "text-[var(--negative)]"
+                        : "",
+                  ].join(" ")}
                 >
-                  {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}
+                  {tx.type === "income"
+                    ? "+"
+                    : tx.type === "expense"
+                      ? "−"
+                      : ""}
                   {formatMoney(tx.amount, currency)}
                 </span>
               </li>
@@ -541,7 +654,7 @@ export function Dashboard() {
         )}
       </Card>
     </div>
-  )
+  );
 }
 
 function CashflowChart({
@@ -550,67 +663,96 @@ function CashflowChart({
   t,
   month,
 }: {
-  daily: { date: string; income: number; expense: number }[]
-  currency: 'IDR' | 'USD'
-  t: (path: string) => string
-  month: string
+  daily: { date: string; income: number; expense: number }[];
+  currency: "IDR" | "USD";
+  t: (path: string) => string;
+  month: string;
 }) {
   const weeks = [
-    { label: 'Mgg 1', range: '1-7', income: 0, expense: 0 },
-    { label: 'Mgg 2', range: '8-14', income: 0, expense: 0 },
-    { label: 'Mgg 3', range: '15-21', income: 0, expense: 0 },
-    { label: 'Mgg 4', range: '22-28', income: 0, expense: 0 },
-    { label: 'Mgg 5', range: '29-31', income: 0, expense: 0 },
-  ]
+    { label: "Mgg 1", range: "1-7", income: 0, expense: 0 },
+    { label: "Mgg 2", range: "8-14", income: 0, expense: 0 },
+    { label: "Mgg 3", range: "15-21", income: 0, expense: 0 },
+    { label: "Mgg 4", range: "22-28", income: 0, expense: 0 },
+    { label: "Mgg 5", range: "29-31", income: 0, expense: 0 },
+  ];
 
   for (const d of daily) {
-    const dayNum = parseInt(d.date.slice(8, 10), 10) || 1
-    const idx = dayNum <= 7 ? 0 : dayNum <= 14 ? 1 : dayNum <= 21 ? 2 : dayNum <= 28 ? 3 : 4
-    const targetWeek = weeks[idx]
+    const dayNum = parseInt(d.date.slice(8, 10), 10) || 1;
+    const idx =
+      dayNum <= 7
+        ? 0
+        : dayNum <= 14
+          ? 1
+          : dayNum <= 21
+            ? 2
+            : dayNum <= 28
+              ? 3
+              : 4;
+    const targetWeek = weeks[idx];
     if (targetWeek) {
-      targetWeek.income += d.income
-      targetWeek.expense += d.expense
+      targetWeek.income += d.income;
+      targetWeek.expense += d.expense;
     }
   }
 
-  const currentDay = todayISO().startsWith(month) ? parseInt(todayISO().slice(8, 10), 10) : 1
-  const currentWeekIdx = currentDay <= 7 ? 0 : currentDay <= 14 ? 1 : currentDay <= 21 ? 2 : currentDay <= 28 ? 3 : 4
+  const currentDay = todayISO().startsWith(month)
+    ? parseInt(todayISO().slice(8, 10), 10)
+    : 1;
+  const currentWeekIdx =
+    currentDay <= 7
+      ? 0
+      : currentDay <= 14
+        ? 1
+        : currentDay <= 21
+          ? 2
+          : currentDay <= 28
+            ? 3
+            : 4;
 
-  const [selectedIdx, setSelectedIdx] = useState<number>(currentWeekIdx)
+  const [selectedIdx, setSelectedIdx] = useState<number>(currentWeekIdx);
 
-  const totalInc = weeks.reduce((sum, w) => sum + w.income, 0)
-  const totalExp = weeks.reduce((sum, w) => sum + w.expense, 0)
-  const totalNet = totalInc - totalExp
+  const totalInc = weeks.reduce((sum, w) => sum + w.income, 0);
+  const totalExp = weeks.reduce((sum, w) => sum + w.expense, 0);
+  const totalNet = totalInc - totalExp;
 
-  const maxVal = Math.max(1, ...weeks.flatMap((w) => [w.income, w.expense]))
-  const chartHeightPx = 110
+  const maxVal = Math.max(1, ...weeks.flatMap((w) => [w.income, w.expense]));
+  const chartHeightPx = 110;
 
-  const fallbackWeek = { label: 'Mgg 1', range: '1-7', income: 0, expense: 0 }
-  const selWeek = weeks[selectedIdx] ?? weeks[0] ?? fallbackWeek
-  const selNet = selWeek.income - selWeek.expense
+  const fallbackWeek = { label: "Mgg 1", range: "1-7", income: 0, expense: 0 };
+  const selWeek = weeks[selectedIdx] ?? weeks[0] ?? fallbackWeek;
+  const selNet = selWeek.income - selWeek.expense;
 
   return (
     <div className="space-y-3 pt-1">
       <div className="grid grid-cols-3 gap-2 rounded-xl bg-[var(--surface-sunken)]/60 p-2 text-center text-xs">
         <div>
-          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pemasukan</span>
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">
+            Pemasukan
+          </span>
           <span className="font-mono text-xs font-bold text-[var(--accent)]">
             +{formatCompact(totalInc, currency)}
           </span>
         </div>
         <div className="border-x border-[var(--line-subtle)]">
-          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pengeluaran</span>
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">
+            Pengeluaran
+          </span>
           <span className="font-mono text-xs font-bold text-[var(--negative)]">
             −{formatCompact(totalExp, currency)}
           </span>
         </div>
         <div>
-          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Arus Bersih</span>
-          <span className={[
-            'font-mono text-xs font-bold',
-            totalNet >= 0 ? 'text-[var(--accent)]' : 'text-[var(--negative)]',
-          ].join(' ')}>
-            {totalNet >= 0 ? '+' : '−'}{formatCompact(Math.abs(totalNet), currency)}
+          <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">
+            Arus Bersih
+          </span>
+          <span
+            className={[
+              "font-mono text-xs font-bold",
+              totalNet >= 0 ? "text-[var(--accent)]" : "text-[var(--negative)]",
+            ].join(" ")}
+          >
+            {totalNet >= 0 ? "+" : "−"}
+            {formatCompact(Math.abs(totalNet), currency)}
           </span>
         </div>
       </div>
@@ -621,10 +763,16 @@ function CashflowChart({
 
         <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 relative z-10">
           {weeks.map((w, i) => {
-            const incPct = w.income > 0 ? Math.max(10, Math.round((w.income / maxVal) * 100)) : 0
-            const expPct = w.expense > 0 ? Math.max(10, Math.round((w.expense / maxVal) * 100)) : 0
-            const isSelected = selectedIdx === i
-            const isTodayWeek = currentWeekIdx === i
+            const incPct =
+              w.income > 0
+                ? Math.max(10, Math.round((w.income / maxVal) * 100))
+                : 0;
+            const expPct =
+              w.expense > 0
+                ? Math.max(10, Math.round((w.expense / maxVal) * 100))
+                : 0;
+            const isSelected = selectedIdx === i;
+            const isTodayWeek = currentWeekIdx === i;
 
             return (
               <button
@@ -632,11 +780,11 @@ function CashflowChart({
                 type="button"
                 onClick={() => setSelectedIdx(i)}
                 className={[
-                  'flex flex-col items-center rounded-xl py-2 px-1 transition-all cursor-pointer text-left',
+                  "flex flex-col items-center rounded-xl py-2 px-1 transition-all cursor-pointer text-left",
                   isSelected
-                    ? 'bg-[var(--surface-sunken)] ring-1 ring-[var(--line-strong)] shadow-2xs'
-                    : 'hover:bg-[var(--surface-sunken)]/50',
-                ].join(' ')}
+                    ? "bg-[var(--surface-sunken)] ring-1 ring-[var(--line-strong)] shadow-2xs"
+                    : "hover:bg-[var(--surface-sunken)]/50",
+                ].join(" ")}
               >
                 <div
                   className="flex w-full items-end justify-center gap-1 sm:gap-1.5"
@@ -657,10 +805,14 @@ function CashflowChart({
                 </div>
 
                 <div className="mt-2 text-center w-full">
-                  <span className={[
-                    'block font-display text-[0.6875rem]',
-                    isSelected ? 'font-bold text-[var(--text-primary)]' : 'font-medium text-[var(--text-secondary)]',
-                  ].join(' ')}>
+                  <span
+                    className={[
+                      "block font-display text-[0.6875rem]",
+                      isSelected
+                        ? "font-bold text-[var(--text-primary)]"
+                        : "font-medium text-[var(--text-secondary)]",
+                    ].join(" ")}
+                  >
                     {w.label}
                   </span>
                   <span className="block text-[0.625rem] text-[var(--text-muted)]">
@@ -671,7 +823,7 @@ function CashflowChart({
                   )}
                 </div>
               </button>
-            )
+            );
           })}
         </div>
       </div>
@@ -688,23 +840,30 @@ function CashflowChart({
               </span>
             )}
           </div>
-          <span className={[
-            'font-mono text-xs font-bold',
-            selNet >= 0 ? 'text-[var(--accent)]' : 'text-[var(--negative)]',
-          ].join(' ')}>
-            Net: {selNet >= 0 ? '+' : '−'}{formatMoney(Math.abs(selNet), currency)}
+          <span
+            className={[
+              "font-mono text-xs font-bold",
+              selNet >= 0 ? "text-[var(--accent)]" : "text-[var(--negative)]",
+            ].join(" ")}
+          >
+            Net: {selNet >= 0 ? "+" : "−"}
+            {formatMoney(Math.abs(selNet), currency)}
           </span>
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-[var(--surface-raised)] p-2 border border-[var(--line-subtle)]">
-            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pemasukan</span>
+            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">
+              Pemasukan
+            </span>
             <span className="font-mono text-xs font-bold text-[var(--accent)]">
               +{formatMoney(selWeek.income, currency)}
             </span>
           </div>
           <div className="rounded-lg bg-[var(--surface-raised)] p-2 border border-[var(--line-subtle)]">
-            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">Pengeluaran</span>
+            <span className="block text-[0.625rem] font-semibold text-[var(--text-muted)]">
+              Pengeluaran
+            </span>
             <span className="font-mono text-xs font-bold text-[var(--negative)]">
               −{formatMoney(selWeek.expense, currency)}
             </span>
@@ -716,11 +875,11 @@ function CashflowChart({
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 font-medium">
             <span className="size-2 rounded-full bg-[var(--accent)]" />
-            {t('common.income')}
+            {t("common.income")}
           </span>
           <span className="flex items-center gap-1.5 font-medium">
             <span className="size-2 rounded-full bg-[var(--negative)]" />
-            {t('common.expense')}
+            {t("common.expense")}
           </span>
         </div>
         <span className="text-[0.625rem] text-[var(--text-muted)]">
@@ -728,24 +887,24 @@ function CashflowChart({
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 function getWalletTypeLabel(type: string) {
   switch (type) {
-    case 'bank':
-      return 'Bank'
-    case 'cash':
-      return 'Tunai'
-    case 'ewallet':
-      return 'E-Wallet'
-    case 'credit_card':
-      return 'Kartu Kredit'
-    case 'investment':
-      return 'Investasi'
-    case 'savings':
-      return 'Tabungan'
+    case "bank":
+      return "Bank";
+    case "cash":
+      return "Tunai";
+    case "ewallet":
+      return "E-Wallet";
+    case "credit_card":
+      return "Kartu Kredit";
+    case "investment":
+      return "Investasi";
+    case "savings":
+      return "Tabungan";
     default:
-      return 'Dompet'
+      return "Dompet";
   }
 }

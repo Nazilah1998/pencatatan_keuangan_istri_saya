@@ -5,12 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit2,
-  PiggyBank,
   Plus,
   RefreshCw,
   Target,
   Trash2,
-  TrendingDown,
 } from 'lucide-react'
 
 import { api, ApiError, ApiPaths } from '../../lib/api/client'
@@ -23,7 +21,7 @@ import {
   type Category,
   type Transaction,
 } from '../../lib/api/repositories'
-import { formatMoney, parseAmount, percent } from '../../lib/utils/currency'
+import { formatAmountInput, formatMoney, parseAmount, percent } from '../../lib/utils/currency'
 import { currentMonth, formatMonth, shiftMonth } from '../../lib/utils/date'
 import { useApp } from '../providers/useApp'
 import { Button } from '../ui/Button'
@@ -35,18 +33,19 @@ import { ModernSelect } from '../ui/ModernSelect'
 type FormState = { category: string; amount: string; notes: string }
 
 const EMPTY: FormState = { category: '', amount: '', notes: '' }
-const PRESET_LIMITS = [200000, 500000, 1000000, 2000000, 5000000]
+
+type FilterTab = 'all' | 'budgeted' | 'unbudgeted'
 
 export function BudgetScreen() {
   const { t, m, session, isAuthed, ready } = useApp()
   const currency = session?.baseCurrency === 'USD' ? 'USD' : 'IDR'
 
   const [month, setMonth] = useState(currentMonth())
-  const [report, setReport] = useState<BudgetReport | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<FilterTab>('all')
   const [form, setForm] = useState<FormState>(EMPTY)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -61,67 +60,13 @@ export function BudgetScreen() {
     setError('')
 
     try {
-      const [rRes, c, b, tx] = await Promise.all([
+      const [, c, b, tx] = await Promise.all([
         api.get<BudgetReport>(ApiPaths.budget(month)).catch(() => null),
         CategoryRepo.list('expense').catch(() => []),
         BudgetRepo.listByMonth(month).catch(() => []),
         TxRepo.listByMonth(month).catch(() => []),
       ])
 
-      const totalLimit = b.reduce((acc, item) => acc + item.amount, 0)
-      const expense = tx.filter((item) => item.type === 'expense').reduce((acc, item) => acc + item.amount, 0)
-
-      const fallbackReport: BudgetReport = {
-        month,
-        totalLimit,
-        totalSpent: expense,
-        remaining: totalLimit - expense,
-        items: b.map((item) => {
-          const spent = tx
-            .filter((tItem) => tItem.category === item.category && tItem.type === 'expense')
-            .reduce((acc, tItem) => acc + tItem.amount, 0)
-          const pct = item.amount > 0 ? (spent / item.amount) * 100 : 0
-          return {
-            id: item.id,
-            category: item.category,
-            limit: item.amount,
-            spent,
-            percentage: pct,
-            status: pct > 100 ? ('over' as const) : pct >= 80 ? ('warning' as const) : ('safe' as const),
-          }
-        }),
-      }
-
-      let resolvedReport = fallbackReport
-      if (b.length === 0 && rRes && Array.isArray((rRes as unknown as Record<string, unknown>).items) && ((rRes as unknown as Record<string, unknown>).items as unknown[]).length > 0) {
-        const catMap = Object.fromEntries(c.map((item) => [item.id, item.name]))
-        const rAny = rRes as Record<string, unknown>
-        resolvedReport = {
-          month,
-          totalLimit: (rAny.totalLimit as number) ?? (rAny.total_limit as number) ?? 0,
-          totalSpent: (rAny.totalSpent as number) ?? (rAny.total_spent as number) ?? 0,
-          remaining: (rAny.remaining as number) ?? 0,
-          items: (rAny.items as Record<string, unknown>[]).map((item) => {
-            const catId = (item.category_id as string) || (item.category as string) || ''
-            const catName = catMap[catId] || (item.category as string) || catId
-            const limit = Number(item.limit ?? 0)
-            const spent = Number(item.spent ?? 0)
-            const pct = (item.percentage as number) ?? (item.percent as number) ?? (limit > 0 ? (spent / limit) * 100 : 0)
-            return {
-              id: (item.id as string) || catId || Math.random().toString(),
-              category: catName,
-              limit,
-              spent,
-              percentage: pct,
-              status: ((item.status as string) === 'over' || (item.status as string) === 'warning' || (item.status as string) === 'safe')
-                ? (item.status as 'over' | 'warning' | 'safe')
-                : (pct > 100 ? 'over' : pct >= 80 ? 'warning' : 'safe'),
-            }
-          }),
-        }
-      }
-
-      setReport(resolvedReport)
       setCategories(c.filter((item) => !item.isArchived))
       setBudgets(b)
       setTransactions(tx)
@@ -130,7 +75,7 @@ export function BudgetScreen() {
     } finally {
       setLoading(false)
     }
-  }, [month, m])
+  }, [month, m, ready, isAuthed])
 
   useEffect(() => {
     if (!ready || !isAuthed) return
@@ -154,19 +99,112 @@ export function BudgetScreen() {
     return map
   }, [transactions])
 
+  const unifiedItems = useMemo(() => {
+    const catMap = new Map(categories.map((c) => [c.id, c]))
+    const budgetMap = new Map(budgets.map((b) => [b.category, b]))
+
+    const catKeys = new Set<string>()
+    for (const b of budgets) {
+      catKeys.add(b.category)
+    }
+    for (const [catId, amt] of spentByCategory.entries()) {
+      if (amt > 0) catKeys.add(catId)
+    }
+
+    return Array.from(catKeys)
+      .map((catId) => {
+        const cat = catMap.get(catId)
+        const budget = budgetMap.get(catId)
+        const spent = spentByCategory.get(catId) ?? 0
+        const hasBudget = Boolean(budget && budget.amount > 0)
+        const limit = hasBudget ? budget!.amount : 0
+        const remaining = hasBudget ? limit - spent : 0
+        const usedPct = hasBudget && limit > 0 ? (spent / limit) * 100 : 0
+
+        let status: 'safe' | 'warning' | 'over' | 'unbudgeted'
+        if (!hasBudget) {
+          status = 'unbudgeted'
+        } else if (usedPct > 100) {
+          status = 'over'
+        } else if (usedPct >= 80) {
+          status = 'warning'
+        } else {
+          status = 'safe'
+        }
+
+        return {
+          id: budget ? budget.id : `cat-${catId}`,
+          categoryId: catId,
+          categoryName: cat?.name || t('common.total'),
+          icon: cat?.icon,
+          color: cat?.color,
+          hasBudget,
+          limit,
+          spent,
+          remaining,
+          usedPct,
+          status,
+          budgetRecord: budget,
+          notes: budget?.notes,
+        }
+      })
+      .sort((a, b) => {
+        if (a.status === 'over' && b.status !== 'over') return -1
+        if (b.status === 'over' && a.status !== 'over') return 1
+        if (a.hasBudget && !b.hasBudget) return -1
+        if (!a.hasBudget && b.hasBudget) return 1
+        return b.spent - a.spent
+      })
+  }, [categories, budgets, spentByCategory, t])
+
+  const budgetedCount = useMemo(() => unifiedItems.filter((i) => i.hasBudget).length, [unifiedItems])
+  const unbudgetedCount = useMemo(() => unifiedItems.filter((i) => !i.hasBudget).length, [unifiedItems])
+
+  const filteredItems = useMemo(() => {
+    if (filter === 'budgeted') return unifiedItems.filter((i) => i.hasBudget)
+    if (filter === 'unbudgeted') return unifiedItems.filter((i) => !i.hasBudget)
+    return unifiedItems
+  }, [unifiedItems, filter])
+
   function openFor(categoryId: string, existing?: Budget) {
     setForm({
       category: categoryId,
-      amount: existing ? String(existing.amount) : '',
+      amount: existing ? formatAmountInput(String(existing.amount)) : '',
       notes: existing?.notes ?? '',
     })
     setError('')
     setOpen(true)
   }
 
-  function addPreset(val: number) {
-    const current = parseAmount(form.amount)
-    setForm((prev) => ({ ...prev, amount: String(current + val) }))
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target
+    const val = input.value
+    const digits = val.replace(/\D/g, '')
+
+    if (!digits) {
+      setForm((prev) => ({ ...prev, amount: '' }))
+      return
+    }
+
+    const cursor = input.selectionStart ?? val.length
+    const digitsBeforeCursor = val.slice(0, cursor).replace(/\D/g, '').length
+
+    const formatted = formatAmountInput(digits)
+    setForm((prev) => ({ ...prev, amount: formatted }))
+
+    requestAnimationFrame(() => {
+      let counted = 0
+      let newCursor = formatted.length
+      for (let i = 0; i < formatted.length; i++) {
+        const char = formatted[i]
+        if (char && /\d/.test(char)) counted++
+        if (counted === digitsBeforeCursor) {
+          newCursor = i + 1
+          break
+        }
+      }
+      input.setSelectionRange(newCursor, newCursor)
+    })
   }
 
   async function submit() {
@@ -182,11 +220,13 @@ export function BudgetScreen() {
     }
 
     setSaving(true)
+    setError('')
 
     try {
       await BudgetRepo.upsert({ month, category: form.category, amount, notes: form.notes })
       setOpen(false)
       setForm(EMPTY)
+      window.dispatchEvent(new CustomEvent('tx:created'))
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : m('common.retry'))
@@ -203,6 +243,7 @@ export function BudgetScreen() {
 
     try {
       await BudgetRepo.remove(budget.id)
+      window.dispatchEvent(new CustomEvent('tx:created'))
       await load()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : m('common.retry'))
@@ -215,6 +256,7 @@ export function BudgetScreen() {
 
   return (
     <div className="space-y-4">
+      {/* Month Selector Bar */}
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-4 py-2.5 shadow-xs">
         <button
           type="button"
@@ -234,7 +276,7 @@ export function BudgetScreen() {
             <button
               type="button"
               onClick={() => setMonth(currentMonth())}
-              className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--accent)] transition-all hover:opacity-80 active:scale-95"
+              className="rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-[0.6875rem] font-semibold text-[var(--accent)] transition-all hover:opacity-80 active:scale-95"
             >
               Bulan Ini
             </button>
@@ -251,71 +293,57 @@ export function BudgetScreen() {
         </button>
       </div>
 
-      {loading && !report ? (
-        <div className="grid grid-cols-3 gap-2.5">
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-20 rounded-2xl" />
+
+      {/* Action Bar & Filter Tabs (Single Clean Row) */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex shrink items-center gap-1 overflow-x-auto rounded-xl bg-[var(--surface-sunken)] p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className={[
+              'whitespace-nowrap rounded-lg px-2.5 py-1 font-semibold transition-all',
+              filter === 'all'
+                ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+            ].join(' ')}
+          >
+            Semua ({unifiedItems.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('budgeted')}
+            className={[
+              'whitespace-nowrap rounded-lg px-2.5 py-1 font-semibold transition-all',
+              filter === 'budgeted'
+                ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+            ].join(' ')}
+          >
+            Ada Pagu ({budgetedCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('unbudgeted')}
+            className={[
+              'whitespace-nowrap rounded-lg px-2.5 py-1 font-semibold transition-all',
+              filter === 'unbudgeted'
+                ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+            ].join(' ')}
+          >
+            Pagu 0 ({unbudgetedCount})
+          </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-          <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-3 shadow-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="grid size-6 place-items-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
-                <Target className="size-3.5" />
-              </span>
-              <span className="truncate text-[0.6875rem] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                {t('budget.form.limit_label')}
-              </span>
-            </div>
-            <p className="mt-2 truncate font-display text-sm font-extrabold text-[var(--text-primary)] sm:text-base">
-              {formatMoney(report?.totalLimit ?? 0, currency)}
-            </p>
-          </div>
 
-          <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-3 shadow-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="grid size-6 place-items-center rounded-lg bg-[var(--negative-soft)] text-[var(--negative)]">
-                <TrendingDown className="size-3.5" />
-              </span>
-              <span className="truncate text-[0.6875rem] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                {t('common.expense')}
-              </span>
-            </div>
-            <p className="mt-2 truncate font-display text-sm font-extrabold text-[var(--negative)] sm:text-base">
-              {formatMoney(report?.totalSpent ?? 0, currency)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-3 shadow-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="grid size-6 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
-                <PiggyBank className="size-3.5" />
-              </span>
-              <span className="truncate text-[0.6875rem] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                {t('budget.card.remaining')}
-              </span>
-            </div>
-            <p
-              className={[
-                'mt-2 truncate font-display text-sm font-extrabold sm:text-base',
-                (report?.remaining ?? 0) < 0 ? 'text-[var(--negative)]' : 'text-[var(--accent)]',
-              ].join(' ')}
-            >
-              {formatMoney(report?.remaining ?? 0, currency)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => openFor('')}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 font-display text-sm font-bold text-[var(--text-inverted)] shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
-      >
-        <Plus className="size-4 stroke-[2.5]" />
-        <span>{t('budget.add_button')}</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => openFor('')}
+          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[var(--accent)] px-3 py-1.5 font-display text-xs font-bold text-[var(--text-inverted)] shadow-xs transition-all hover:opacity-90 active:scale-95 sm:px-3.5 sm:py-2"
+        >
+          <Plus className="size-3.5 stroke-[2.5]" />
+          <span>Tambah</span>
+        </button>
+      </div>
 
       {error && (
         <Card>
@@ -325,28 +353,38 @@ export function BudgetScreen() {
               <span>{error}</span>
             </div>
             <Button size="sm" variant="secondary" onClick={() => void load()}>
-              <RefreshCw className="size-3.5 mr-1" />
+              <RefreshCw className="mr-1 size-3.5" />
               {m('common.retry')}
             </Button>
           </div>
         </Card>
       )}
 
+      {/* Category List */}
       {loading ? (
         <div className="space-y-3">
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
         </div>
-      ) : budgets.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[var(--line-subtle)] bg-[var(--surface-raised)]/50 p-8 text-center sm:p-12">
           <div className="grid size-14 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] shadow-xs">
             <Target className="size-7" />
           </div>
           <h3 className="mt-4 font-display text-base font-bold text-[var(--text-primary)]">
-            {t('budget.empty_title')}
+            {filter === 'budgeted'
+              ? 'Belum Ada Pagu Aktif'
+              : filter === 'unbudgeted'
+                ? 'Semua Pos Sudah Memiliki Pagu'
+                : t('budget.empty_title')}
           </h3>
           <p className="mt-1 max-w-sm text-xs text-[var(--text-muted)]">
-            {t('budget.subtitle')}
+            {filter === 'budgeted'
+              ? 'Pos pengeluaran di bawah belum memiliki batas pagu. Klik tombol Atur Batas untuk memulainya.'
+              : filter === 'unbudgeted'
+                ? 'Seluruh kategori pengeluaran bulan ini telah dibatasi dengan nominal pagu.'
+                : 'Mulai dengan menambahkan pagu pengeluaran untuk kategori yang Anda inginkan.'}
           </p>
           <button
             type="button"
@@ -354,102 +392,145 @@ export function BudgetScreen() {
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 font-display text-xs font-bold text-[var(--text-inverted)] shadow-sm transition-all hover:opacity-90 active:scale-95"
           >
             <Plus className="size-4 stroke-[2.5]" />
-            <span>Tambah Anggaran Pertama</span>
+            <span>Tambah Anggaran Kategori</span>
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          {budgets.map((budget) => {
-            const categoryName =
-              categories.find((c) => c.id === budget.category)?.name ?? t('common.total')
-            const spent = spentByCategory.get(budget.category) ?? 0
-            const used = percent(spent, budget.amount)
-            const remaining = budget.amount - spent
-            const status = used > 100 ? 'over' : used >= 80 ? 'warning' : 'safe'
+          {filteredItems.map((item) => {
+            const isBudgeted = item.hasBudget && item.limit > 0
+            const used = isBudgeted ? percent(item.spent, item.limit) : 0
+            const remaining = isBudgeted ? item.limit - item.spent : 0
 
             return (
               <div
-                key={budget.id}
-                className="overflow-hidden rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-4 shadow-xs transition-colors hover:border-[var(--line-strong)]"
+                key={item.categoryId}
+                className="overflow-hidden rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] p-4 shadow-xs transition-all hover:border-[var(--line-strong)]"
               >
-                <div className="mb-2.5 flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="truncate font-display text-sm font-bold text-[var(--text-primary)]">
-                      {categoryName}
-                    </h2>
-                    {budget.notes && (
-                      <p className="truncate text-xs text-[var(--text-muted)]">{budget.notes}</p>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: item.color || 'var(--accent)' }}
+                      />
+                      <h3 className="truncate font-display text-sm font-bold text-[var(--text-primary)]">
+                        {item.categoryName}
+                      </h3>
+                    </div>
+                    {item.notes && (
+                      <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{item.notes}</p>
                     )}
                     <p className="mt-1 font-mono text-xs text-[var(--text-secondary)]">
-                      {formatMoney(spent, currency)}{' '}
-                      <span className="text-[var(--text-muted)]">dari {formatMoney(budget.amount, currency)}</span>
+                      {formatMoney(item.spent, currency)}
+                      {isBudgeted ? (
+                        <span className="text-[var(--text-muted)]">
+                          {' '}dari {formatMoney(item.limit, currency)}
+                        </span>
+                      ) : (
+                        <span className="ml-1 text-[var(--text-muted)] font-normal">(Realisasi)</span>
+                      )}
                     </p>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
-                    <span
-                      className={[
-                        'rounded-full px-2.5 py-0.5 text-[0.6875rem] font-bold',
-                        status === 'over'
-                          ? 'bg-[var(--negative-soft)] text-[var(--negative)]'
-                          : status === 'warning'
-                            ? 'bg-[var(--warning-soft)] text-[var(--warning)]'
-                            : 'bg-[var(--accent-soft)] text-[var(--accent)]',
-                      ].join(' ')}
-                    >
-                      {status === 'over'
-                        ? t('budget.card.status.limit')
-                        : status === 'warning'
-                          ? t('budget.card.status.warning')
-                          : t('budget.card.status.safe')}
-                    </span>
-                    <span className="text-[0.6875rem] font-medium text-[var(--text-muted)]">
-                      Sisa: {formatMoney(remaining, currency)}
-                    </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {isBudgeted ? (
+                      <>
+                        <span
+                          className={[
+                            'rounded-full px-2.5 py-0.5 text-[0.6875rem] font-bold',
+                            item.status === 'over'
+                              ? 'bg-[var(--negative-soft)] text-[var(--negative)]'
+                              : item.status === 'warning'
+                                ? 'bg-[var(--warning-soft)] text-[var(--warning)]'
+                                : 'bg-[var(--accent-soft)] text-[var(--accent)]',
+                          ].join(' ')}
+                        >
+                          {item.status === 'over'
+                            ? 'Melebihi Pagu'
+                            : item.status === 'warning'
+                              ? 'Mendekati Batas'
+                              : 'Aman'}
+                        </span>
+                        <span
+                          className={[
+                            'text-[0.6875rem] font-medium',
+                            remaining < 0 ? 'text-[var(--negative)]' : 'text-[var(--text-muted)]',
+                          ].join(' ')}
+                        >
+                          {remaining >= 0
+                            ? `Sisa: ${formatMoney(remaining, currency)}`
+                            : `Defisit: ${formatMoney(Math.abs(remaining), currency)}`}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="rounded-full border border-[var(--line-subtle)] bg-[var(--surface-sunken)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--text-muted)]">
+                        Pagu Rp 0
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-[var(--surface-sunken)]"
-                  role="progressbar"
-                  aria-valuenow={Math.min(used, 100)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
+                {isBudgeted ? (
                   <div
-                    className={[
-                      'h-full rounded-full transition-all duration-300',
-                      status === 'over'
-                        ? 'bg-[var(--negative)]'
-                        : status === 'warning'
-                          ? 'bg-[var(--warning)]'
-                          : 'bg-[var(--accent)]',
-                    ].join(' ')}
-                    style={{ width: `${Math.min(used, 100)}%` }}
-                  />
-                </div>
+                    className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-sunken)]"
+                    role="progressbar"
+                    aria-valuenow={Math.min(used, 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div
+                      className={[
+                        'h-full rounded-full transition-all duration-300',
+                        item.status === 'over'
+                          ? 'bg-[var(--negative)]'
+                          : item.status === 'warning'
+                            ? 'bg-[var(--warning)]'
+                            : 'bg-[var(--accent)]',
+                      ].join(' ')}
+                      style={{ width: `${Math.min(used, 100)}%` }}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
+                    <div className="h-full w-full bg-[var(--line-subtle)]/40" />
+                  </div>
+                )}
 
                 <div className="mt-3 flex items-center justify-between border-t border-[var(--line-subtle)]/60 pt-2 text-xs">
                   <span className="font-mono text-[0.6875rem] text-[var(--text-muted)]">
-                    {Math.round(used)}% terpakai
+                    {isBudgeted ? `${Math.round(used)}% terpakai` : 'Belum dibatasi'}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => openFor(budget.category, budget)}
-                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] active:scale-95"
-                    >
-                      <Edit2 className="size-3" />
-                      <span>{t('common.edit')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void remove(budget)}
-                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[var(--negative)] hover:bg-[var(--negative-soft)] active:scale-95"
-                    >
-                      <Trash2 className="size-3" />
-                      <span>{t('common.delete')}</span>
-                    </button>
+                    {isBudgeted && item.budgetRecord ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openFor(item.categoryId, item.budgetRecord)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] active:scale-95"
+                        >
+                          <Edit2 className="size-3" />
+                          <span>{t('common.edit')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void remove(item.budgetRecord!)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[var(--negative)] hover:bg-[var(--negative-soft)] active:scale-95"
+                        >
+                          <Trash2 className="size-3" />
+                          <span>Hapus</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openFor(item.categoryId)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-bold text-[var(--accent)] transition-all hover:opacity-80 active:scale-95"
+                      >
+                        <Plus className="size-3.5 stroke-[2.5]" />
+                        <span>Atur Batas</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -458,7 +539,16 @@ export function BudgetScreen() {
         </div>
       )}
 
-      <Modal open={open} title={form.category && budgets.some(b => b.category === form.category) ? 'Ubah Anggaran' : t('budget.form.title')} onClose={() => setOpen(false)}>
+      {/* Modal Upsert Budget */}
+      <Modal
+        open={open}
+        title={
+          form.category && budgets.some((b) => b.category === form.category)
+            ? 'Ubah Batas Anggaran'
+            : t('budget.form.title')
+        }
+        onClose={() => setOpen(false)}
+      >
         <div className="space-y-4">
           <ModernSelect
             label={t('budget.form.category_label')}
@@ -471,12 +561,24 @@ export function BudgetScreen() {
             placeholder="Pilih Kategori Pengeluaran"
           />
 
-          <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/60 p-3.5 transition-colors focus-within:border-[var(--accent)]">
-            <label htmlFor="budget-amount-input" className="block text-xs font-medium text-[var(--text-muted)]">
-              {t('budget.form.limit_label')}
-            </label>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="font-display text-lg font-bold text-[var(--text-muted)]">
+          <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/60 p-4 transition-all focus-within:border-[var(--accent)] focus-within:bg-[var(--surface-sunken)]">
+            <div className="flex items-center justify-between">
+              <label htmlFor="budget-amount-input" className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                {t('budget.form.limit_label')}
+              </label>
+              {formAmountNum > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, amount: '' }))}
+                  className="text-[0.6875rem] font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--negative)]"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-display text-xl font-extrabold text-[var(--text-muted)]">
                 {currency === 'IDR' ? 'Rp' : '$'}
               </span>
               <input
@@ -484,31 +586,10 @@ export function BudgetScreen() {
                 type="text"
                 inputMode="numeric"
                 value={form.amount}
-                onChange={(e) => {
-                  const cleaned = e.target.value.replace(/[^0-9]/g, '')
-                  setForm((prev) => ({ ...prev, amount: cleaned }))
-                }}
+                onChange={handleAmountChange}
                 placeholder="0"
-                className="w-full bg-transparent font-display text-xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]/40"
+                className="w-full bg-transparent font-display text-3xl font-black tracking-tight text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]/30"
               />
-            </div>
-            {formAmountNum > 0 && (
-              <p className="mt-1 font-sans text-xs font-medium text-[var(--text-muted)]">
-                {formatMoney(formAmountNum, currency)}
-              </p>
-            )}
-
-            <div className="mt-2.5 flex flex-wrap gap-1.5 pt-2 border-t border-[var(--line-subtle)]/60">
-              {PRESET_LIMITS.map((val) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => addPreset(val)}
-                  className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--text-secondary)] shadow-2xs transition-all hover:border-[var(--accent)] hover:text-[var(--text-primary)] active:scale-95"
-                >
-                  +{val >= 1000000 ? `${val / 1000000}jt` : `${val / 1000}rb`}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -521,7 +602,7 @@ export function BudgetScreen() {
               type="text"
               value={form.notes}
               onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-              placeholder="Contoh: Batas maksimal jajan & belanja bulanan"
+              placeholder="Contoh: Batas maksimal bulanan"
               className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all focus:border-[var(--accent)] focus:outline-none"
             />
           </div>
@@ -535,11 +616,11 @@ export function BudgetScreen() {
 
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !form.amount || formAmountNum <= 0}
             onClick={() => void submit()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 font-display text-sm font-bold text-[var(--text-inverted)] shadow-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
           >
-            <span>{t('budget.form.save')}</span>
+            <span>{saving ? 'Menyimpan...' : t('budget.form.save')}</span>
           </button>
         </div>
       </Modal>

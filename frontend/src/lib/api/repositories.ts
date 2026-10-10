@@ -54,9 +54,13 @@ export type Transaction = {
   amount: number
   note: string
   category: string
+  categoryName?: string
   subCategory: string
+  subCategoryName?: string
   wallet: string
+  walletName?: string
   toWallet: string
+  toWalletName?: string
   savingsGoal: string
   isRecurring: boolean
   isSystem: boolean
@@ -177,6 +181,7 @@ function mapSubCategory(rec: Rec): SubCategory {
 }
 
 function mapTx(rec: Rec): Transaction {
+  const expand = (rec.expand as Record<string, Rec> | undefined) || {}
   return {
     id: rec.id as string,
     date: (rec.date as string) ?? '',
@@ -184,9 +189,13 @@ function mapTx(rec: Rec): Transaction {
     amount: Number(rec.amount ?? 0),
     note: (rec.note as string) ?? '',
     category: (rec.category as string) ?? '',
+    categoryName: (expand.category?.name as string) || undefined,
     subCategory: (rec.sub_category as string) ?? '',
+    subCategoryName: (expand.sub_category?.name as string) || undefined,
     wallet: (rec.wallet as string) ?? '',
+    walletName: (expand.wallet?.name as string) || undefined,
     toWallet: (rec.to_wallet as string) ?? '',
+    toWalletName: (expand.to_wallet?.name as string) || undefined,
     savingsGoal: (rec.savings_goal as string) ?? '',
     isRecurring: Boolean(rec.is_recurring ?? false),
     isSystem: Boolean(rec.is_system ?? false),
@@ -268,43 +277,45 @@ function unmapWallet(input: Partial<Wallet>): Rec {
 
 const CATEGORY_KEYS = ['name', 'type', 'icon', 'color', 'is_archived'] as const
 
+let walletCache: Wallet[] | null = null
+let walletCacheTime = 0
+const WALLET_CACHE_TTL = 30_000
+
+export function invalidateWalletCache() {
+  walletCache = null
+}
+
+let categoryCache: Category[] | null = null
+let categoryCacheTime = 0
+const CATEGORY_CACHE_TTL = 60_000
+
+export function invalidateCategoryCache() {
+  categoryCache = null
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('tx:created', () => {
+    invalidateWalletCache()
+  })
+}
+
 export const WalletRepo = {
-  async list(includeArchived = false): Promise<Wallet[]> {
+  async list(includeArchived = false, forceRefresh = false): Promise<Wallet[]> {
+    if (!includeArchived && !forceRefresh && walletCache && Date.now() - walletCacheTime < WALLET_CACHE_TTL) {
+      return walletCache
+    }
+
     const clauses = includeArchived ? [] : ['is_archived = false']
+    const records = await getPB()
+      .collection('wallets')
+      .getFullList<Rec>({ filter: scope(...clauses), sort: 'sort_order,name' })
+      .catch(() =>
+        getPB()
+          .collection('wallets')
+          .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' }),
+      )
 
-    const [recordsResult, txRecords] = await Promise.all([
-      getPB()
-        .collection('wallets')
-        .getFullList<Rec>({ filter: scope(...clauses), sort: 'sort_order,name' })
-        .catch(() =>
-          getPB()
-            .collection('wallets')
-            .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' }),
-        ),
-      getPB()
-        .collection('transactions')
-        .getFullList<Rec>({ filter: scope(), fields: 'id,wallet,to_wallet,type,amount' })
-        .catch(() => []),
-    ])
-
-    const list = recordsResult.map((rec) => {
-      const wallet = mapWallet(rec)
-      const wId = wallet.id
-      const inTx = txRecords.filter((t) => t.wallet === wId && t.type === 'income').reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      const outTx = txRecords.filter((t) => t.wallet === wId && t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      const trfOut = txRecords.filter((t) => t.wallet === wId && t.type === 'transfer').reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      const trfIn = txRecords.filter((t) => t.to_wallet === wId && t.type === 'transfer').reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      const computedBalance = (wallet.initialBalance || 0) + inTx - outTx - trfOut + trfIn
-
-      if (Number(rec.balance ?? 0) !== computedBalance) {
-        getPB().collection('wallets').update(wId, { balance: computedBalance }).catch(() => null)
-      }
-
-      return {
-        ...wallet,
-        balance: computedBalance,
-      }
-    })
+    const list = records.map(mapWallet)
 
     try {
       const stored = localStorage.getItem('sintya.wallet_order')
@@ -321,10 +332,16 @@ export const WalletRepo = {
       void 0
     }
 
+    if (!includeArchived) {
+      walletCache = list
+      walletCacheTime = Date.now()
+    }
+
     return list
   },
 
   async create(input: Partial<Wallet>): Promise<Wallet> {
+    invalidateWalletCache()
     const payload = {
       ...unmapWallet(input),
       balance: input.balance ?? input.initialBalance ?? 0,
@@ -335,12 +352,14 @@ export const WalletRepo = {
   },
 
   async update(id: string, input: Partial<Wallet>): Promise<Wallet> {
+    invalidateWalletCache()
     const payload = unmapWallet(input)
     const rec = await getPB().collection('wallets').update(id, payload)
     return mapWallet(rec as unknown as Rec)
   },
 
   async remove(id: string) {
+    invalidateWalletCache()
     await getPB().collection('wallets').delete(id)
   },
 }
@@ -361,27 +380,40 @@ function unmapTx(input: Partial<Transaction>): Rec {
 }
 
 export const CategoryRepo = {
-  async list(type?: Category['type']): Promise<Category[]> {
+  async list(type?: Category['type'], forceRefresh = false): Promise<Category[]> {
+    if (!type && !forceRefresh && categoryCache && Date.now() - categoryCacheTime < CATEGORY_CACHE_TTL) {
+      return categoryCache
+    }
+
     const clauses = type ? [`type = "${escape(type)}"`] : []
     const records = await getPB()
       .collection('categories')
       .getFullList<Rec>({ filter: scope(...clauses), sort: 'name' })
 
-    return records.map(mapCategory)
+    const list = records.map(mapCategory)
+    if (!type) {
+      categoryCache = list
+      categoryCacheTime = Date.now()
+    }
+
+    return list
   },
 
   async create(input: Partial<Category>): Promise<Category> {
+    invalidateCategoryCache()
     const payload = { ...pick(input as Rec, CATEGORY_KEYS), household_id: householdId() }
     const rec = await getPB().collection('categories').create(payload)
     return mapCategory(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<Category>): Promise<Category> {
+    invalidateCategoryCache()
     const rec = await getPB().collection('categories').update(id, pick(input as Rec, CATEGORY_KEYS))
     return mapCategory(rec as unknown as Rec)
   },
 
   async remove(id: string) {
+    invalidateCategoryCache()
     await getPB().collection('categories').delete(id)
   },
 }
@@ -414,12 +446,34 @@ export const TxRepo = {
     const { start, end } = monthRange(month)
     const records = await getPB()
       .collection('transactions')
-      .getList<Rec>(1, 200, {
+      .getFullList<Rec>({
         filter: scope(`date >= "${start} 00:00:00"`, `date <= "${end} 23:59:59.999Z"`),
         sort: '-date, -created',
+        expand: 'wallet,to_wallet,category,sub_category',
       })
 
-    return records.items.map(mapTx)
+    return records.map(mapTx)
+  },
+
+  async listPaginated(
+    month: string,
+    page = 1,
+    perPage = 30,
+  ): Promise<{ items: Transaction[]; totalPages: number; totalItems: number }> {
+    const { start, end } = monthRange(month)
+    const records = await getPB()
+      .collection('transactions')
+      .getList<Rec>(page, perPage, {
+        filter: scope(`date >= "${start} 00:00:00"`, `date <= "${end} 23:59:59.999Z"`),
+        sort: '-date, -created',
+        expand: 'wallet,to_wallet,category,sub_category',
+      })
+
+    return {
+      items: records.items.map(mapTx),
+      totalPages: records.totalPages,
+      totalItems: records.totalItems,
+    }
   },
 
   async listRange(start: string, end: string): Promise<Transaction[]> {
@@ -428,6 +482,7 @@ export const TxRepo = {
       .getList<Rec>(1, 500, {
         filter: scope(`date >= "${start} 00:00:00"`, `date <= "${end} 23:59:59.999Z"`),
         sort: '-date, -created',
+        expand: 'wallet,to_wallet,category,sub_category',
       })
 
     return records.items.map(mapTx)
@@ -436,23 +491,30 @@ export const TxRepo = {
   async recent(limit = 5): Promise<Transaction[]> {
     const records = await getPB()
       .collection('transactions')
-      .getList<Rec>(1, limit, { filter: scope(), sort: '-date, -created' })
+      .getList<Rec>(1, limit, {
+        filter: scope(),
+        sort: '-date, -created',
+        expand: 'wallet,to_wallet,category',
+      })
 
     return records.items.map(mapTx)
   },
 
   async create(input: Partial<Transaction>): Promise<Transaction> {
+    invalidateWalletCache()
     const payload = { ...unmapTx(input), household_id: householdId() }
     const rec = await getPB().collection('transactions').create(payload)
     return mapTx(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<Transaction>): Promise<Transaction> {
+    invalidateWalletCache()
     const rec = await getPB().collection('transactions').update(id, unmapTx(input))
     return mapTx(rec as unknown as Rec)
   },
 
   async remove(id: string) {
+    invalidateWalletCache()
     await getPB().collection('transactions').delete(id)
   },
 }
@@ -582,20 +644,24 @@ export const BudgetRepo = {
     const pb = getPB()
     const filter = scope(`month = "${escape(input.month)}"`, `category = "${escape(input.category)}"`)
 
-    try {
-      const existing = await pb.collection('budgets').getFirstListItem(filter)
-      return await pb.collection('budgets').update(existing.id, { amount: input.amount, notes: input.notes ?? '' })
-    } catch (err) {
-      // getFirstListItem melempar 404 saat pagaran belum ada; itu kondisi normal.
-      if (!(err instanceof Error) || !/404/.test(err.message)) throw err
-      return await pb.collection('budgets').create({
-        month: input.month,
-        category: input.category,
-        amount: input.amount,
-        notes: input.notes ?? '',
-        household_id: householdId(),
-      })
+    const existing = await pb
+      .collection('budgets')
+      .getFirstListItem(filter)
+      .catch(() => null)
+
+    if (existing) {
+      return await pb
+        .collection('budgets')
+        .update(existing.id, { amount: input.amount, notes: input.notes ?? '' })
     }
+
+    return await pb.collection('budgets').create({
+      month: input.month,
+      category: input.category,
+      amount: input.amount,
+      notes: input.notes ?? '',
+      household_id: householdId(),
+    })
   },
 
   async remove(id: string) {

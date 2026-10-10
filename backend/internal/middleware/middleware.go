@@ -36,6 +36,40 @@ var (
 	remoteClient = &http.Client{Timeout: 5 * time.Second}
 )
 
+type cachedToken struct {
+	user      *RemoteUser
+	expiresAt time.Time
+}
+
+func init() {
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			now := time.Now()
+			tokenCache.Range(func(key, value any) bool {
+				if entry, ok := value.(cachedToken); ok {
+					if now.After(entry.expiresAt) {
+						tokenCache.Delete(key)
+					}
+				}
+				return true
+			})
+		}
+	}()
+}
+
+func storeCachedToken(token string, u *RemoteUser, expUnix int64) {
+	exp := time.Now().Add(15 * time.Minute)
+	if expUnix > 0 {
+		tokenExp := time.Unix(expUnix, 0)
+		if tokenExp.Before(exp) {
+			exp = tokenExp
+		}
+	}
+	tokenCache.Store(token, cachedToken{user: u, expiresAt: exp})
+}
+
 type jwtPayload struct {
 	ID  string `json:"id"`
 	Exp int64  `json:"exp"`
@@ -85,8 +119,11 @@ func verifyRemoteToken(token string) (*RemoteUser, bool) {
 	}
 
 	if val, ok := tokenCache.Load(token); ok {
-		if u, ok := val.(*RemoteUser); ok {
-			return u, true
+		if entry, ok := val.(cachedToken); ok {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.user, true
+			}
+			tokenCache.Delete(token)
 		}
 	}
 
@@ -130,7 +167,7 @@ func verifyRemoteToken(token string) (*RemoteUser, bool) {
 							}
 						}
 					}
-					tokenCache.Store(token, u)
+					storeCachedToken(token, u, payload.Exp)
 					return u, true
 				}
 			} else if resp != nil {
@@ -171,7 +208,7 @@ func verifyRemoteToken(token string) (*RemoteUser, bool) {
 		HouseholdID: data.Record.HouseholdID,
 	}
 
-	tokenCache.Store(token, u)
+	storeCachedToken(token, u, payload.Exp)
 	return u, true
 }
 

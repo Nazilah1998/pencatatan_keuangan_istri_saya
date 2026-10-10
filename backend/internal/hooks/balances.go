@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
 	"sintya-finance/backend/internal/collections"
-	"sintya-finance/backend/internal/services"
 )
 
 // DeltaWallet adalah perubahan saldo sebuah wallet akibat satu transaksi.
@@ -20,20 +20,14 @@ func DeltaWallet(rec *core.Record) float64 {
 	case "income":
 		return amount
 	case "expense":
-		// Setoran tabungan juga mengurangi saldo dompet sumber; bedanya hanya
-		// pada klasifikasi laporan (lihat services.IsSavingsContribution).
 		return -amount
 	case "transfer":
-		// Transfer: wallet sumber -, wallet tujuan + (dihitung terpisah).
 		return -amount
 	default:
 		return 0
 	}
 }
 
-// recomputeWalletBalances menghitung saldo wallet dari nol: initial_balance
-// ditambah seluruh transaksi yang terkait. Menghitung ulang (bukan
-// menambahkan delta) membuat hasil idempoten dan bebas dari drift.
 func recomputeWalletBalances(app core.App, householdID string, walletIDs []string) error {
 	if householdID == "" || len(walletIDs) == 0 {
 		return nil
@@ -42,11 +36,6 @@ func recomputeWalletBalances(app core.App, householdID string, walletIDs []strin
 	walletCol, err := app.FindCachedCollectionByNameOrId(collections.ColWallets)
 	if err != nil {
 		return fmt.Errorf("cari koleksi wallets: %w", err)
-	}
-
-	txCol, err := app.FindCachedCollectionByNameOrId(collections.ColTransactions)
-	if err != nil {
-		return fmt.Errorf("cari koleksi transactions: %w", err)
 	}
 
 	for _, walletID := range walletIDs {
@@ -63,48 +52,30 @@ func recomputeWalletBalances(app core.App, householdID string, walletIDs []strin
 			continue
 		}
 
-		balance := wallet.GetFloat("initial_balance")
+		var netOutgoing float64
+		_ = app.DB().NewQuery(`
+			SELECT COALESCE(SUM(
+				CASE 
+					WHEN type = 'income' THEN amount 
+					WHEN type = 'expense' THEN -amount 
+					WHEN type = 'transfer' THEN -amount 
+					ELSE 0 
+				END
+			), 0)
+			FROM ` + collections.ColTransactions + `
+			WHERE household_id = {:h} AND wallet = {:w}
+		`).Bind(dbx.Params{"h": householdID, "w": walletID}).Row(&netOutgoing)
 
-		// Sumber: transaksi income/expense dari wallet ini.
-		records, err := app.FindRecordsByFilter(
-			txCol.Id,
-			`household_id = {:h} && wallet = {:w}`,
-			"date", 0, 0,
-			map[string]any{"h": householdID, "w": walletID},
-		)
-		if err != nil {
-			return fmt.Errorf("ambil transaksi wallet %s: %w", walletID, err)
-		}
+		var netIncoming float64
+		_ = app.DB().NewQuery(`
+			SELECT COALESCE(SUM(amount), 0)
+			FROM ` + collections.ColTransactions + `
+			WHERE household_id = {:h} AND to_wallet = {:w} AND type = 'transfer'
+		`).Bind(dbx.Params{"h": householdID, "w": walletID}).Row(&netIncoming)
 
-		for _, rec := range records {
-			amount := rec.GetFloat("amount")
-			switch rec.GetString("type") {
-			case "income":
-				balance += amount
-			case "expense":
-				balance -= amount
-			case "transfer":
-				// outgoing dihitung lewat query kedua di bawah
-				balance -= amount
-			}
-		}
+		debtPaid := paidFromWallet(app, householdID, walletID)
 
-		// Tujuan: transaksi transfer masuk ke wallet ini.
-		incoming, err := app.FindRecordsByFilter(
-			txCol.Id,
-			`household_id = {:h} && to_wallet = {:w} && type = "transfer"`,
-			"date", 0, 0,
-			map[string]any{"h": householdID, "w": walletID},
-		)
-		if err != nil {
-			return fmt.Errorf(" ambil transfer masuk wallet %s: %w", walletID, err)
-		}
-		for _, rec := range incoming {
-			balance += rec.GetFloat("amount")
-		}
-
-		// Cicilan utang yang dibayar dari wallet ini mengurangi saldo.
-		balance -= paidFromWallet(app, householdID, walletID)
+		balance := wallet.GetFloat("initial_balance") + netOutgoing + netIncoming - debtPaid
 
 		if wallet.GetFloat("balance") == balance {
 			continue
@@ -119,32 +90,18 @@ func recomputeWalletBalances(app core.App, householdID string, walletIDs []strin
 	return nil
 }
 
-// paidFromWallet menjumlahkan cicilan utang yang dibayar dari sebuah wallet.
 func paidFromWallet(app core.App, householdID, walletID string) float64 {
 	if walletID == "" {
 		return 0
 	}
 
-	payCol, err := app.FindCachedCollectionByNameOrId(collections.ColDebtPayments)
-	if err != nil {
-		return 0
-	}
+	var total float64
+	_ = app.DB().NewQuery(`
+		SELECT COALESCE(SUM(amount), 0)
+		FROM ` + collections.ColDebtPayments + `
+		WHERE household_id = {:h} AND wallet = {:w}
+	`).Bind(dbx.Params{"h": householdID, "w": walletID}).Row(&total)
 
-	records, err := app.FindRecordsByFilter(
-		payCol.Id,
-		`household_id = {:h} && wallet = {:w}`,
-		"date", 0, 0,
-		map[string]any{"h": householdID, "w": walletID},
-	)
-	if err != nil {
-		slog.Warn("gagal menjumlahkan cicilan per wallet", "wallet", walletID, "error", err)
-		return 0
-	}
-
-	total := 0.0
-	for _, rec := range records {
-		total += rec.GetFloat("amount")
-	}
 	return total
 }
 
@@ -159,10 +116,6 @@ func recomputeSavingsAmount(app core.App, householdID, savingsID string) error {
 	if err != nil {
 		return fmt.Errorf("cari koleksi savings: %w", err)
 	}
-	txCol, err := app.FindCachedCollectionByNameOrId(collections.ColTransactions)
-	if err != nil {
-		return fmt.Errorf("cari koleksi transactions: %w", err)
-	}
 
 	goal, err := app.FindRecordById(savCol.Id, savingsID)
 	if err != nil {
@@ -173,23 +126,12 @@ func recomputeSavingsAmount(app core.App, householdID, savingsID string) error {
 		return nil
 	}
 
-	records, err := app.FindRecordsByFilter(
-		txCol.Id,
-		`household_id = {:h} && savings_goal = {:s}`,
-		"date", 0, 0,
-		map[string]any{"h": householdID, "s": savingsID},
-	)
-	if err != nil {
-		return fmt.Errorf("ambil transaksi tabungan %s: %w", savingsID, err)
-	}
-
-	current := 0.0
-	for _, rec := range records {
-		// Hanya setoran (expense + savings_goal) yang menambah dana target.
-		if services.IsSavingsContribution(rec) {
-			current += rec.GetFloat("amount")
-		}
-	}
+	var current float64
+	_ = app.DB().NewQuery(`
+		SELECT COALESCE(SUM(amount), 0)
+		FROM ` + collections.ColTransactions + `
+		WHERE household_id = {:h} AND savings_goal = {:s} AND type = 'expense'
+	`).Bind(dbx.Params{"h": householdID, "s": savingsID}).Row(&current)
 
 	if current < 0 {
 		current = 0
@@ -214,8 +156,6 @@ func recomputeSavingsAmount(app core.App, householdID, savingsID string) error {
 	return nil
 }
 
-// recomputeDebtBalance menghitung current_balance utang dari principal dikurangi
-// seluruh cicilan yang tercatat, lalu memperbarui statusnya.
 func recomputeDebtBalance(app core.App, householdID, debtID string) error {
 	if debtID == "" {
 		return nil
@@ -224,10 +164,6 @@ func recomputeDebtBalance(app core.App, householdID, debtID string) error {
 	debtCol, err := app.FindCachedCollectionByNameOrId(collections.ColDebts)
 	if err != nil {
 		return fmt.Errorf("cari koleksi debts: %w", err)
-	}
-	payCol, err := app.FindCachedCollectionByNameOrId(collections.ColDebtPayments)
-	if err != nil {
-		return fmt.Errorf("cari koleksi debt_payments: %w", err)
 	}
 
 	debt, err := app.FindRecordById(debtCol.Id, debtID)
@@ -239,20 +175,12 @@ func recomputeDebtBalance(app core.App, householdID, debtID string) error {
 		return nil
 	}
 
-	records, err := app.FindRecordsByFilter(
-		payCol.Id,
-		`household_id = {:h} && debt = {:d}`,
-		"date", 0, 0,
-		map[string]any{"h": householdID, "d": debtID},
-	)
-	if err != nil {
-		return fmt.Errorf("ambil cicilan utang %s: %w", debtID, err)
-	}
-
-	paid := 0.0
-	for _, rec := range records {
-		paid += rec.GetFloat("amount")
-	}
+	var paid float64
+	_ = app.DB().NewQuery(`
+		SELECT COALESCE(SUM(amount), 0)
+		FROM ` + collections.ColDebtPayments + `
+		WHERE household_id = {:h} AND debt = {:d}
+	`).Bind(dbx.Params{"h": householdID, "d": debtID}).Row(&paid)
 
 	balance := debt.GetFloat("principal") - paid
 	if balance < 0 {
@@ -268,9 +196,6 @@ func recomputeDebtBalance(app core.App, householdID, debtID string) error {
 		debt.Set("status", "active")
 	}
 
-	if debt.GetFloat("current_balance") == balance && debt.GetString("status") != "active" {
-		// status mungkin sudah benar; tetap simpan bila berubah
-	}
 	if err := app.Save(debt); err != nil {
 		return fmt.Errorf("simpan utang %s: %w", debtID, err)
 	}

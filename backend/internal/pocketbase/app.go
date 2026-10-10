@@ -39,6 +39,9 @@ func New(cfg *config.Config) (*pocketbase.PocketBase, error) {
 		return nil, fmt.Errorf("bootstrap pocketbase: %w", err)
 	}
 
+	tuneSQLite(pb.ConcurrentDB())
+	tuneSQLite(pb.NonconcurrentDB())
+
 	if db, ok := pb.ConcurrentDB().(*dbx.DB); ok {
 		db.QueryLogFunc = nil
 		db.ExecLogFunc = nil
@@ -170,5 +173,23 @@ func Shutdown(app core.App) {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		slog.Warn("shutdown pocketbase melewati batas waktu 5 detik")
+	}
+}
+
+func tuneSQLite(db dbx.Builder) {
+	if db == nil {
+		return
+	}
+	pragmas := []string{
+		"PRAGMA journal_mode = WAL;",
+		"PRAGMA synchronous = NORMAL;",
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA mmap_size = 268435456;",
+		"PRAGMA cache_size = -64000;",
+		"PRAGMA temp_store = MEMORY;",
+		"PRAGMA busy_timeout = 5000;",
+	}
+	for _, p := range pragmas {
+		_, _ = db.NewQuery(p).Execute()
 	}
 }

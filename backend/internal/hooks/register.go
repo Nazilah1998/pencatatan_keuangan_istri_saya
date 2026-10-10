@@ -2,7 +2,9 @@ package hooks
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -41,17 +43,64 @@ func Register(app core.App) {
 	app.OnRecordAfterUpdateSuccess(collections.ColDebts).BindFunc(onDebtSaved)
 }
 
-// StartBackgroundJobs menjalankan tugas periodik. Dipanggil sebagai goroutine
-// dari pocketbase.New.
+// StartBackgroundJobs menjalankan tugas periodik: recompute saldo, WAL checkpoint,
+// PRAGMA optimize, dan backup otomatis harian.
 func StartBackgroundJobs(app core.App) {
-	ticker := time.NewTicker(6 * time.Hour)
-	defer ticker.Stop()
+	runMaintenance(app)
 
-	for range ticker.C {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := RecomputeAll(ctx, app); err != nil {
-			slog.Error("recompute terjadwal gagal", "error", err)
+	maintTicker := time.NewTicker(6 * time.Hour)
+	backupTicker := time.NewTicker(24 * time.Hour)
+	defer maintTicker.Stop()
+	defer backupTicker.Stop()
+
+	for {
+		select {
+		case <-maintTicker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if err := RecomputeAll(ctx, app); err != nil {
+				slog.Error("recompute terjadwal gagal", "error", err)
+			}
+			runMaintenance(app)
+			cancel()
+		case <-backupTicker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			runAutoBackup(ctx, app, 7)
+			cancel()
 		}
-		cancel()
+	}
+}
+
+func runMaintenance(app core.App) {
+	if db := app.DB(); db != nil {
+		_, _ = db.NewQuery("PRAGMA wal_checkpoint(PASSIVE);").Execute()
+		_, _ = db.NewQuery("PRAGMA optimize;").Execute()
+	}
+}
+
+func runAutoBackup(ctx context.Context, app core.App, maxKeep int) {
+	name := fmt.Sprintf("auto_%s.zip", time.Now().Format("20060102_150405"))
+	if err := app.CreateBackup(ctx, name); err != nil {
+		slog.Warn("auto backup gagal", "error", err)
+		return
+	}
+	slog.Info("auto backup berhasil", "nama", name)
+
+	fs, err := app.NewBackupsFilesystem()
+	if err != nil {
+		return
+	}
+	defer fs.Close()
+
+	objects, err := fs.List("")
+	if err != nil || len(objects) <= maxKeep {
+		return
+	}
+
+	sort.Slice(objects, func(i, j int) bool {
+		return objects[i].ModTime.Before(objects[j].ModTime)
+	})
+
+	for i := 0; i < len(objects)-maxKeep; i++ {
+		_ = fs.Delete(objects[i].Key)
 	}
 }

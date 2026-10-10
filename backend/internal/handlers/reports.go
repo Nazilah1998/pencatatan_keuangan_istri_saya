@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -64,18 +65,38 @@ func (h *Reports) Summary(c fiber.Ctx) error {
 
 	ctx := c.RequestCtx()
 
-	flow, err := services.GetCashflow(ctx, h.store, householdID, start, end)
-	if err != nil {
+	var (
+		flow      *services.Cashflow
+		flowErr   error
+		worth     *services.NetWorth
+		worthErr  error
+		budget    *services.BudgetOverview
+		budgetErr error
+		wg        sync.WaitGroup
+	)
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		flow, flowErr = services.GetCashflow(ctx, h.store, householdID, start, end)
+	}()
+	go func() {
+		defer wg.Done()
+		worth, worthErr = services.GetNetWorth(ctx, h.store, householdID)
+	}()
+	go func() {
+		defer wg.Done()
+		budget, budgetErr = services.GetBudget(ctx, h.store, householdID, month)
+	}()
+	wg.Wait()
+
+	if flowErr != nil {
 		return apierr.Fail(c, apierr.Internal("Gagal menghitung arus kas"))
 	}
-
-	worth, err := services.GetNetWorth(ctx, h.store, householdID)
-	if err != nil {
+	if worthErr != nil {
 		return apierr.Fail(c, apierr.Internal("Gagal menghitung aset bersih"))
 	}
-
-	budget, err := services.GetBudget(ctx, h.store, householdID, month)
-	if err != nil {
+	if budgetErr != nil {
 		return apierr.Fail(c, apierr.Internal("Gagal menghitung anggaran"))
 	}
 

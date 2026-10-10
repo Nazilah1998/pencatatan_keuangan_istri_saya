@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Pencil,
   Plus,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { api, ApiPaths } from '../../lib/api/client'
 import {
   CategoryRepo,
   TxRepo,
@@ -254,24 +256,24 @@ function TransactionRow({
 
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-sm font-bold text-[var(--text-primary)]">
-              {tx.note || names[tx.category] || (isTransfer ? 'Transfer Antar Dompet' : 'Transaksi')}
+              {tx.note || tx.categoryName || names[tx.category] || (isTransfer ? 'Transfer Antar Dompet' : 'Transaksi')}
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[0.6875rem] text-[var(--text-muted)]">
               <span className="rounded-md bg-[var(--surface-sunken)] px-1.5 py-0.2 font-medium text-[var(--text-secondary)]">
-                {names[tx.wallet] || 'Dompet'}
+                {tx.walletName || names[tx.wallet] || 'Dompet'}
               </span>
-              {isTransfer && names[tx.toWallet] && (
+              {isTransfer && (tx.toWalletName || names[tx.toWallet]) && (
                 <>
                   <span>➔</span>
                   <span className="rounded-md bg-[var(--surface-sunken)] px-1.5 py-0.2 font-medium text-[var(--text-secondary)]">
-                    {names[tx.toWallet]}
+                    {tx.toWalletName || names[tx.toWallet]}
                   </span>
                 </>
               )}
-              {tx.category && names[tx.category] && (
+              {(tx.categoryName || (tx.category && names[tx.category])) && (
                 <>
                   <span>•</span>
-                  <span className="truncate">{names[tx.category]}</span>
+                  <span className="truncate">{tx.categoryName || names[tx.category]}</span>
                 </>
               )}
             </div>
@@ -337,6 +339,19 @@ export function TransactionsScreen() {
   const [composing, setComposing] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const [displayLimit, setDisplayLimit] = useState(30)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleExportCSV() {
+    try {
+      setDownloading(true)
+      await api.download(ApiPaths.exportCsv(month), `transaksi-${month}.csv`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengunduh CSV')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -406,10 +421,14 @@ export function TransactionsScreen() {
     }
   }, [items])
 
+  const visibleFiltered = useMemo(() => {
+    return filtered.slice(0, displayLimit)
+  }, [filtered, displayLimit])
+
   const groups = useMemo(() => {
     const byDate = new Map<string, Transaction[]>()
 
-    for (const tx of filtered) {
+    for (const tx of visibleFiltered) {
       const key = tx.date.slice(0, 10)
       const bucket = byDate.get(key)
       if (bucket) bucket.push(tx)
@@ -424,7 +443,7 @@ export function TransactionsScreen() {
         return sum + (tx.type === 'expense' ? -tx.amount : tx.amount)
       }, 0),
     }))
-  }, [filtered])
+  }, [visibleFiltered])
 
   async function handleDelete(id: string) {
     const ok = await confirmDelete('Hapus Transaksi?', t('common.delete_confirm_desc'))
@@ -563,25 +582,37 @@ export function TransactionsScreen() {
         )}
       </div>
 
-      <div className="relative w-full">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--text-muted)]" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('transactions.search_placeholder')}
-          aria-label={t('common.search')}
-          className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all focus:border-[var(--accent)] focus:outline-none"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          >
-            <X className="size-4" />
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--text-muted)]" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('transactions.search_placeholder')}
+            aria-label={t('common.search')}
+            className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all focus:border-[var(--accent)] focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleExportCSV()}
+          disabled={downloading || items.length === 0}
+          title="Unduh CSV Transaksi Bulan Ini"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-3.5 py-2.5 text-xs font-semibold text-[var(--text-secondary)] shadow-2xs transition hover:border-[var(--line-strong)] hover:text-[var(--text-primary)] active:scale-95 disabled:opacity-50"
+        >
+          <Download className="size-4 text-[var(--accent)]" />
+          <span className="hidden sm:inline">{downloading ? 'Mengunduh...' : 'Unduh CSV'}</span>
+        </button>
       </div>
 
       <div
@@ -705,6 +736,18 @@ export function TransactionsScreen() {
               </ul>
             </div>
           ))}
+
+          {filtered.length > displayLimit && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setDisplayLimit((prev) => prev + 30)}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] px-4 py-2 font-display text-xs font-semibold text-[var(--text-secondary)] shadow-2xs transition hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] active:scale-95"
+              >
+                <span>Tampilkan Lebih Banyak ({filtered.length - displayLimit} transaksi lagi)</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
