@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
+  ArrowLeftRight,
   ArrowUpRight,
   ChevronDown,
   Landmark,
@@ -86,7 +87,7 @@ export function Dashboard() {
           api.get<Summary>(ApiPaths.summary(month)).catch(() => null),
           api.get<Cashflow>(ApiPaths.cashflow(start, end)).catch(() => null),
           TxRepo.listByMonth(month).catch(() => []),
-          WalletRepo.list(true).catch(() => []),
+          WalletRepo.list(true, true).catch(() => []),
           BudgetRepo.listByMonth(month).catch(() => []),
           SavingsRepo.list(true).catch(() => []),
           DebtRepo.list(false).catch(() => []),
@@ -611,45 +612,61 @@ export function Dashboard() {
           </div>
         ) : (
           <ul className="divide-y divide-[var(--line-subtle)]">
-            {recent.map((tx) => (
-              <li
-                key={tx.id}
-                className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[var(--surface-sunken)] text-[var(--text-muted)]">
-                  <Wallet className="size-4" aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {tx.note ||
-                      categoryMap[tx.category] ||
-                      tx.category ||
-                      t("transactions.form.type")}
-                  </span>
-                  <span className="block truncate text-xs text-[var(--text-muted)]">
-                    {tx.date.slice(0, 10)} ·{" "}
-                    {wallets[tx.wallet] ?? t("common.total")}
-                  </span>
-                </span>
-                <span
-                  className={[
-                    "tnum shrink-0 text-sm font-semibold",
-                    tx.type === "income"
-                      ? "text-[var(--accent)]"
-                      : tx.type === "expense"
-                        ? "text-[var(--negative)]"
-                        : "",
-                  ].join(" ")}
+            {recent.map((tx) => {
+              const isTransfer = tx.type === "transfer";
+              return (
+                <li
+                  key={tx.id}
+                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  {tx.type === "income"
-                    ? "+"
-                    : tx.type === "expense"
-                      ? "−"
-                      : ""}
-                  {formatMoney(tx.amount, currency)}
-                </span>
-              </li>
-            ))}
+                  <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[var(--surface-sunken)] text-[var(--text-muted)]">
+                    {isTransfer ? (
+                      <ArrowLeftRight className="size-4 text-[var(--accent)]" aria-hidden />
+                    ) : (
+                      <Wallet className="size-4" aria-hidden />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {tx.note ||
+                        (isTransfer
+                          ? "Transfer Antar Dompet"
+                          : categoryMap[tx.category] ||
+                            tx.category ||
+                            t("transactions.form.type"))}
+                    </span>
+                    <span className="block truncate text-xs text-[var(--text-muted)]">
+                      {tx.date.slice(0, 10)} ·{" "}
+                      {isTransfer ? (
+                        <>
+                          {wallets[tx.wallet] || tx.walletName || "Dompet"} ➔{" "}
+                          {wallets[tx.toWallet] || tx.toWalletName || "Dompet"}
+                        </>
+                      ) : (
+                        wallets[tx.wallet] ?? t("common.total")
+                      )}
+                    </span>
+                  </span>
+                  <span
+                    className={[
+                      "tnum shrink-0 text-sm font-semibold",
+                      tx.type === "income"
+                        ? "text-[var(--accent)]"
+                        : tx.type === "expense"
+                          ? "text-[var(--negative)]"
+                          : "text-[var(--text-primary)]",
+                    ].join(" ")}
+                  >
+                    {tx.type === "income"
+                      ? "+"
+                      : tx.type === "expense"
+                        ? "−"
+                        : ""}
+                    {formatMoney(tx.amount, currency)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

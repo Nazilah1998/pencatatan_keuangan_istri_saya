@@ -297,6 +297,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('tx:created', () => {
     invalidateWalletCache()
   })
+  window.addEventListener('wallet:updated', () => {
+    invalidateWalletCache()
+  })
 }
 
 export const WalletRepo = {
@@ -504,19 +507,128 @@ export const TxRepo = {
     invalidateWalletCache()
     const payload = { ...unmapTx(input), household_id: householdId() }
     const rec = await getPB().collection('transactions').create(payload)
+    const amt = Number(input.amount || 0)
+
+    if (amt > 0) {
+      if (input.type === 'transfer') {
+        if (input.wallet) await adjustWalletBalance(input.wallet, -amt)
+        if (input.toWallet) await adjustWalletBalance(input.toWallet, amt)
+      } else if (input.type === 'expense') {
+        if (input.wallet) await adjustWalletBalance(input.wallet, -amt)
+      } else if (input.type === 'income') {
+        if (input.wallet) await adjustWalletBalance(input.wallet, amt)
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wallet:updated'))
+    }
+
     return mapTx(rec as unknown as Rec)
   },
 
   async update(id: string, input: Partial<Transaction>): Promise<Transaction> {
     invalidateWalletCache()
+    let oldRec: Rec | null = null
+    try {
+      oldRec = await getPB().collection('transactions').getOne<Rec>(id)
+    } catch {
+      oldRec = null
+    }
+
     const rec = await getPB().collection('transactions').update(id, unmapTx(input))
+
+    if (oldRec) {
+      const oldType = oldRec.type as TxType
+      const oldAmt = Number(oldRec.amount || 0)
+      const oldWallet = oldRec.wallet as string
+      const oldToWallet = oldRec.to_wallet as string
+
+      if (oldAmt > 0) {
+        if (oldType === 'transfer') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, oldAmt)
+          if (oldToWallet) await adjustWalletBalance(oldToWallet, -oldAmt)
+        } else if (oldType === 'expense') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, oldAmt)
+        } else if (oldType === 'income') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, -oldAmt)
+        }
+      }
+
+      const newType = (input.type ?? oldType) as TxType
+      const newAmt = input.amount !== undefined ? Number(input.amount) : oldAmt
+      const newWallet = input.wallet !== undefined ? input.wallet : oldWallet
+      const newToWallet = input.toWallet !== undefined ? input.toWallet : oldToWallet
+
+      if (newAmt > 0) {
+        if (newType === 'transfer') {
+          if (newWallet) await adjustWalletBalance(newWallet, -newAmt)
+          if (newToWallet) await adjustWalletBalance(newToWallet, newAmt)
+        } else if (newType === 'expense') {
+          if (newWallet) await adjustWalletBalance(newWallet, -newAmt)
+        } else if (newType === 'income') {
+          if (newWallet) await adjustWalletBalance(newWallet, newAmt)
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('wallet:updated'))
+      }
+    }
+
     return mapTx(rec as unknown as Rec)
   },
 
   async remove(id: string) {
     invalidateWalletCache()
+    let oldRec: Rec | null = null
+    try {
+      oldRec = await getPB().collection('transactions').getOne<Rec>(id)
+    } catch {
+      oldRec = null
+    }
+
     await getPB().collection('transactions').delete(id)
+
+    if (oldRec) {
+      const oldType = oldRec.type as TxType
+      const oldAmt = Number(oldRec.amount || 0)
+      const oldWallet = oldRec.wallet as string
+      const oldToWallet = oldRec.to_wallet as string
+
+      if (oldAmt > 0) {
+        if (oldType === 'transfer') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, oldAmt)
+          if (oldToWallet) await adjustWalletBalance(oldToWallet, -oldAmt)
+        } else if (oldType === 'expense') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, oldAmt)
+        } else if (oldType === 'income') {
+          if (oldWallet) await adjustWalletBalance(oldWallet, -oldAmt)
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('wallet:updated'))
+      }
+    }
   },
+}
+
+async function adjustWalletBalance(walletId: string, delta: number): Promise<void> {
+  if (!walletId || !delta || isNaN(delta)) return
+  try {
+    const pb = getPB()
+    const rec = await pb.collection('wallets').getOne<Rec>(walletId)
+    const current = Number(rec.balance ?? 0)
+    const next = current + delta
+    await pb.collection('wallets').update(walletId, { balance: next })
+    invalidateWalletCache()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wallet:updated'))
+    }
+  } catch (err) {
+    console.error(`Gagal menyesuaikan saldo dompet ${walletId}:`, err)
+  }
 }
 
 function unmapSavings(input: Partial<SavingsGoal>): Rec {

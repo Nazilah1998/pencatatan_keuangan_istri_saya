@@ -378,12 +378,14 @@ export function TransactionsScreen() {
 
   useEffect(() => {
     void load()
-    const onTxCreated = () => {
+    const onReload = () => {
       void load()
     }
-    window.addEventListener('tx:created', onTxCreated)
+    window.addEventListener('tx:created', onReload)
+    window.addEventListener('wallet:updated', onReload)
     return () => {
-      window.removeEventListener('tx:created', onTxCreated)
+      window.removeEventListener('tx:created', onReload)
+      window.removeEventListener('wallet:updated', onReload)
     }
   }, [load])
 
@@ -394,7 +396,16 @@ export function TransactionsScreen() {
       if (filter !== 'all' && tx.type !== filter) return false
       if (!needle) return true
 
-      return [tx.note, names[tx.category], names[tx.wallet], tx.amount]
+      return [
+        tx.note,
+        tx.categoryName,
+        names[tx.category],
+        tx.walletName,
+        names[tx.wallet],
+        tx.toWalletName,
+        names[tx.toWallet],
+        tx.amount,
+      ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     })
@@ -756,14 +767,20 @@ export function TransactionsScreen() {
         title={editing ? t('transactions.form.edit_title') : t('transactions.form.add_title')}
         onClose={closeModal}
       >
-        <TransactionForm
-          editing={editing}
-          defaultType="expense"
-          onDone={() => {
-            closeModal()
-            void load()
-          }}
-        />
+        {(composing || !!editing) && (
+          <TransactionForm
+            editing={editing}
+            defaultType="expense"
+            onDone={() => {
+              closeModal()
+              void load()
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('tx:created'))
+                window.dispatchEvent(new CustomEvent('wallet:updated'))
+              }
+            }}
+          />
+        )}
       </Modal>
     </div>
   )

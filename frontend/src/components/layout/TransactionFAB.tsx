@@ -17,7 +17,10 @@ export function TransactionFAB() {
 
   function handleDone() {
     setOpen(false)
-    window.dispatchEvent(new CustomEvent('tx:created'))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tx:created'))
+      window.dispatchEvent(new CustomEvent('wallet:updated'))
+    }
   }
 
   return (
@@ -38,11 +41,13 @@ export function TransactionFAB() {
         title={t('transactions.form.add_title')}
         onClose={() => setOpen(false)}
       >
-        <TransactionForm
-          editing={null}
-          defaultType="expense"
-          onDone={handleDone}
-        />
+        {open && (
+          <TransactionForm
+            editing={null}
+            defaultType="expense"
+            onDone={handleDone}
+          />
+        )}
       </Modal>
     </>
   )

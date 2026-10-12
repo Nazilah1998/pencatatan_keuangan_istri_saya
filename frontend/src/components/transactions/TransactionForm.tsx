@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowDownLeft,
   ArrowLeftRight,
-  ArrowRight,
   ArrowUpRight,
   Calendar,
   Check,
   FileText,
   Loader2,
+  Sparkles,
   Tag,
   Trash2,
   Wallet as WalletIcon,
@@ -20,6 +21,7 @@ import {
   SubCategoryRepo,
   TxRepo,
   WalletRepo,
+  invalidateWalletCache,
   type Category,
   type SubCategory,
   type Transaction,
@@ -85,27 +87,16 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
     async function loadData() {
       try {
-        const [wList, cList, sList, gList, txList] = await Promise.all([
-          WalletRepo.list(false).catch(() => []),
+        const [wList, cList, sList, gList] = await Promise.all([
+          WalletRepo.list(false, true).catch(() => []),
           CategoryRepo.list().catch(() => []),
           SubCategoryRepo.list().catch(() => []),
           SavingsRepo.list().catch(() => []),
-          TxRepo.recent(1000).catch(() => []),
         ])
 
         if (!alive) return
 
-        const walletsWithRealBalance = wList.map((w) => {
-          const inTx = txList.filter((t) => t.wallet === w.id && t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
-          const outTx = txList.filter((t) => t.wallet === w.id && t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
-          const trfOut = txList.filter((t) => t.wallet === w.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
-          const trfIn = txList.filter((t) => t.toWallet === w.id && t.type === 'transfer').reduce((acc, t) => acc + t.amount, 0)
-          const netTx = inTx - outTx - trfOut + trfIn
-          const realBal = (w.balance && w.balance !== 0) ? w.balance : ((w.initialBalance || 0) + netTx)
-          return { ...w, balance: realBal }
-        })
-
-        setWallets(walletsWithRealBalance)
+        setWallets(wList)
         setCategories(cList)
         setSubs(sList)
         setGoals(gList.map((item) => ({ id: item.id, name: item.name })))
@@ -117,23 +108,46 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
     void loadData()
 
+    const onReload = () => {
+      if (alive) void loadData()
+    }
+    window.addEventListener('tx:created', onReload)
+    window.addEventListener('wallet:updated', onReload)
+
     return () => {
       alive = false
+      window.removeEventListener('tx:created', onReload)
+      window.removeEventListener('wallet:updated', onReload)
     }
   }, [])
 
   useEffect(() => {
     if (!editing) {
-      setForm((prev) => ({
-        ...prev,
-        type: prev.type || defaultType,
-        date: prev.date || todayISO(),
-        wallet: prev.wallet || wallets[0]?.id || '',
-        category:
-          prev.category ||
-          categories.filter((c) => !c.isArchived && c.type === (prev.type || defaultType))[0]?.id ||
-          '',
-      }))
+      setForm((prev) => {
+        const activeType = prev.type || defaultType
+        const defaultWallet = prev.wallet || wallets[0]?.id || ''
+        const defaultToWallet =
+          prev.toWallet ||
+          wallets.find((w) => w.id !== defaultWallet)?.id ||
+          ''
+
+        return {
+          ...prev,
+          type: activeType,
+          date: prev.date || todayISO(),
+          wallet: defaultWallet,
+          toWallet:
+            activeType === 'transfer'
+              ? prev.toWallet && prev.toWallet !== defaultWallet
+                ? prev.toWallet
+                : defaultToWallet
+              : prev.toWallet,
+          category:
+            prev.category ||
+            categories.filter((c) => !c.isArchived && c.type === activeType)[0]?.id ||
+            '',
+        }
+      })
       return
     }
 
@@ -142,7 +156,7 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
       amount: formatAmountInput(editing.amount),
       date: (editing.date || todayISO()).slice(0, 10),
       wallet: editing.wallet,
-      toWallet: editing.toWallet,
+      toWallet: editing.toWallet || '',
       category: editing.category,
       subCategory: editing.subCategory,
       savingsGoal: editing.savingsGoal,
@@ -157,12 +171,54 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
   function changeType(value: FormState['type']) {
     setForm((prev) => {
       const matchingCats = categories.filter((c) => !c.isArchived && c.type === value)
+      const currentWallet = prev.wallet || wallets[0]?.id || ''
+      const otherWallet = wallets.find((w) => w.id !== currentWallet)?.id ?? ''
       return {
         ...prev,
         type: value,
         category: matchingCats[0]?.id ?? '',
         subCategory: '',
-        toWallet: value === 'transfer' ? (wallets.find((w) => w.id !== prev.wallet)?.id ?? '') : '',
+        wallet: currentWallet,
+        toWallet: value === 'transfer' ? (prev.toWallet && prev.toWallet !== currentWallet ? prev.toWallet : otherWallet) : '',
+      }
+    })
+  }
+
+  function handleSwapWallets() {
+    setForm((prev) => {
+      if (!prev.toWallet || !prev.wallet) return prev
+      return {
+        ...prev,
+        wallet: prev.toWallet,
+        toWallet: prev.wallet,
+      }
+    })
+  }
+
+  function handleSourceWalletChange(newSourceId: string) {
+    setForm((prev) => {
+      let nextTo = prev.toWallet
+      if (nextTo === newSourceId) {
+        nextTo = prev.wallet !== newSourceId ? prev.wallet : (wallets.find((w) => w.id !== newSourceId)?.id ?? '')
+      }
+      return {
+        ...prev,
+        wallet: newSourceId,
+        toWallet: nextTo,
+      }
+    })
+  }
+
+  function handleDestWalletChange(newDestId: string) {
+    setForm((prev) => {
+      let nextFrom = prev.wallet
+      if (nextFrom === newDestId) {
+        nextFrom = prev.toWallet !== newDestId ? prev.toWallet : (wallets.find((w) => w.id !== newDestId)?.id ?? '')
+      }
+      return {
+        ...prev,
+        wallet: nextFrom,
+        toWallet: newDestId,
       }
     })
   }
@@ -179,6 +235,57 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const isTransfer = form.type === 'transfer'
+  const currentAmountNum = parseAmount(form.amount)
+
+  const isEditingThisTransfer = Boolean(editing && editing.type === 'transfer')
+  const originalEditingAmount = isEditingThisTransfer ? editing!.amount : 0
+  const originalEditingFrom = isEditingThisTransfer ? editing!.wallet : ''
+  const originalEditingTo = isEditingThisTransfer ? editing!.toWallet : ''
+
+  const sourceWallet = useMemo(
+    () => wallets.find((w) => w.id === form.wallet),
+    [wallets, form.wallet],
+  )
+  const destWallet = useMemo(
+    () => wallets.find((w) => w.id === form.toWallet),
+    [wallets, form.toWallet],
+  )
+
+  const sourceBaseBalance = useMemo(() => {
+    if (!sourceWallet) return 0
+    let bal = sourceWallet.balance
+    if (isEditingThisTransfer && sourceWallet.id === originalEditingFrom) {
+      bal += originalEditingAmount
+    }
+    if (isEditingThisTransfer && sourceWallet.id === originalEditingTo) {
+      bal -= originalEditingAmount
+    }
+    return bal
+  }, [sourceWallet, isEditingThisTransfer, originalEditingFrom, originalEditingTo, originalEditingAmount])
+
+  const destBaseBalance = useMemo(() => {
+    if (!destWallet) return 0
+    let bal = destWallet.balance
+    if (isEditingThisTransfer && destWallet.id === originalEditingTo) {
+      bal -= originalEditingAmount
+    }
+    if (isEditingThisTransfer && destWallet.id === originalEditingFrom) {
+      bal += originalEditingAmount
+    }
+    return bal
+  }, [destWallet, isEditingThisTransfer, originalEditingTo, originalEditingFrom, originalEditingAmount])
+
+  const sourceProjectedBalance = sourceBaseBalance - (isTransfer ? currentAmountNum : 0)
+  const destProjectedBalance = destBaseBalance + (isTransfer ? currentAmountNum : 0)
+  const isSourceDeficit = isTransfer && currentAmountNum > 0 && sourceProjectedBalance < 0
+
+  function handleTransferAll() {
+    if (sourceBaseBalance > 0) {
+      set('amount', formatAmountInput(sourceBaseBalance))
+    }
   }
 
   function validate(): string {
@@ -222,6 +329,12 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
       if (editing) await TxRepo.update(editing.id, payload)
       else await TxRepo.create(payload)
 
+      invalidateWalletCache()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tx:created'))
+        window.dispatchEvent(new CustomEvent('wallet:updated'))
+      }
+
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : m('common.retry'))
@@ -239,6 +352,11 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
 
     try {
       await TxRepo.remove(editing.id)
+      invalidateWalletCache()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tx:created'))
+        window.dispatchEvent(new CustomEvent('wallet:updated'))
+      }
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : m('common.retry'))
@@ -246,7 +364,6 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
     }
   }
 
-  const currentAmountNum = parseAmount(form.amount)
   const today = todayISO()
   const yesterday = useMemo(() => {
     const d = new Date()
@@ -450,48 +567,147 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
           </div>
 
           {form.type === 'transfer' ? (
-            <div className="space-y-2 sm:col-span-2">
-              <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                <ArrowLeftRight className="size-3.5" />
-                <span>Alur Transfer</span>
-              </label>
+            <div className="space-y-2.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <ArrowLeftRight className="size-3.5 text-[var(--accent)]" />
+                  <span>Alur Transfer</span>
+                </label>
 
-              <div className="flex flex-col gap-2 rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/50 p-3 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <ModernSelect
-                    label="Dari Dompet"
-                    value={form.wallet}
-                    onChange={(w) => set('wallet', w)}
-                    options={wallets.map((w) => ({
-                      value: w.id,
-                      label: w.name,
-                      icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
-                      badge: formatMoney(w.balance, currency),
-                    }))}
-                    placeholder="Pilih Dompet Asal"
-                  />
+                {sourceBaseBalance > 0 && currentAmountNum !== sourceBaseBalance && (
+                  <button
+                    type="button"
+                    onClick={handleTransferAll}
+                    className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-sunken)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[var(--accent)] transition-all hover:bg-[var(--accent-soft)] active:scale-95"
+                  >
+                    <Sparkles className="size-3" />
+                    <span>Transfer Semua Saldo</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-sunken)]/50 p-3 sm:p-4 space-y-3">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                  <div className="flex-1 space-y-1.5">
+                    <ModernSelect
+                      label={
+                        <span className="flex items-center justify-between text-[0.6875rem] font-bold text-[var(--text-muted)]">
+                          <span>DARI DOMPET (ASAL)</span>
+                          {sourceWallet && (
+                            <span className="font-normal text-[var(--text-secondary)]">
+                              Saldo: {formatMoney(sourceBaseBalance, currency)}
+                            </span>
+                          )}
+                        </span>
+                      }
+                      value={form.wallet}
+                      onChange={handleSourceWalletChange}
+                      options={wallets.map((w) => {
+                        const isCurrentTo = w.id === form.toWallet
+                        return {
+                          value: w.id,
+                          label: w.name,
+                          icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                          badge: formatMoney(w.balance, currency),
+                          description: isCurrentTo ? 'Sedang dipilih sebagai dompet tujuan' : undefined,
+                        }
+                      })}
+                      placeholder="Pilih Dompet Asal"
+                    />
+
+                    {sourceWallet && currentAmountNum > 0 && (
+                      <div className="flex items-center justify-between rounded-lg bg-[var(--surface-base)] px-2.5 py-1.5 text-xs">
+                        <span className="text-[var(--text-muted)]">Sisa Saldo:</span>
+                        <span
+                          className={[
+                            'font-display font-bold',
+                            isSourceDeficit ? 'text-[var(--negative)]' : 'text-[var(--text-primary)]',
+                          ].join(' ')}
+                        >
+                          {formatMoney(sourceProjectedBalance, currency)}
+                          {isSourceDeficit && ' (Defisit)'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-center pt-1 sm:pt-4">
+                    <button
+                      type="button"
+                      onClick={handleSwapWallets}
+                      title="Tukar posisi dompet asal & tujuan"
+                      aria-label="Tukar dompet asal dan tujuan"
+                      className="group flex size-9 items-center justify-center rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-raised)] text-[var(--text-secondary)] shadow-2xs transition-all hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] active:scale-90"
+                    >
+                      <ArrowLeftRight className="size-4 rotate-90 transition-transform duration-200 group-hover:rotate-180 sm:rotate-0" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <ModernSelect
+                      label={
+                        <span className="flex items-center justify-between text-[0.6875rem] font-bold text-[var(--text-muted)]">
+                          <span>KE DOMPET (TUJUAN)</span>
+                          {destWallet && (
+                            <span className="font-normal text-[var(--text-secondary)]">
+                              Saldo: {formatMoney(destBaseBalance, currency)}
+                            </span>
+                          )}
+                        </span>
+                      }
+                      value={form.toWallet}
+                      onChange={handleDestWalletChange}
+                      options={wallets.map((w) => {
+                        const isCurrentFrom = w.id === form.wallet
+                        return {
+                          value: w.id,
+                          label: w.name,
+                          icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
+                          badge: formatMoney(w.balance, currency),
+                          description: isCurrentFrom ? 'Sedang dipilih sebagai dompet asal' : undefined,
+                        }
+                      })}
+                      placeholder="Pilih Dompet Tujuan"
+                    />
+
+                    {destWallet && currentAmountNum > 0 && (
+                      <div className="flex items-center justify-between rounded-lg bg-[var(--surface-base)] px-2.5 py-1.5 text-xs">
+                        <span className="text-[var(--text-muted)]">Saldo Menjadi:</span>
+                        <span className="font-display font-bold text-[var(--accent)]">
+                          {formatMoney(destProjectedBalance, currency)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="grid place-items-center pt-1 sm:px-1 sm:pt-6">
-                  <ArrowRight className="size-4 rotate-90 text-[var(--accent)] sm:rotate-0" />
-                </div>
+                {sourceWallet && destWallet && currentAmountNum > 0 && (
+                  <div
+                    className={[
+                      'flex flex-col gap-1 rounded-xl p-2.5 text-xs transition-colors sm:flex-row sm:items-center sm:justify-between',
+                      isSourceDeficit
+                        ? 'border border-[var(--negative)]/30 bg-[var(--negative-soft)]/60 text-[var(--negative)]'
+                        : 'border border-[var(--line-subtle)] bg-[var(--surface-base)] text-[var(--text-secondary)]',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {isSourceDeficit ? (
+                        <AlertTriangle className="size-4 shrink-0 text-[var(--negative)]" />
+                      ) : (
+                        <Check className="size-4 shrink-0 text-[var(--accent)] stroke-[2.5]" />
+                      )}
+                      <span>
+                        {isSourceDeficit
+                          ? `Saldo asal kurang ${formatMoney(Math.abs(sourceProjectedBalance), currency)}`
+                          : `Sinkronisasi terverifikasi: ${sourceWallet.name} ➔ ${destWallet.name}`}
+                      </span>
+                    </div>
 
-                <div className="flex-1">
-                  <ModernSelect
-                    label="Ke Dompet"
-                    value={form.toWallet}
-                    onChange={(w) => set('toWallet', w)}
-                    options={wallets
-                      .filter((w) => w.id !== form.wallet)
-                      .map((w) => ({
-                        value: w.id,
-                        label: w.name,
-                        icon: <WalletIcon className="size-4 text-[var(--accent)]" />,
-                        badge: formatMoney(w.balance, currency),
-                      }))}
-                    placeholder="Pilih Dompet Tujuan"
-                  />
-                </div>
+                    <div className="font-mono text-[0.6875rem] font-bold text-[var(--text-primary)]">
+                      {formatMoney(currentAmountNum, currency)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -581,7 +797,11 @@ export function TransactionForm({ editing, defaultType, onDone }: Props) {
             type="text"
             value={form.note}
             onChange={(e) => set('note', e.target.value)}
-            placeholder={t('transactions.form.description_placeholder')}
+            placeholder={
+              form.type === 'transfer'
+                ? 'Contoh: Pindah tabungan, Top up e-wallet, Alokasi bulanan...'
+                : t('transactions.form.description_placeholder')
+            }
             maxLength={200}
             className="w-full rounded-xl border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-all focus:border-[var(--accent)] focus:outline-none"
           />

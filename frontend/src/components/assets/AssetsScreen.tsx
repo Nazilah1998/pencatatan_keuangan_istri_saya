@@ -154,34 +154,12 @@ export function AssetsScreen() {
     setError('')
 
     try {
-      const [w, d, txList] = await Promise.all([
-        WalletRepo.list(true).catch(() => []),
+      const [w, d] = await Promise.all([
+        WalletRepo.list(true, true).catch(() => []),
         DebtRepo.list(true).catch(() => []),
-        TxRepo.recent(1000).catch(() => []),
       ])
 
-      const walletsWithRealBalance = w.map((wallet) => {
-        const inTx = txList
-          .filter((tx) => tx.wallet === wallet.id && tx.type === 'income')
-          .reduce((sum, tx) => sum + tx.amount, 0)
-        const outTx = txList
-          .filter((tx) => tx.wallet === wallet.id && tx.type === 'expense')
-          .reduce((sum, tx) => sum + tx.amount, 0)
-        const trfOut = txList
-          .filter((tx) => tx.wallet === wallet.id && tx.type === 'transfer')
-          .reduce((sum, tx) => sum + tx.amount, 0)
-        const trfIn = txList
-          .filter((tx) => tx.toWallet === wallet.id && tx.type === 'transfer')
-          .reduce((sum, tx) => sum + tx.amount, 0)
-        const netTx = inTx - outTx - trfOut + trfIn
-        const realBal =
-          wallet.balance && wallet.balance !== 0
-            ? wallet.balance
-            : (wallet.initialBalance || 0) + netTx
-        return { ...wallet, balance: realBal }
-      })
-
-      setWallets(walletsWithRealBalance)
+      setWallets(w)
       setDebts(d)
     } catch (err) {
       setError(err instanceof Error ? err.message : m('common.retry'))
@@ -192,12 +170,14 @@ export function AssetsScreen() {
 
   useEffect(() => {
     void load()
-    const onTxCreated = () => {
+    const onReload = () => {
       void load()
     }
-    window.addEventListener('tx:created', onTxCreated)
+    window.addEventListener('tx:created', onReload)
+    window.addEventListener('wallet:updated', onReload)
     return () => {
-      window.removeEventListener('tx:created', onTxCreated)
+      window.removeEventListener('tx:created', onReload)
+      window.removeEventListener('wallet:updated', onReload)
     }
   }, [load])
 
